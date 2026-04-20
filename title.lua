@@ -297,7 +297,7 @@ local mode_menu = {
     },
     {
         label = "replays",
-        onEnter = function() title.changeState("replay_browser") end
+        onEnter = function() replay_selected = 1; replay_scroll = 1; title.changeState("replay_browser") end
     },
     {
         label = "config",
@@ -395,7 +395,7 @@ state_handlers = {
         update = function()
             if input.getKeyPressed("escape") then
                 love.event.quit()
-            elseif input.checkPressed("b1") then
+            elseif input.checkPressed("b1") or input.getKeyPressed("return") then
                 if username == "" then
                     title.changeState("username")
                 else
@@ -787,8 +787,6 @@ state_handlers = {
         overlay = "UD : navigate | O : select | X : back",
         onEnter = function()
             refreshReplayList()
-            replay_selected = 1
-            replay_scroll = 1
             replay_acting = false
         end,
         update = function()

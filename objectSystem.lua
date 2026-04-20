@@ -48,24 +48,33 @@ objectSystem = {
             return this:left(ox, oy) > stage.blastZone.r or this:bottom(ox, oy) < stage.blastZone.t or this:right(ox, oy) < stage.blastZone.l or this:top(ox, oy) > stage.blastZone.b
         end
 
-        obj.is_solid = function(this, dx, dy)
+        local function check_solid(this, px, py, p)
+            return px < p.x + p.w and px + this.hurtbox.w > p.x and
+                   py < p.y + p.h and py + this.hurtbox.h > p.y
+        end
+
+        local function check_semisolid(this, px, py, p)
+            local curr_bottom = this.y + this.hurtbox.y + this.hurtbox.h
+            local next_bottom = py + this.hurtbox.h
+
+            return curr_bottom <= p.y and next_bottom > p.y and px < p.x + p.w and px + this.hurtbox.w > p.x
+        end
+
+        obj.is_solid = function(this, dx, dy, ignore_semisolid)
             local px = this.x + this.hurtbox.x + dx
             local py = this.y + this.hurtbox.y + dy
             for _, p in ipairs(stage.platforms) do
-                if p.type == "solid" then
-                    if px < p.x + p.w and px + this.hurtbox.w > p.x and
-                       py < p.y + p.h and py + this.hurtbox.h > p.y then
-                        return p 
-                    end
-                elseif p.type == "semisolid" then
-                    local curr_bottom = this.y + this.hurtbox.y + this.hurtbox.h
-                    local next_bottom = py + this.hurtbox.h
-                    
-                    if curr_bottom <= p.y and next_bottom > p.y then
-                        if px < p.x + p.w and px + this.hurtbox.w > p.x then
-                            return p 
-                        end
-                    end
+                if p.type == "solid" and check_solid(this, px, py, p) then
+                    return p
+                elseif p.type == "semisolid" and not ignore_semisolid and check_semisolid(this,px, py, p) then
+                    return p
+                end
+            end
+            for _, p in ipairs(objects) do
+                if p.solid and check_semisolid(this, px, py, p) then
+                    return p
+                elseif p.semisolid and check_semisolid(this, px, py, p) then
+                    return p
                 end
             end
             return false
@@ -74,10 +83,10 @@ objectSystem = {
         obj.move = function(this, ox, oy, on_collide_x, on_collide_y)
             this.rem.x = this.rem.x + ox
             this.rem.y = this.rem.y + oy
-            
+
             local amtX = math.floor(this.rem.x + 0.5)
             local amtY = math.floor(this.rem.y + 0.5)
-            
+
             this.rem.x = this.rem.x - amtX
             this.rem.y = this.rem.y - amtY
 
@@ -89,9 +98,9 @@ objectSystem = {
                     if on_collide_x and on_collide_x(this, stepX) then
                         break
                     end
-                    
+
                     if this.hitstun and this.hitstun > 0 then
-                        local wall_bounce = 0.4 
+                        local wall_bounce = 0.4
                         this.vx = -this.vx * wall_bounce
                         if math.abs(this.vx) < 0.5 then this.vx = 0 end
                     else
@@ -110,10 +119,10 @@ objectSystem = {
                     if on_collide_y and on_collide_y(this, stepY) then
                         break
                     end
-                    
+
                     if this.hitstun and this.hitstun > 0 then
                         if stepY > 0 then
-                            local floor_bounce = 0.75 
+                            local floor_bounce = 0.75
                             this.vy = -this.vy * floor_bounce
                         else
                             local ceiling_bounce = 0.2

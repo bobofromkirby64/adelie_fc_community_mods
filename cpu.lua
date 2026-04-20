@@ -3,15 +3,15 @@
 cpu = {
     timer = 0,
     is_stalling = 0,
-    
+
     getInputForFrame = function()
         local this, opp
         for _, o in ipairs(objects) do
             if o.connectionID == cpuID then this = o
             elseif o.connectionID ~= nil and o.type ~= snowball then opp = o end
         end
-        if not this or not opp then 
-            return {up=false, down=false, left=false, right=false, b1=false, b2=false} 
+        if not this or not opp then
+            return {up=false, down=false, left=false, right=false, b1=false, b2=false}
         end
 
         cpu.timer = cpu.timer + 1
@@ -20,22 +20,22 @@ cpu = {
         local cx = this.x + 4
         local ground_obj = this:is_solid(0, 1)
         local grounded = ground_obj ~= false
-        local on_semisolid = ground_obj and ground_obj.type == "semisolid"
-        
+        local on_semisolid = ground_obj and (ground_obj.type == "semisolid" or ground_obj.semisolid)
+
         local wall_l_obj = this:is_solid(-2, 0)
         local wall_r_obj = this:is_solid(2, 0)
-        local wall_left = wall_l_obj and wall_l_obj.type ~= "semisolid"
-        local wall_right = wall_r_obj and wall_r_obj.type ~= "semisolid"
-        
-        if grounded or wall_left or wall_right or this.dash_cooldown == 0 then 
-            cpu.is_stalling = 0 
+        local wall_left = wall_l_obj and wall_l_obj.type ~= "semisolid" and not wall_l_obj.semisolid
+        local wall_right = wall_r_obj and wall_r_obj.type ~= "semisolid" and not wall_r_obj.semisolid
+
+        if grounded or wall_left or wall_right or this.dash_cooldown == 0 then
+            cpu.is_stalling = 0
         end
 
         -- bounds & safe dir
         local over_solid = false
         local target_safe_x = 120
         local min_dist = 9999
-        
+
         if stage and stage.platforms then
             for _, p in ipairs(stage.platforms) do
                 if cx >= p.x and cx <= p.x + p.w and p.y >= this.y then over_solid = true end
@@ -43,7 +43,7 @@ cpu = {
                     local inset = math.min(p.w / 2, 6)
                     local p_closest_x = math.max(p.x + inset, math.min(cx, p.x + p.w - inset))
                     local dist = math.abs(cx - p_closest_x)
-                    
+
                     if dist < min_dist then
                         min_dist = dist
                         target_safe_x = p_closest_x
@@ -121,14 +121,14 @@ cpu = {
                 -- recovery
                 local towards_stage = (safe_dir == 1 and inps.right) or (safe_dir == -1 and inps.left)
                 if towards_stage then score = score + 20000 end
-                
+
                 if wall_left or wall_right then
                     if inps.b1 then score = score + 50000 end
                 else
                     if this.djump == 0 and this.dash_cooldown == 0 and cpu.is_stalling == 0 then
                         local stall_obj = this:is_solid(safe_dir * 5, 0)
-                        if stall_obj and stall_obj.type ~= "semisolid" and this.vy > 1.2 and inps.b2 and towards_stage and not inps.up and not inps.down then 
-                            score = score + 80000 
+                        if stall_obj and stall_obj.type ~= "semisolid" and not stall_obj.semisolid and this.vy > 1.2 and inps.b2 and towards_stage and not inps.up and not inps.down then
+                            score = score + 80000
                         end
                     end
                     if this.djump > 0 and this.y > 110 and inps.up and inps.b2 then score = score + 40000 end
@@ -154,7 +154,7 @@ cpu = {
                 else
                     -- pursuit
                     score = score + (800 - dist) * 10
-                    
+
                     -- gap closing
                     if math.abs(dx) > 15 then
                         if dx < 0 and inps.left then score = score + 5000 end
@@ -162,7 +162,7 @@ cpu = {
                     else
                         if action.name == "wait" then score = score + 6000 end
                     end
-                    
+
                     -- grounded behavior
                     if grounded then
                         if math.abs(dy) < 15 and (inps.left or inps.right or action.name == "wait") then score = score + 4000
@@ -172,8 +172,8 @@ cpu = {
                     end
 
                     -- dodge
-                    if action.name == "dodge" and dist < 30 and this.dash_cooldown == 0 and love.math.random() < 0.05 then 
-                        score = score + 70000 
+                    if action.name == "dodge" and dist < 30 and this.dash_cooldown == 0 and love.math.random() < 0.05 then
+                        score = score + 70000
                     end
 
                     -- dashes
@@ -181,7 +181,7 @@ cpu = {
                         local act_x = (inps.right and 1 or 0) - (inps.left and 1 or 0)
                         local act_y = (inps.down and 1 or 0) - (inps.up and 1 or 0)
                         local magnitude = math.max(1, math.sqrt(dx*dx + dy*dy))
-                        
+
                         if (act_x * (dx/magnitude)) + (act_y * (dy/magnitude)) > 0.85 then score = score + 25000 end
                         if not grounded and dy > 15 and inps.down then score = score + 35000 end
                     end
@@ -200,7 +200,7 @@ cpu = {
                         local act_x = (inps.right and 1 or 0) - (inps.left and 1 or 0)
                         local proj_dist = inps.b2 and 24 or (inps.b1 and 24 or 12)
                         local proj_x = cx + (act_x * proj_dist)
-                        
+
                         local safe_land = false
                         if stage and stage.platforms then
                             for _, p in ipairs(stage.platforms) do
@@ -233,9 +233,9 @@ cpu = {
             end
 
             score = score + love.math.random(0, 20)
-            if score > best_score then 
+            if score > best_score then
                 best_score = score
-                best_action = action 
+                best_action = action
             end
         end
 

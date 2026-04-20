@@ -63,13 +63,13 @@ hitbox = {
                             obj.hitstun = 15 + math.floor(math.min(50, obj.damage) / 10)
                             hb.active = false 
                             
-                            love.audio.play("hit", "static")
+                            love.audio.play(hb.hit_sfx or "hit", "static")
 
                             -- hit confirm
                             for _, attacker in ipairs(objects) do
                                 if attacker.connectionID == hb.ownerID then
                                     if attacker.type.on_hit_confirm then
-                                        attacker.type.on_hit_confirm(attacker, obj)
+                                        attacker.type.on_hit_confirm(attacker, obj, hb)
                                     end
                                     break
                                 end

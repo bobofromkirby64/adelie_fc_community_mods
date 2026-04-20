@@ -104,7 +104,7 @@ game = {
                         if game.mode == "TRAINING" then
                             gameController.enterCSS(game.mode)
                         elseif game.mode == "REPLAY" then
-                            gameController.enterTitle()
+                            gameController.enterTitle("replay_browser")
                         else
                             network.sendMessage("MATCHEND|FORFEIT", "reliable")
                             gameController.enterTitle()
@@ -537,7 +537,7 @@ game = {
                         replay.save(game.stageIdx, game.playerData, frontierFrame)
                         gameController.enterCSS(game.mode)
                     elseif game.mode == "REPLAY" then
-                        gameController.enterTitle()
+                        gameController.enterTitle("replay_browser")
                     else
                         network.sendMessage("MATCHEND|" .. tostring(winner), "reliable")
                         replay.save(game.stageIdx, game.playerData, frontierFrame)

@@ -1,5 +1,5 @@
 -- stage.lua
-
+require("objects/cloud")
 cc_clouds = function(r, g, b)
     for i = 1, 32 do
         table.insert(particles_bg, {
@@ -7,7 +7,7 @@ cc_clouds = function(r, g, b)
             y = math.random() * 135,
             spd = (1 + math.random() * 4) * 0.5,
             w = 32 + math.random() * 32,
-            c = {r, g, b}, 
+            c = {r, g, b},
             update = function(p)
                 p.x = p.x + p.spd
                 if p.x > 240 then
@@ -45,12 +45,12 @@ cc2_clouds = function(flat, r, g, b)
             draw = function(p)
                 love.graphics.setColor(p.c)
                 love.graphics.arc("fill", math.floor(p.x), math.floor(p.y), p.size / 3, math.pi, math.pi * 2)
-                
+
                 if p.big then
                     love.graphics.arc("fill", math.floor(p.x) - p.size / 3, math.floor(p.y), p.size / 5, math.pi, math.pi * 2)
                     love.graphics.arc("fill", math.floor(p.x) + p.size / 3, math.floor(p.y), p.size / 6, math.pi, math.pi * 2)
                 end
-                
+
                 love.graphics.setColor(1, 1, 1, 1)
             end
         })
@@ -152,7 +152,7 @@ end
 
 stage = {
     platforms = {},
-    
+
     layouts = {
         function()
             stage.name = "lava field"
@@ -274,6 +274,8 @@ stage = {
 
             stage.bgColor = nil
             stage.bgShader = spaceShader
+            -- TODO: this is also called in the stage select screen
+            objectSystem.createObject(cloud, -60, 128, 1)
         end,
         -- the lonely island from amazon
         function()

@@ -22,7 +22,7 @@ VOL_SFX, VOL_MUSIC = config["vol_sfx"] or 8, config["vol_music"] or 8
 
 UPDATE_RATE = 30
 
-GAME_VERSION = 22
+GAME_VERSION = 23
 
 local accum = 0
 

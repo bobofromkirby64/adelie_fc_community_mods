@@ -5,7 +5,7 @@ require("util")
 ADDRESS = "0.0.0.0"
 PORT = 2378
 
-REQUIRED_GAME_VERSION = 22
+REQUIRED_GAME_VERSION = 23
 
 host = enet.host_create(ADDRESS..":"..PORT)
 

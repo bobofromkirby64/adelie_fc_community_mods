@@ -29,9 +29,9 @@ gameController = {
         end
     end,
 
-    enterTitle = function()
+    enterTitle = function(targetState)
         gameState = "TITLE"
-        title.changeState("mode")
+        title.changeState(targetState or "mode")
         playBGM("music/menu_theme.ogg")
     end,
 
