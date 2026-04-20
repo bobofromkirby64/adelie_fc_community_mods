@@ -1,6 +1,9 @@
 -- objectSystem.lua
 require("objects/maddy")
 require("objects/lani")
+require("objects/gemmy")
+require("objects/stepstools")
+require("objects/goldstool")
 require("objects/snowball")
 
 objectSystem = {

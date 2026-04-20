@@ -4,9 +4,11 @@ local config = require("config")
 
 NUM_PLAYER_SKINS = {
     maddy = 4,
-    lani = 4
+    lani = 4,
+    gemmy = 4,
+    stepstools = 4
 }
-AVAILABLE_CHARS = {"maddy", "lani"}
+AVAILABLE_CHARS = {"maddy", "lani", "gemmy", "stepstools"}
 
 css = {
     players = {},
@@ -42,10 +44,10 @@ css = {
                 },
                 {
                     id = 2,
-                    char = "maddy",
+                    char = "stepstools",
                     ready = "1",
                     wins = -1,
-                    skin = 2,
+                    skin = 3,
                     username = "cpu"
                 }
             }
