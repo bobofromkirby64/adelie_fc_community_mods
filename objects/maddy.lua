@@ -4,14 +4,14 @@ maddy = {
     name="maddy",
     init = function(this, skin)
         this.connectionID = nil
-        
+
         local player_skins = {
             {sprites["characters/maddy_1"], {255 / 255, 0 / 255, 77 / 255, 1}}, -- madeline
             {sprites["characters/maddy_2"], {126 / 255, 37 / 255, 83 / 255, 1}}, -- badeline
             {sprites["characters/maddy_3"], {29 / 255, 43 / 255, 83 / 255, 1}}, -- caroline
             {sprites["characters/maddy_4"], {171 / 255, 82 / 255, 54 / 255, 1}}, -- funkeline
         }
-        
+
         this.spritesheet, this.hair_color = unpack(player_skins[tonumber(skin)])
         this.skin = skin
         this.spr = this.spritesheet[7]
@@ -83,7 +83,7 @@ maddy = {
                                 this:move(0, this.y+8-o.y)
                             end
                         end
-                        
+
                         if this.dash_time > 0 then
                             -- dash redirect
                             if this.dash_target_x == 0 then
@@ -103,29 +103,29 @@ maddy = {
                                 this.vy = this.dash_target_x == 0 and 0 or -2
                                 o.vy = this.dash_target_x == 0 and -3 or -2
                             end
-                            
-                            this.vx = this.vx * -0.5 
+
+                            this.vx = this.vx * -0.5
                             this.dash_cooldown = 4
                             this.dash_time = 0
-                            
-                            o.throwerID = this.connectionID 
+
+                            o.throwerID = this.connectionID
                             o.thrown_timer = 10
                             love.audio.play("hit", "static")
-                            
+
                         elseif this.vy > 0 and this:bottom() <= o:top() + 4 then
                             -- bounce on top
                             snap()
                             this.djump = 1
                             this.jbuffer = 0
                             this.dash_cooldown = 0
-                            
+
                             if this.p_jump or inputSource.getKeyDown(this.connectionID, "b1") then
                                 this.vy = -3.36
                                 love.audio.play("maddy_jump", "static")
                             else
                                 this.vy = -1.5
                             end
-                            
+
                             o.vy = o:is_solid(0, 1) and -1 or -0.5
                         end
                     end
@@ -201,7 +201,7 @@ maddy = {
 
             local ground_hit = this:is_solid(0, 1)
             local on_ground = ground_hit ~= false
-            local on_semisolid = ground_hit and ground_hit.type == "semisolid"
+            local on_semisolid = ground_hit and (ground_hit.type == "semisolid" or ground_hit.semisolid)
 
             if on_ground and not this.was_on_ground then
                 game.init_smoke(this.x, this.y + 4)
@@ -213,10 +213,12 @@ maddy = {
 
             -- semisolid fall through
             if on_semisolid and v_input == 1 and jump then
-                this.y = this.y + 1
-                on_ground = false
-                jump = false
-                this.jbuffer = 0
+                if not this:is_solid(0, 1, true) then
+                    this.y = this.y + 1
+                    on_ground = false
+                    jump = false
+                    this.jbuffer = 0
+                end
             end
 
             if jump then this.jbuffer = 4 elseif this.jbuffer > 0 then this.jbuffer = this.jbuffer - 1 end
@@ -245,10 +247,10 @@ maddy = {
                 if this.down_attack then
                     hb_w, hb_h = 24, 24
                 end
-                local targetX = this.x + this.vx
-                local targetY = this.y + this.vy
-                local cx = targetX + this.hurtbox.x + (this.hurtbox.w / 2)
-                local cy = targetY + this.hurtbox.y + (this.hurtbox.h / 2)
+                --local targetX = this.x + this.vx
+                --local targetY = this.y + this.vy
+                local cx = this:hmid(this.vx, 0)--targetX + this.hurtbox.x + (this.hurtbox.w / 2)
+                local cy = this:vmid(0, this.vy)--targetY + this.hurtbox.y + (this.hurtbox.h / 2)
                 local hb_x = cx - (hb_w / 2)
                 local hb_y = cy - (hb_h / 2)
 
@@ -418,7 +420,7 @@ maddy = {
         end
     end,
 
-    on_hit_confirm = function(this, target)
+    on_hit_confirm = function(this, target, hb)
         -- stuff to do on hit confirm (e.g., pogoing?)
         camera.shake(1.5, 1.5, 2)
     end,
@@ -427,7 +429,7 @@ maddy = {
         if not this.active and this.stocks <= 0 then return end
         if this.respawn_timer > 0 then return end
 
-        local isBlinking = this.invincible_timer > 0 and math.floor(this.invincible_timer / 4) % 2 == 0
+        local isBlinking = this.invincible_timer > 0 and (math.floor(this.invincible_timer / 4) % 2 == 0 or debugEnabled)
         local tint = this.skin == 3 and 1 or 0
 
         -- hair color

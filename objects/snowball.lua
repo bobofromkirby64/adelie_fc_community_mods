@@ -168,7 +168,7 @@ snowball = {
                         hh = 4
                     elseif math.abs(this.vx) >= 2 then
                         --hw = 4
-                        hx = (this.vx > 0) and (this.x + 4) or this.x
+                        hx = (this.vx > 0) and (this.x + 4) or (this.x - 4)
                         hy = this.y + 2
                         hh = 6
                     end
