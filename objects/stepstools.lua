@@ -6,10 +6,10 @@ stepstools = {
         this.connectionID = nil
         
         local player_skins = {
-            {sprites["characters/woodstool_1"], {255 / 255, 0 / 255, 77 / 255, 1}}, -- oak
-            {sprites["characters/woodstool_2"], {126 / 255, 37 / 255, 83 / 255, 1}}, -- badeline
-            {sprites["characters/woodstool_3"], {29 / 255, 43 / 255, 83 / 255, 1}}, -- caroline
-            {sprites["characters/woodstool_4"], {171 / 255, 82 / 255, 54 / 255, 1}}, -- funkeline
+            {sprites["characters/woodstool_1"]}, -- oak
+            {sprites["characters/woodstool_2"]}, -- badeline
+            {sprites["characters/woodstool_3"]}, -- caroline
+            {sprites["characters/woodstool_4"]}, -- funkeline
         }
         
         this.spritesheet = player_skins[skin][1]
@@ -23,6 +23,8 @@ stepstools = {
 
         -- Override the base hurtbox
         this.hurtbox = {x = 1, y = 3, w = 6, h = 5}
+        -- this.w = 6
+        -- this.semisolid = true
 
         this.grace = 0
         this.jbuffer = 0
@@ -47,6 +49,23 @@ stepstools = {
         this.invincible_timer = 0
         this.dash_cooldown = 0
         this.freeze = 0
+
+        this.carrying = nil
+        this.holding = nil
+
+        this.goldstool = objectSystem.createObject(goldstool, this.x, stage.blastZone.b + 10, skin, this)
+        this.holding = this.goldstool
+
+        this.check_stools = function(this)
+            for _, o in ipairs(objects) do
+                if o.type and (o.type.name == "goldstool" or o.type.name == "snowball") and not o.destroyed then
+                    if this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= (o:top() - 4) and this:top() <= (o:bottom() + 4) and not o.held then
+                        return o
+                    end
+                end
+            end
+            return nil
+        end
 
         this.check_snowballs = function(this)
             if this.hitstun > 0 then return end
@@ -118,6 +137,16 @@ stepstools = {
             return
         end
 
+        -- Set Up Riders
+        -- local px = this.x
+        -- local py = this.y
+        -- local riders = {}
+        -- for _, o in ipairs(objects) do
+        --     if o ~= this and o:bottom() >= this.y - 5 and o:bottom() <= this.y and o:left() <= this:right() and o:right() >= this:left() then
+        --         table.insert(riders, o)
+        --     end
+        -- end
+
         local h_input = (inputSource.getKeyDown(id, "right") and 1 or 0) - (inputSource.getKeyDown(id, "left") and 1 or 0)
         local v_input = (inputSource.getKeyDown(id, "down") and 1 or 0) - (inputSource.getKeyDown(id, "up") and 1 or 0)
         -- hitstun
@@ -125,6 +154,10 @@ stepstools = {
             this.hitstun = this.hitstun - 1
             this.vy = util.appr(this.vy, 3, 0.167)
             this.vx = util.appr(this.vx, 0, 0.16)
+            if this.carrying then
+                this.carrying.held = false
+                this.carrying = nil
+            end
         else
 
             local jump_btn = inputSource.getKeyDown(id, "b1")
@@ -137,7 +170,7 @@ stepstools = {
 
             local ground_hit = this:is_solid(0, 1)
             local on_ground = ground_hit ~= false
-            local on_semisolid = ground_hit and ground_hit.type == "semisolid"
+            local on_semisolid = ground_hit and (ground_hit.type == "semisolid" or ground_hit.semisolid)
 
             if on_ground and not this.was_on_ground then
                 game.init_smoke(this.x, this.y + 4)
@@ -147,72 +180,164 @@ stepstools = {
                 this.vy = 0
             end
 
-            -- semisolid fall through
-            if on_semisolid and v_input == 1 and jump then
-                this.y = this.y + 1
-                on_ground = false
-                jump = false
-                this.jbuffer = 0
-            end
-
-            if jump then this.jbuffer = 4 elseif this.jbuffer > 0 then this.jbuffer = this.jbuffer - 1 end
-
-            if on_ground then
-                this.grace = 6
-                this.djump = 1
-                if this.vy < 0 then
-                    love.audio.play("maddy_clip", "static")
-                end
-            elseif this.grace > 0 then
-                this.grace = this.grace - 1
-            end
-            local maxrun = 2
-            local accel = on_ground and 0.93 or 0.80
-            local deccel = 0.16
-
-            this.vx = math.abs(this.vx) <= maxrun and util.appr(this.vx, h_input * maxrun, accel) or util.appr(this.vx, util.sign(this.vx) * maxrun, deccel)
-            if this.vx ~= 0 then this.facing = util.sign(this.vx) end
-
-            local maxfall = 2.6
-            if h_input ~= 0 and this:is_solid(h_input, 0) then
-                maxfall = 0.693
-                if frameCounter % 5 == 0 then
-                    game.init_smoke(this.x + h_input * 4, this.y)
-                end
-            end
-
-            if not on_ground then
-                this.vy = util.appr(this.vy, maxfall, math.abs(this.vy) > 0.124 and 0.334 or 0.167)
-            end
-
-            if this.jbuffer > 0 then
-                if this.grace > 0 then
-                    this.jbuffer = 0
-                    this.grace = 0
-                    this.vy = -3.36
-
-                    love.audio.play("maddy_jump", "static")
-                    game.init_smoke(this.x, this.y + 4)
-                else
-                    local wall_dir = this:is_solid(-3, 0) and -1 or (this:is_solid(3, 0) and 1 or 0)
-                    if wall_dir ~= 0 then
+            if not (this.carrying and this.carrying.flying) then
+                -- semisolid fall through
+                if on_semisolid and v_input == 1 and jump then
+                    if not this:is_solid(0, 1, true) then
+                        this.y = this.y + 1
+                        on_ground = false
+                        jump = false
                         this.jbuffer = 0
-                        this.vx = -wall_dir * (maxrun + 1.06)
+                    end
+                end
+
+                if jump then this.jbuffer = 4 elseif this.jbuffer > 0 then this.jbuffer = this.jbuffer - 1 end
+
+                if on_ground then
+                    this.grace = 6
+                    this.djump = 1
+                    if this.vy < 0 then
+                        love.audio.play("maddy_clip", "static")
+                    end
+                elseif this.grace > 0 then
+                    this.grace = this.grace - 1
+                end
+                local maxrun = 2
+                local accel = on_ground and 0.93 or 0.80
+                local deccel = 0.16
+
+                this.vx = math.abs(this.vx) <= maxrun and util.appr(this.vx, h_input * maxrun, accel) or util.appr(this.vx, util.sign(this.vx) * maxrun, deccel)
+                if this.vx ~= 0 then this.facing = util.sign(this.vx) end
+
+                local maxfall = 2.6
+                if h_input ~= 0 and this:is_solid(h_input, 0) then
+                    maxfall = 0.693
+                    if frameCounter % 5 == 0 then
+                        game.init_smoke(this.x + h_input * 4, this.y)
+                    end
+                end
+
+                if not on_ground then
+                    this.vy = util.appr(this.vy, maxfall, math.abs(this.vy) > 0.124 and 0.334 or 0.167)
+                end
+
+                if this.jbuffer > 0 then
+                    if this.grace > 0 then
+                        this.jbuffer = 0
+                        this.grace = 0
                         this.vy = -3.36
-                        love.audio.play("maddy_walljump", "static")
-                        game.init_smoke(this.x + wall_dir * 6, this.y)
+
+                        love.audio.play("maddy_jump", "static")
+                        game.init_smoke(this.x, this.y + 4)
+                    else
+                        local wall_dir = this:is_solid(-3, 0) and -1 or (this:is_solid(3, 0) and 1 or 0)
+                        if wall_dir ~= 0 then
+                            this.jbuffer = 0
+                            this.vx = -wall_dir * (maxrun + 1.06)
+                            this.vy = -3.36
+                            love.audio.play("maddy_walljump", "static")
+                            game.init_smoke(this.x + wall_dir * 6, this.y)
+                        end
+                    end
+                end
+            else
+                this.x = this.carrying.x
+                this.y = this.carrying.y + 4
+            end
+
+            local pickupcheck = this.check_stools(this)
+
+            local touching_field = false
+            for _, o in ipairs(objects) do
+                if o.type and o.type.name == "goldstool" and not o.destroyed and o ~= this.carrying and o ~= this.holding and o ~= pickupcheck then
+                    if this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= o:top() and this:top() <= o:bottom() then
+                        touching_field = true
+                        break
                     end
                 end
             end
-            
-                local d_full = 6.58
-                local d_half = 4.65
-            
+
+
+            -- pickup objects with ⬇️❎ (also cancel dash if you do this)
+            if this.carrying then
+                local pickup = this.carrying
                 
-            this.was_on_ground = on_ground
-        end
+                if (not touching_field) then
+                    pickup:move(this.x - pickup.x, this.y - 4 - pickup.y)
+                end 
+                
+                if dash or touching_field then
+                    pickup.held = false
+                    pickup.collides = true
+                    this.carrying = nil
+                    
+                    -- don't drop in ceiling
+                    while pickup:is_solid(0, 0) do
+                        pickup.y = pickup.y + 1
+                    end
+                    
+                    -- throw
+                    if dash then
+                        pickup.vx = inputSource.getKeyDown(id, "left") and -4 or inputSource.getKeyDown(id, "right") and 4 or (inputSource.getKeyDown(id, "up") or inputSource.getKeyDown(id, "down")) and 0 or this.facing < 0 and -4 or 4
+                        pickup.vy = inputSource.getKeyDown(id, "down") and 0 or inputSource.getKeyDown(id, "up") and -3 or -1
+                    else
+                        pickup.vx = this.vx * -0.5
+                        pickup.vy = this.vy * -0.5
+                    end
+                    
+                    dash = false
+                end
+            else
+                local pickup = this:check_stools()
+                if dash and inputSource.getKeyDown(id, "down") and pickup and not touching_field then
+                    dash = false
+                    
+                    pickup.held = true
+                    pickup.collides = false
+                    this.carrying = pickup
+                    
+                    pickup.flying = false
+                    
+                    -- boost
+                    if not this:is_solid(0, 1) then
+                        this.vy = -3.2
+                        
+                        if not this:is_solid(0, -3) then
+                            this.grace = 6
+                            this.djump = 1
+                        end
+                    end
+                else
+                    if dash then
+                        this.goldstool.flying = true
+                        this.goldstool.collides = false
+                        this.goldstool.flylock = 11
+                    end
+                end
+                end
+
+                    local d_full = 6.58
+                    local d_half = 4.65
+                
+                    
+                this.was_on_ground = on_ground
+            end
 
         this:move(this.vx, this.vy)
+
+        -- Move riders
+        -- local dx = this.x - px
+        -- local dy = this.y - py
+        -- for _, r in ipairs(riders) do
+        --    r:move(dx, dy)
+        -- end
+        
+        -- Update carried object position after movement
+        if this.carrying then
+            this.carrying.x = this.x
+            this.carrying.y = this.y - 4
+        end
+        
         this:check_snowballs()
 
         -- sprite stuff
@@ -270,6 +395,10 @@ stepstools = {
             this.hitstun = 0
             this.rem.x = 0
             this.rem.y = 0
+            if this.carrying then
+                this.carrying.held = false
+                this.carrying = nil
+            end
 
             if this.stocks > 0 then
                 this.x = -1000
@@ -292,13 +421,19 @@ stepstools = {
         if not this.active and this.stocks <= 0 then return end
         if this.respawn_timer > 0 then return end
 
-        local isBlinking = this.invincible_timer > 0 and math.floor(this.invincible_timer / 4) % 2 == 0
+        local isBlinking = this.invincible_timer > 0 and (math.floor(this.invincible_timer / 4) % 2 == 0 or debugEnabled)
         local tint = this.skin == 3 and 1 or 0
 
         -- sprite hitstun tint
         if this.hitstun > 0 then
             love.graphics.setColor(255 / 255, 119 / 255, 168 / 255)
         else
+            love.graphics.setColor(1, 1, 1)
+        end
+
+        -- apply pal swaps
+        if isBlinking then
+            love.graphics.setShader(whiteShader)
             love.graphics.setColor(1, 1, 1)
         end
 

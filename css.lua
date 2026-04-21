@@ -8,7 +8,8 @@ NUM_PLAYER_SKINS = {
     gemmy = 4,
     stepstools = 4
 }
-AVAILABLE_CHARS = {"maddy", "lani", "gemmy", "stepstools"}
+AVAILABLE_CHARS = {"maddy", "gemmy", "lani", "stepstools"}
+VANILLA_CHARS = {"maddy", "lani"}
 
 css = {
     players = {},
@@ -44,10 +45,10 @@ css = {
                 },
                 {
                     id = 2,
-                    char = "stepstools",
+                    char = "gemmy",
                     ready = "1",
                     wins = -1,
-                    skin = 3,
+                    skin = 2,
                     username = "cpu"
                 }
             }

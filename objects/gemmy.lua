@@ -14,7 +14,7 @@ gemmy = {
 
         this.player_skins_gem = {
             {sprites["characters/maddy_1"], {1 / 255, 228 / 255, 54 / 255, 1}}, -- madeline
-            {sprites["characters/maddy_2"], {237 / 255, 155 / 255, 235 / 255, 1}}, -- badeline
+            {sprites["characters/maddy_2"], {225 / 255, 109 / 255, 235 / 239, 1}}, -- badeline
             {sprites["characters/maddy_3"], {255 / 255, 0 / 255, 77 / 255, 1}}, -- caroline
             {sprites["characters/maddy_4"], {255 / 255, 236 / 255, 39 / 255, 1}}, -- funkeline
         }
@@ -209,7 +209,7 @@ gemmy = {
 
             local ground_hit = this:is_solid(0, 1)
             local on_ground = ground_hit ~= false
-            local on_semisolid = ground_hit and ground_hit.type == "semisolid"
+            local on_semisolid = ground_hit and (ground_hit.type == "semisolid" or ground_hit.semisolid)
 
             if on_ground and not this.was_on_ground then
                 game.init_smoke(this.x, this.y + 4)
@@ -221,10 +221,12 @@ gemmy = {
 
             -- semisolid fall through
             if on_semisolid and v_input == 1 and jump then
-                this.y = this.y + 1
-                on_ground = false
-                jump = false
-                this.jbuffer = 0
+                if not this:is_solid(0, 1, true) then
+                    this.y = this.y + 1
+                    on_ground = false
+                    jump = false
+                    this.jbuffer = 0
+                end
             end
 
             if jump then this.jbuffer = 4 elseif this.jbuffer > 0 then this.jbuffer = this.jbuffer - 1 end
@@ -253,10 +255,10 @@ gemmy = {
                 if this.down_attack then
                     hb_w, hb_h = 24, 24
                 end
-                local targetX = this.x + this.vx
-                local targetY = this.y + this.vy
-                local cx = targetX + this.hurtbox.x + (this.hurtbox.w / 2)
-                local cy = targetY + this.hurtbox.y + (this.hurtbox.h / 2)
+                --local targetX = this.x + this.vx
+                --local targetY = this.y + this.vy
+                local cx = this:hmid(this.vx, 0)--targetX + this.hurtbox.x + (this.hurtbox.w / 2)
+                local cy = this:vmid(0, this.vy)--targetY + this.hurtbox.y + (this.hurtbox.h / 2)
                 local hb_x = cx - (hb_w / 2)
                 local hb_y = cy - (hb_h / 2)
 
@@ -426,7 +428,7 @@ gemmy = {
         end
     end,
 
-    on_hit_confirm = function(this, target)
+    on_hit_confirm = function(this, target, hb)
         -- stuff to do on hit confirm (e.g., pogoing?)
         camera.shake(1.5, 1.5, 2)
     end,
@@ -435,7 +437,7 @@ gemmy = {
         if not this.active and this.stocks <= 0 then return end
         if this.respawn_timer > 0 then return end
 
-        local isBlinking = this.invincible_timer > 0 and math.floor(this.invincible_timer / 4) % 2 == 0
+        local isBlinking = this.invincible_timer > 0 and (math.floor(this.invincible_timer / 4) % 2 == 0 or debugEnabled)
         local tint = this.skin == 3 and 1 or 0
 
         local hr, hg, hb

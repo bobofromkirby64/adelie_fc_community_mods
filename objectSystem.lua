@@ -141,6 +141,27 @@ objectSystem = {
             end
         end
 
+        obj.moveWithoutCollide = function(this, ox, oy, on_collide_x, on_collide_y)
+            this.rem.x = this.rem.x + ox
+            this.rem.y = this.rem.y + oy
+
+            local amtX = math.floor(this.rem.x + 0.5)
+            local amtY = math.floor(this.rem.y + 0.5)
+
+            this.rem.x = this.rem.x - amtX
+            this.rem.y = this.rem.y - amtY
+
+            local stepX = util.sign(amtX)
+            for i = 1, math.abs(amtX) do
+                this.x = this.x + stepX
+            end
+
+            local stepY = util.sign(amtY)
+            for i = 1, math.abs(amtY) do
+                this.y = this.y + stepY
+            end
+        end
+
         obj.type.init(obj, ...)
 
         table.insert(objects, obj)
