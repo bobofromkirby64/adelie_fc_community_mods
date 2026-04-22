@@ -6,13 +6,13 @@ stepstools = {
         this.connectionID = nil
         
         local player_skins = {
-            {sprites["characters/woodstool_1"]}, -- oak
-            {sprites["characters/woodstool_2"]}, -- badeline
-            {sprites["characters/woodstool_3"]}, -- caroline
-            {sprites["characters/woodstool_4"]}, -- funkeline
+            {sprites["characters/woodstool_1"], {1, 1, 1, 1}}, -- oak
+            {sprites["characters/woodstool_2"], {1, 1, 1, 1}}, -- birch
+            {sprites["characters/woodstool_3"], {1, 1, 1, 1}}, -- acacia
+            {sprites["characters/woodstool_4"], {1, 1, 1, 1}}, -- cherry
         }
         
-        this.spritesheet = player_skins[skin][1]
+        this.spritesheet, this.nothing = unpack(player_skins[tonumber(skin)])
         this.skin = skin
         this.spr = this.spritesheet[7]
         this.damage = 0
@@ -50,13 +50,13 @@ stepstools = {
         this.dash_cooldown = 0
         this.freeze = 0
 
-        this.carrying = nil
         this.holding = nil
+        this.heldobject = nil
 
         this.goldstool = objectSystem.createObject(goldstool, this.x, stage.blastZone.b + 10, skin, this)
-        this.holding = this.goldstool
+        this.heldobject = this.goldstool
 
-        this.check_stools = function(this)
+        this.check_objects = function(this)
             for _, o in ipairs(objects) do
                 if o.type and (o.type.name == "goldstool" or o.type.name == "snowball") and not o.destroyed then
                     if this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= (o:top() - 4) and this:top() <= (o:bottom() + 4) and not o.held then
@@ -154,9 +154,9 @@ stepstools = {
             this.hitstun = this.hitstun - 1
             this.vy = util.appr(this.vy, 3, 0.167)
             this.vx = util.appr(this.vx, 0, 0.16)
-            if this.carrying then
-                this.carrying.held = false
-                this.carrying = nil
+            if this.holding then
+                this.holding.held = false
+                this.holding = nil
             end
         else
 
@@ -180,7 +180,7 @@ stepstools = {
                 this.vy = 0
             end
 
-            if not (this.carrying and this.carrying.flying) then
+            if not (this.holding and this.holding.flying) then
                 -- semisolid fall through
                 if on_semisolid and v_input == 1 and jump then
                     if not this:is_solid(0, 1, true) then
@@ -241,15 +241,15 @@ stepstools = {
                     end
                 end
             else
-                this.x = this.carrying.x
-                this.y = this.carrying.y + 4
+                this.x = this.holding.x
+                this.y = this.holding.y + 4
             end
 
-            local pickupcheck = this.check_stools(this)
+            local pickupcheck = this.check_objects(this)
 
             local touching_field = false
             for _, o in ipairs(objects) do
-                if o.type and o.type.name == "goldstool" and not o.destroyed and o ~= this.carrying and o ~= this.holding and o ~= pickupcheck then
+                if o.type and (o.type.name == "goldstool" or o.type.name == "snowball") and not o.destroyed and o ~= this.holding and o ~= this.heldobject and o ~= pickupcheck then
                     if this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= o:top() and this:top() <= o:bottom() then
                         touching_field = true
                         break
@@ -259,8 +259,8 @@ stepstools = {
 
 
             -- pickup objects with ⬇️❎ (also cancel dash if you do this)
-            if this.carrying then
-                local pickup = this.carrying
+            if this.holding then
+                local pickup = this.holding
                 
                 if (not touching_field) then
                     pickup:move(this.x - pickup.x, this.y - 4 - pickup.y)
@@ -269,7 +269,7 @@ stepstools = {
                 if dash or touching_field then
                     pickup.held = false
                     pickup.collides = true
-                    this.carrying = nil
+                    this.holding = nil
                     
                     -- don't drop in ceiling
                     while pickup:is_solid(0, 0) do
@@ -288,15 +288,15 @@ stepstools = {
                     dash = false
                 end
             else
-                local pickup = this:check_stools()
+                local pickup = this:check_objects()
                 if dash and inputSource.getKeyDown(id, "down") and pickup and not touching_field then
                     dash = false
                     
                     pickup.held = true
                     pickup.collides = false
-                    this.carrying = pickup
-                    
                     pickup.flying = false
+                    pickup.throwerID = this.connectionID
+                    this.holding = pickup
                     
                     -- boost
                     if not this:is_solid(0, 1) then
@@ -333,9 +333,9 @@ stepstools = {
         -- end
         
         -- Update carried object position after movement
-        if this.carrying then
-            this.carrying.x = this.x
-            this.carrying.y = this.y - 4
+        if this.holding then
+            this.holding.x = this.x
+            this.holding.y = this.y - 4
         end
         
         this:check_snowballs()
@@ -395,9 +395,9 @@ stepstools = {
             this.hitstun = 0
             this.rem.x = 0
             this.rem.y = 0
-            if this.carrying then
-                this.carrying.held = false
-                this.carrying = nil
+            if this.holding then
+                this.holding.held = false
+                this.holding = nil
             end
 
             if this.stocks > 0 then
@@ -412,9 +412,48 @@ stepstools = {
         end
     end,
 
-    on_hit_confirm = function(this, target)
+    on_hit_confirm = function(this, target, hb)
         -- stuff to do on hit confirm (e.g., pogoing?)
         camera.shake(1.5, 1.5, 2)
+        if hb.firstframe then
+            local direction = hb.dir or 1
+            -- tipper sparks
+            this.freeze = 6
+            target.freeze = 6
+            camera.shake(3, 3, 5)
+            for i = 1, 8 do
+                table.insert(particles_fg, {
+                    x = target:hmid(),
+                    y = target:vmid(),
+                    vx = (math.random() * 8 - 4) + direction * 1.5,
+                    vy = (math.random() * 8 - 4) - 1,
+                    timer = 0,
+                    duration = 10 + math.random(0, 10),
+                    update = function(p)
+                        p.x = p.x + p.vx
+                        p.y = p.y + p.vy
+                        p.vx = p.vx * 0.85
+                        p.vy = p.vy * 0.85
+                        p.timer = p.timer + 1
+                        return p.timer >= p.duration
+                    end,
+                    draw = function(p)
+                        local fade = 1 - (p.timer / p.duration)
+                        if p.timer < 4 then
+                            love.graphics.setColor(1, 1, 1, fade)
+                        else
+                            love.graphics.setColor(255/255, 236/255, 39/255, fade)
+                        end
+                        love.graphics.rectangle("fill", math.floor(p.x), math.floor(p.y), 1, 1)
+                        if (p.vx * p.vx + p.vy * p.vy) > 1.5 then
+                            love.graphics.setColor(255/255, 163/255, 0/255, fade * 0.6)
+                            love.graphics.rectangle("fill", math.floor(p.x - p.vx * 0.6), math.floor(p.y - p.vy * 0.6), 1, 1)
+                        end
+                        love.graphics.setColor(1, 1, 1, 1)
+                    end
+                })
+            end
+        end
     end,
 
     draw = function(this)

@@ -20,8 +20,10 @@ local socket = nil
 
 network = {
     connected = false,
+    modVersion = -1,
     init = function()
         if network.connected then return end
+        network.modVersion = 0
         connectionID = -1
         connectionIDs = {}
         network.version_mismatch = false
@@ -37,6 +39,15 @@ network = {
             elseif event.type == "disconnect" then
                 network.connected = false
                 socket = nil
+
+                -- Force a fresh handshake next time we enter CSS
+                if css then css.lobby_active = false end 
+                
+                if not network.version_mismatch then
+                    overlay.add_msg("server disconnected")
+                end
+                -- ...
+
                 if not network.version_mismatch then
                     overlay.add_msg("server disconnected")
                 end
@@ -74,6 +85,7 @@ network = {
 
     joinQueue = function(username)
         if not network.connected then return end
+        css:modded_skin_routine()
         local char = css.player_char or "maddy"
         local skin = css.player_skin or 1
         network.sendMessage("JOINQUEUE|"..username..","..char..","..tostring(skin), "reliable")

@@ -4,13 +4,13 @@ goldstool = {
         this.connectionID = "goldstool_" .. math.floor(this.x) .. "_" .. math.floor(this.y)
 
         local player_skins = {
-                sprites["objects/goldstool_1"], -- gold
-                sprites["objects/goldstool_2"], -- lapis
-                sprites["objects/goldstool_3"], -- emerald
-                sprites["objects/goldstool_4"], -- amethyst
+                {sprites["objects/goldstool_1"], {1, 1, 1, 1}}, -- gold
+                {sprites["objects/goldstool_2"], {1, 1, 1, 1}}, -- diamond
+                {sprites["objects/goldstool_3"], {1, 1, 1, 1}}, -- emerald
+                {sprites["objects/goldstool_4"], {1, 1, 1, 1}}, -- amethyst
             }
 
-        this.spritesheet = player_skins[skin]
+        this.spritesheet, this.nothing = unpack(player_skins[tonumber(skin)])
         this.skin = skin
         this.spr = this.spritesheet[4]
 
@@ -44,6 +44,10 @@ goldstool = {
 
         this.was_on_ground = false
         this.was_colliding = false
+
+        this.body_hb = nil
+        this.leftwing_hb = nil
+        this.rightwing_hb = nil
     end,
 
     update = function(this)  
@@ -121,7 +125,7 @@ goldstool = {
         local py = this.y
         local riders = {}
         for _, o in ipairs(objects) do
-            if o ~= this and o:bottom() >= this.y - 4 and o:bottom() <= this.y and o:left() <= this:right() and o:right() >= this:left() then
+            if o ~= this and o:bottom() >= this.y - 4 and o:bottom() <= this.y and o:left() <= this:right() and o:right() >= this:left() and o.type.name ~= "cloud" then
                 table.insert(riders, o)
             end
         end
@@ -131,23 +135,35 @@ goldstool = {
         if (math.abs(this.vx) > 0.2 or math.abs(this.vy) > 0.2) and not this.held and this.owner then
             if this.body_was_active then
                 this.body_timer = 0
-                this.body_was_active = false
+                this.body_was_active = true
             end
             if this.body_timer % 3 == 0 then
-                hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 2, util.sign(this.vx) * 3 + 1, util.sign(this.vy) * 2 - 1, 4)
+                this.body_hb = hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 2, util.sign(this.vx) * 3 + 1, util.sign(this.vy) * 2 - 1, 4)
             end
             this.body_timer = this.body_timer + 1
+        else
+            this.body_was_active = false
         end
         -- Wing Damage
         if(this.flying and this.flystarttimer <= 0) then
             if not this.wings_were_active then
-                hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x - 6,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 2, 3, 2, 4)
-                hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x + 6,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 2, 3, 2, 4)
+                this.leftwing_hb = hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x - 6,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 6, 5, -2, 4)
+                this.rightwing_hb = hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x + 6,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 6, 5, -2, 4)
+
+                this.leftwing_hb.firstframe = true
+                this.leftwing_hb.dir = -1
+
+                this.rightwing_hb.firstframe = true
+                this.rightwing_hb.dir = 1
+
                 this.wings_timer = 0
                 this.wings_were_active = true
             elseif this.wings_timer % 3 == 0 then
-                hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x - 6,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 2, 3, 2, 4)
-                hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x + 6,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 2, 3, 2, 4)
+                this.leftwing_hb = hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x - 6,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 2, 3, -2, 4)
+                this.rightwing_hb = hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x + 6,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 2, 3, 2, 4)
+
+                this.leftwing_hb.dir = -1
+                this.rightwing_hb.dir = 1
             end
             this.wings_timer = this.wings_timer + 1
         else
@@ -196,6 +212,7 @@ goldstool = {
             end
         end
     end,
+
 
     draw = function(this)
         local anim = this.animations[this.current_anim]
