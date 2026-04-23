@@ -203,5 +203,7 @@ snowball = {
                 math.floor(this.y + 4 + this.draw_offset_y - r * math.sin(angle)), 
                 1, 1)
         end
+
+        love.graphics.setColor(1, 1, 1, 1)
     end
 }

@@ -4,10 +4,10 @@ goldstool = {
         this.connectionID = "goldstool_" .. math.floor(this.x) .. "_" .. math.floor(this.y)
 
         local player_skins = {
-                {sprites["objects/goldstool_1"], {255 / 255, 236 / 255, 39 / 255, 0.25}}, -- gold
-                {sprites["objects/goldstool_2"], {41 / 255, 173 / 255, 255 / 255, 0.25}}, -- diamond
-                {sprites["objects/goldstool_3"], {0 / 255, 228 / 255, 54 / 255, 0.25}}, -- emerald
-                {sprites["objects/goldstool_4"], {175 / 255, 76 / 255, 255 / 255, 0.25}}, -- amethyst
+                {sprites["objects/goldstool_1"], {255 / 255, 236 / 255, 39 / 255, 0.5}}, -- gold
+                {sprites["objects/goldstool_2"], {41 / 255, 173 / 255, 255 / 255, 0.5}}, -- diamond
+                {sprites["objects/goldstool_3"], {0 / 255, 228 / 255, 54 / 255, 0.5}}, -- emerald
+                {sprites["objects/goldstool_4"], {175 / 255, 76 / 255, 255 / 255, 0.5}}, -- amethyst
             }
 
         this.spritesheet, this.beamColor = unpack(player_skins[tonumber(skin)])
@@ -50,7 +50,7 @@ goldstool = {
         this.rightwing_hb = nil
 
         this.exhaustion = 0
-        this.exhaustionLimit = 2
+        this.exhaustionLimit = 5
         this.sweats = {}
         this.sweatTimer = 0
 
@@ -92,6 +92,8 @@ goldstool = {
         local ground_hit = this:is_solid(0, 1)
         local on_ground = ground_hit ~= false
         local on_semisolid = ground_hit and (ground_hit.type == "semisolid" or ground_hit.semisolid)
+
+        if this.owner.respawn_timer > 0 then this.exhaustion = 0 end
 
         -- check for oob
         if this:oob() then
@@ -190,13 +192,21 @@ goldstool = {
 
         -- damage stuff
         -- Movement damage
+        local hb_w, hb_h = this.hurtbox.w + (this.hurtbox.w / 2), this.hurtbox.h + (this.hurtbox.h / 2)
+        local targetX = this.x + this.vx
+        local targetY = this.y + this.vy
+        local cx = targetX + this.hurtbox.x
+        local cy = targetY + this.hurtbox.y
+        local hb_x = cx - (hb_w / 4)
+        local hb_y = cy - (hb_h / 4)
         if (math.abs(this.vx) > 0.2 or math.abs(this.vy) > 0.2) and not this.held and this.owner then
             if this.body_was_active then
                 this.body_timer = 0
                 this.body_was_active = true
             end
             if this.body_timer % 3 == 0 then
-                this.body_hb = hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 2, util.sign(this.vx) * 3 + 1, util.sign(this.vy) * 2 - 1, 4)
+                if this.flying then this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w - (this.hurtbox.w / 2), hb_h - (this.hurtbox.h / 2), 2, util.sign(this.vx)*4, util.sign(this.vy) * 2.5 - 1, 2 + 2)
+                else this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*4, util.sign(this.vy) * 2.5 - 1, 2 + 2) end
             end
             this.body_timer = this.body_timer + 1
         else
@@ -205,8 +215,8 @@ goldstool = {
         -- Wing Damage
         if(this.flying and this.flystarttimer <= 0) then
             if not this.wings_were_active then
-                this.leftwing_hb = hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x - 6,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 6, 5, -2, 4)
-                this.rightwing_hb = hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x + 6,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 6, 5, -2, 4)
+                this.leftwing_hb = hitbox.create(this.owner.connectionID, hb_x - hb_w, hb_y, hb_w, hb_h, 8, 5, util.sign(this.vy) * 2.5 - 1, 2 + 2)
+                this.rightwing_hb = hitbox.create(this.owner.connectionID, hb_x + hb_w, hb_y, hb_w, hb_h, 8, 5, util.sign(this.vy) * 2.5 - 1, 2 + 2)
 
                 this.leftwing_hb.firstframe = true
                 this.leftwing_hb.dir = -1
@@ -220,8 +230,8 @@ goldstool = {
                 this.leftwing_hb.hit_sfx = "zap"
                 this.rightwing_hb.hit_sfx = "zap"
             elseif this.wings_timer % 3 == 0 then
-                this.leftwing_hb = hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x - 6,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 2, 3, -2, 4)
-                this.rightwing_hb = hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x + 6,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 2, 3, 2, 4)
+                this.leftwing_hb = hitbox.create(this.owner.connectionID, hb_x - hb_w, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*4 + 1, 2, 2 + 2)
+                this.rightwing_hb = hitbox.create(this.owner.connectionID, hb_x + hb_w, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*4 + 1, 2, 2 + 2)
 
                 this.leftwing_hb.dir = -1
                 this.rightwing_hb.dir = 1
@@ -327,7 +337,7 @@ goldstool = {
 
         for _, b in ipairs(this.beams) do
             if b.w > 2 then
-                love.graphics.setColor(1, 1, 1, 0.2)
+                love.graphics.setColor(1, 1, 1, 0.5)
                 love.graphics.rectangle("fill", math.floor(b.x), stage.blastZone.t, b.w, 500)
                 love.graphics.setColor(this.beamColor)
                 love.graphics.rectangle("fill", math.floor(b.x + 1), stage.blastZone.t, b.w - 2, 500)
@@ -336,5 +346,8 @@ goldstool = {
                 love.graphics.rectangle("fill", math.floor(b.x), stage.blastZone.t, b.w, 500)
             end
         end
+
+        love.graphics.setShader()
+        love.graphics.setColor(1, 1, 1, 1)
     end
 }

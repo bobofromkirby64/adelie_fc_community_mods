@@ -66,6 +66,8 @@ lani = {
 
         this.scarf_x = {}
         this.scarf_y = {}
+
+        this.movementFlightLock = false
         for i = 1, 5 do
             this.scarf_x[i] = this.x + 4
             this.scarf_y[i] = this.y + 5
@@ -661,6 +663,32 @@ lani = {
             end
         end
 
+        if this.holding and this.holding.flying and this.holding.flystarttimer <= 0 then
+                this.movementFlightLock = true
+                
+                -- ONLY force a drop if we hit a CEILING or a WALL. 
+                -- We ignore the floor (is_solid(0, 1)) because you start on the floor.
+                local hit_ceiling = this:is_solid(0, -1) or this.holding:is_solid(0, -1)
+                local hit_wall = this:is_solid(util.sign(this.vx), 0)
+
+                -- Use <= 0 so it works with the goldstool's countdown
+                if (hit_ceiling or hit_wall) and (this.holding.flylock <= 0) then
+                    this.holding.held = false
+                    this.holding.collides = true
+                    this.holding = nil
+                    this.movementFlightLock = false
+                end
+
+                -- OOB check
+                if this.holding and this.holding:oob() then
+                    this.holding.held = false
+                    this.holding.collides = true
+                    this.holding = nil
+                    this.movementFlightLock = false
+                    this.y = stage.blastZone.t - 50
+                end
+            end
+
         if this.state ~= 10 and this.grapple_hb then
             this.grapple_hb.active = false
             this.grapple_hb = nil
@@ -674,7 +702,11 @@ lani = {
             end
         end
 
-        this:move(this.vx, this.vy, this.on_collide_x, this.on_collide_y)
+        if this.movementFlightLock and this.holding then 
+            this:move(this.holding.vx, this.holding.vy) --
+        else 
+            this:move(this.vx, this.vy, this.on_collide_x, this.on_collide_y) --
+        end
 
         -- slam hitbox
         if this.state == 11 and not this:is_solid(this.grapple_dir, 0) then

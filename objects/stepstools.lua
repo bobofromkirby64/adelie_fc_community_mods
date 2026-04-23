@@ -40,6 +40,7 @@ stepstools = {
             wallslide = {frames = {5}, speed = 1},
             crouch = {frames = {6}, speed = 1},
             up = {frames= {7} , speed = 1},
+            kick = {frames = {8}, speed = 1},
         }
         this.current_anim = "idle"
         this.anim_frame = 1
@@ -60,6 +61,15 @@ stepstools = {
         this.exhaustionLimit = 4
         this.sweats = {}
         this.sweatTimer = 0
+
+        this.self_throw = 0
+        this.self_throw_cooldown = 0
+
+        this.movementFlightLock = false
+
+        this.body_hb = nil
+        this.body_was_active = false
+        this.body_timer = 0
 
         this.check_objects = function(this)
             for _, o in ipairs(objects) do
@@ -145,7 +155,7 @@ stepstools = {
         end
 
         -- exhaustion effect
-        if this.exhaustion >= this.exhaustionLimit then
+        if this.self_throw ~= 0 then
             this.sweatTimer = this.sweatTimer + 1
             if this.sweatTimer >= 3 then
                 table.insert(this.sweats, {
@@ -182,13 +192,10 @@ stepstools = {
         local v_input = (inputSource.getKeyDown(id, "down") and 1 or 0) - (inputSource.getKeyDown(id, "up") and 1 or 0)
         -- hitstun
         if this.hitstun > 0 then
+            if this.self_throw == 2 then this.self_throw = 1 end
             this.hitstun = this.hitstun - 1
             this.vy = util.appr(this.vy, 3, 0.167)
             this.vx = util.appr(this.vx, 0, 0.16)
-            if this.holding then
-                this.holding.held = false
-                this.holding = nil
-            end
         else
 
             local jump_btn = inputSource.getKeyDown(id, "b1")
@@ -205,6 +212,7 @@ stepstools = {
 
             if on_ground and not this.was_on_ground then
                 game.init_smoke(this.x, this.y + 4)
+                this.self_throw = 0
             end
 
             if on_ground and this.vy > 0 then
@@ -237,7 +245,11 @@ stepstools = {
                 local accel = on_ground and 0.93 or 0.80
                 local deccel = 0.16
 
-                this.vx = math.abs(this.vx) <= maxrun and util.appr(this.vx, h_input * maxrun, accel) or util.appr(this.vx, util.sign(this.vx) * maxrun, deccel)
+                if this.self_throw == 2 then
+                    this.vx = util.appr(this.vx, h_input * (maxrun * 0.4), 0.2 or 0.18)
+                else
+                    this.vx = math.abs(this.vx) <= maxrun and util.appr(this.vx, h_input * maxrun, accel) or util.appr(this.vx, util.sign(this.vx) * maxrun, deccel)
+                end
                 if this.vx ~= 0 then this.facing = util.sign(this.vx) end
 
                 local maxfall = 2.6
@@ -263,6 +275,7 @@ stepstools = {
                     else
                         local wall_dir = this:is_solid(-3, 0) and -1 or (this:is_solid(3, 0) and 1 or 0)
                         if wall_dir ~= 0 then
+                            if this.self_throw == 2 then this.self_throw = 1 end
                             this.jbuffer = 0
                             this.vx = -wall_dir * (maxrun + 1.06)
                             this.vy = -3.36
@@ -271,9 +284,32 @@ stepstools = {
                         end
                     end
                 end
-            else
-                this.x = this.holding.x
-                this.y = this.holding.y + 4
+            end
+            
+            if this.holding and this.holding.flying and this.holding.flystarttimer <= 0 then
+                this.movementFlightLock = true
+                
+                -- ONLY force a drop if we hit a CEILING or a WALL. 
+                -- We ignore the floor (is_solid(0, 1)) because you start on the floor.
+                local hit_ceiling = this:is_solid(0, -1) or this.holding:is_solid(0, -1)
+                local hit_wall = this:is_solid(util.sign(this.vx), 0)
+
+                -- Use <= 0 so it works with the goldstool's countdown
+                if (hit_ceiling or hit_wall) and (this.holding.flylock <= 0) then
+                    this.holding.held = false
+                    this.holding.collides = true
+                    this.holding = nil
+                    this.movementFlightLock = false
+                end
+
+                -- OOB check
+                if this.holding and this.holding:oob() then
+                    this.holding.held = false
+                    this.holding.collides = true
+                    this.holding = nil
+                    this.movementFlightLock = false
+                    this.y = stage.blastZone.t - 10
+                end
             end
 
             local pickupcheck = this.check_objects(this)
@@ -326,6 +362,7 @@ stepstools = {
                 if dash and inputSource.getKeyDown(id, "down") and pickup and not touching_field then
                     dash = false
                     
+                    if this.self_throw == 2 then this.self_throw = 1 end
                     pickup.held = true
                     pickup.collides = false
                     pickup.flying = false
@@ -342,10 +379,17 @@ stepstools = {
                         end
                     end
                 else
-                    if dash and this.goldstool.exhaustion <= this.goldstool.exhaustionLimit then
-                        this.goldstool.flying = true
-                        this.goldstool.collides = false
-                        this.goldstool.flylock = 11
+                    if dash then
+                        if inputSource.getKeyDown(id, "down") and this.goldstool.exhaustion <= this.goldstool.exhaustionLimit then
+                            this.goldstool.flying = true
+                            this.goldstool.collides = false
+                            this.goldstool.flylock = 11
+                        elseif this.self_throw == 0 and this.self_throw_cooldown == 0 then
+                            this.vx = inputSource.getKeyDown(id, "left") and -4 or inputSource.getKeyDown(id, "right") and 4 or (inputSource.getKeyDown(id, "up") or inputSource.getKeyDown(id, "down")) and 0 or this.facing < 0 and -4 or 4
+                            this.vy = inputSource.getKeyDown(id, "down") and 0 or inputSource.getKeyDown(id, "up") and -3 or -1
+                            this.self_throw = 2
+                            this.self_throw_cooldown = 15
+                        end
                     end
                 end
                 end
@@ -357,7 +401,10 @@ stepstools = {
                 this.was_on_ground = on_ground
             end
 
-        this:move(this.vx, this.vy)
+        if this.movementFlightLock and this.holding then this:move(this.holding.vx, this.holding.vy)
+        else this:move(this.vx, this.vy) end
+        
+        
 
         -- Move riders
         -- local dx = this.x - px
@@ -381,6 +428,8 @@ stepstools = {
         if not anim_on_ground then
             if (this.facing == 1 and this:is_solid(1, 0)) or (this.facing == -1 and this:is_solid(-1, 0)) then
                 next_anim = "wallslide"
+            elseif this.self_throw == 2 then
+                next_anim = "kick"
             else
                 next_anim = "jump"
             end
@@ -430,6 +479,8 @@ stepstools = {
             this.rem.x = 0
             this.rem.y = 0
             this.sweats = {}
+            this.self_throw = 0
+            this.self_throw_cooldown = 0
             if this.holding then
                 this.holding.held = false
                 this.holding = nil
@@ -445,6 +496,29 @@ stepstools = {
                 this.active = false
             end
         end
+
+        -- Self Throw Damage
+        if (math.abs(this.vx) > 0.2 or math.abs(this.vy) > 0.2) and this.self_throw == 2 then
+            if this.body_was_active then
+                this.body_timer = 0
+                this.body_was_active = true
+            end
+            if this.body_timer % 3 == 0 then
+                local hb_w, hb_h = this.hurtbox.w + (this.hurtbox.w / 2), this.hurtbox.h + (this.hurtbox.h / 2)
+                local targetX = this.x + this.vx
+                local targetY = this.y + this.vy
+                local cx = targetX + this.hurtbox.x
+                local cy = targetY + this.hurtbox.y
+                local hb_x = cx - (hb_w / 4)
+                local hb_y = cy - (hb_h / 4)
+                this.body_hb = hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*4, util.sign(this.vy) * 1.25 - 0.5, 2 + 2)
+            end
+            this.body_timer = this.body_timer + 1
+        else
+            this.body_was_active = false
+        end
+
+        if this.self_throw_cooldown > 0 then this.self_throw_cooldown = this.self_throw_cooldown - 1 end
     end,
 
     on_hit_confirm = function(this, target, hb)
