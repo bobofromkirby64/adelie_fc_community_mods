@@ -4,13 +4,13 @@ goldstool = {
         this.connectionID = "goldstool_" .. math.floor(this.x) .. "_" .. math.floor(this.y)
 
         local player_skins = {
-                {sprites["objects/goldstool_1"], {1, 1, 1, 1}}, -- gold
-                {sprites["objects/goldstool_2"], {1, 1, 1, 1}}, -- diamond
-                {sprites["objects/goldstool_3"], {1, 1, 1, 1}}, -- emerald
-                {sprites["objects/goldstool_4"], {1, 1, 1, 1}}, -- amethyst
+                {sprites["objects/goldstool_1"], {255 / 255, 236 / 255, 39 / 255, 0.25}}, -- gold
+                {sprites["objects/goldstool_2"], {41 / 255, 173 / 255, 255 / 255, 0.25}}, -- diamond
+                {sprites["objects/goldstool_3"], {0 / 255, 228 / 255, 54 / 255, 0.25}}, -- emerald
+                {sprites["objects/goldstool_4"], {175 / 255, 76 / 255, 255 / 255, 0.25}}, -- amethyst
             }
 
-        this.spritesheet, this.nothing = unpack(player_skins[tonumber(skin)])
+        this.spritesheet, this.beamColor = unpack(player_skins[tonumber(skin)])
         this.skin = skin
         this.spr = this.spritesheet[4]
 
@@ -48,6 +48,44 @@ goldstool = {
         this.body_hb = nil
         this.leftwing_hb = nil
         this.rightwing_hb = nil
+
+        this.exhaustion = 0
+        this.exhaustionLimit = 2
+        this.sweats = {}
+        this.sweatTimer = 0
+
+        this.beams = {}
+        this.beamTimer = 0
+
+        this.corner_correct = function(this_obj, dir_x, dir_y, side_dist, only_sign)
+            only_sign = only_sign or 0
+            if dir_x ~= 0 then
+                for i = 1, side_dist do
+                    for _, s in ipairs({1, -1}) do
+                        if s ~= -only_sign then
+                            if not this_obj:is_solid(dir_x, i * s) then
+                                this_obj.x = this_obj.x + dir_x
+                                this_obj.y = this_obj.y + i * s
+                                return true
+                            end
+                        end
+                    end
+                end
+            elseif dir_y ~= 0 then
+                for i = 1, side_dist do
+                    for _, s in ipairs({1, -1}) do
+                        if s ~= -only_sign then
+                            if not this_obj:is_solid(i * s, dir_y) then
+                                this_obj.x = this_obj.x + i * s
+                                this_obj.y = this_obj.y + dir_y
+                                return true
+                            end
+                        end
+                    end
+                end
+            end
+            return false
+        end
     end,
 
     update = function(this)  
@@ -57,13 +95,26 @@ goldstool = {
 
         -- check for oob
         if this:oob() then
-            this.flying = true
-            this.was_flying = true
-            this.flystarttimer = 0
-            this.collides = false
+            if this.exhaustion < this.exhaustionLimit then
+                this.flying = true
+                this.was_flying = true
+                this.flystarttimer = 0
+                this.collides = false
+                this.y = stage.blastZone.b - 5
+                this.vy = -3.5
+                this.was_colliding = false
+            else
+                this.flying = false
+                this.was_flying = false
+                this.collides = true
+                this.y = stage.blastZone.t
+                this.vy = 2.6
+                this.was_colliding = true
+            end
             this.x = this.owner.x
-            this.y = stage.blastZone.b
-            this.was_colliding = false
+            this.vx = 0
+            this.exhaustion = this.exhaustion + 1
+            table.insert(this.beams, {x = this.x, w = 8})
         end
 
         -- check for flystarttimer
@@ -71,6 +122,7 @@ goldstool = {
             if this.was_flying == false then
                 this.flystarttimer = 6
                 this.was_flying = true
+                love.audio.play("menu_back", "static")
             end
         else
             this.was_flying = false
@@ -85,6 +137,8 @@ goldstool = {
                     if this.flylock <= 0 then
                         this.flying = false
                         this.collides = true
+                        this.exhaustion = 0
+                        this.sweats = {}
                     end
                     this.was_colliding = false
                 end
@@ -106,6 +160,10 @@ goldstool = {
         else
             if on_ground and not this.was_on_ground then
             game.init_smoke(this.x, this.y + 4)
+            end
+
+            if on_ground then
+                this.exhaustion = 0
             end
 
             if on_ground and this.vy > 0 then
@@ -158,6 +216,9 @@ goldstool = {
 
                 this.wings_timer = 0
                 this.wings_were_active = true
+
+                this.leftwing_hb.hit_sfx = "zap"
+                this.rightwing_hb.hit_sfx = "zap"
             elseif this.wings_timer % 3 == 0 then
                 this.leftwing_hb = hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x - 6,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 2, 3, -2, 4)
                 this.rightwing_hb = hitbox.create(this.owner.connectionID, this.x + this.hurtbox.x + 6,  this.y + this.hurtbox.y, this.hurtbox.w, this.hurtbox.h, 2, 3, 2, 4)
@@ -182,6 +243,44 @@ goldstool = {
         local dy = this.y - py
         for _, r in ipairs(riders) do
             r:move(dx, dy)
+        end
+
+         -- exhaustion effect
+        if this.exhaustion > this.exhaustionLimit then
+            this.sweatTimer = this.sweatTimer + 1
+            if this.sweatTimer >= 3 then
+                table.insert(this.sweats, {
+                                x = this.x + 4 + math.random(-2, 2),
+                                y = this.y + math.random(0, 4),
+                                vy = -0.5,
+                                t = 8
+                            })
+                this.sweatTimer = 0
+            end
+        end
+        
+        for i = #this.sweats, 1, -1 do
+            local sw = this.sweats[i]
+            sw.y = sw.y + sw.vy
+            sw.vy = sw.vy + 0.1
+            sw.t = sw.t - 1
+            if sw.t <= 0 then
+                table.remove(this.sweats, i)
+            end
+        end
+
+        -- Beam effect
+        for b = #this.beams, 1, -1 do
+            local beam = this.beams[b]
+            if(this.beamTimer <= 0) then
+                beam.w = beam.w - 2
+                beam.x = beam.x + 1
+                this.beamTimer = 8
+            end
+            this.beamTimer = this.beamTimer - 1
+            if beam.w == 0 then
+                table.remove(this.beams, b)
+            end
         end
 
         
@@ -213,7 +312,6 @@ goldstool = {
         end
     end,
 
-
     draw = function(this)
         local anim = this.animations[this.current_anim]
         local frame_idx = anim.frames[this.anim_frame]
@@ -221,5 +319,22 @@ goldstool = {
         local cx = this.hurtbox.x + (this.hurtbox.w)
 
         sprites.draw(this.spr, this.x + 1, this.y - 1, 0, 1, 1, cx, 0)
+
+        love.graphics.setColor(41/255, 173/255, 255/255, 1)
+        for _, sw in ipairs(this.sweats) do
+            love.graphics.rectangle("fill", math.floor(sw.x), math.floor(sw.y), 1, 1)
+        end
+
+        for _, b in ipairs(this.beams) do
+            if b.w > 2 then
+                love.graphics.setColor(1, 1, 1, 0.2)
+                love.graphics.rectangle("fill", math.floor(b.x), stage.blastZone.t, b.w, 500)
+                love.graphics.setColor(this.beamColor)
+                love.graphics.rectangle("fill", math.floor(b.x + 1), stage.blastZone.t, b.w - 2, 500)
+            else
+                love.graphics.setColor(this.beamColor)
+                love.graphics.rectangle("fill", math.floor(b.x), stage.blastZone.t, b.w, 500)
+            end
+        end
     end
 }

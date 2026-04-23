@@ -493,6 +493,10 @@ gemmy = {
         if isBlinking then
             love.graphics.setShader(whiteShader)
             love.graphics.setColor(1, 1, 1)
+        elseif this.djump == 0 then
+            love.graphics.setShader(paletteSwapShader)
+            paletteSwapShader:send("color_find", this.hair_color)
+            paletteSwapShader:send("color_replace", {41 / 255, 173 / 255, 255 / 255, 1.0})
         elseif this.djump == 2 then
             love.graphics.setShader(paletteSwapShader)
             paletteSwapShader:send("color_find", this.hair_color)
@@ -510,11 +514,8 @@ gemmy = {
                 local r, g, b = unpack(this.hair_color)
                 paletteSwapShader:send("color_replace", {r * 0.75 + 0.25 * tint, g * 0.75 + 0.25 * tint, b * 0.75 + 0.25 * tint, 1.0})
             end
-        elseif this.djump == 0 then
-            love.graphics.setShader(paletteSwapShader)
-            paletteSwapShader:send("color_find", this.hair_color)
-            paletteSwapShader:send("color_replace", {41 / 255, 173 / 255, 255 / 255, 1.0})
         end
+        
 
         sprites.draw(this.spr, this.x + cx, this.y, 0, this.facing, 1, cx, 0)
 

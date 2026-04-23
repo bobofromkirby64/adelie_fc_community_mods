@@ -56,6 +56,11 @@ stepstools = {
         this.goldstool = objectSystem.createObject(goldstool, this.x, stage.blastZone.b + 10, skin, this)
         this.heldobject = this.goldstool
 
+        this.exhaustion = 0
+        this.exhaustionLimit = 4
+        this.sweats = {}
+        this.sweatTimer = 0
+
         this.check_objects = function(this)
             for _, o in ipairs(objects) do
                 if o.type and (o.type.name == "goldstool" or o.type.name == "snowball") and not o.destroyed then
@@ -132,9 +137,35 @@ stepstools = {
                 this.hitstun = 0
                 this.invincible_timer = 60
 
+                this.sweats = {}
+
                 local spawn_offset_x = this.facing == 1 and 1 or 6
             end
             return
+        end
+
+        -- exhaustion effect
+        if this.exhaustion >= this.exhaustionLimit then
+            this.sweatTimer = this.sweatTimer + 1
+            if this.sweatTimer >= 3 then
+                table.insert(this.sweats, {
+                                x = this.x + 4 + math.random(-2, 2),
+                                y = this.y + math.random(0, 4),
+                                vy = -0.5,
+                                t = 8
+                            })
+                this.sweatTimer = 0
+            end
+        end
+        
+        for i = #this.sweats, 1, -1 do
+            local sw = this.sweats[i]
+            sw.y = sw.y + sw.vy
+            sw.vy = sw.vy + 0.1
+            sw.t = sw.t - 1
+            if sw.t <= 0 then
+                table.remove(this.sweats, i)
+            end
         end
 
         -- Set Up Riders
@@ -261,6 +292,8 @@ stepstools = {
             -- pickup objects with ⬇️❎ (also cancel dash if you do this)
             if this.holding then
                 local pickup = this.holding
+
+                if on_ground then pickup.exhaustion = 0 end
                 
                 if (not touching_field) then
                     pickup:move(this.x - pickup.x, this.y - 4 - pickup.y)
@@ -280,6 +313,7 @@ stepstools = {
                     if dash then
                         pickup.vx = inputSource.getKeyDown(id, "left") and -4 or inputSource.getKeyDown(id, "right") and 4 or (inputSource.getKeyDown(id, "up") or inputSource.getKeyDown(id, "down")) and 0 or this.facing < 0 and -4 or 4
                         pickup.vy = inputSource.getKeyDown(id, "down") and 0 or inputSource.getKeyDown(id, "up") and -3 or -1
+                        love.audio.play("lani_throw", "static")
                     else
                         pickup.vx = this.vx * -0.5
                         pickup.vy = this.vy * -0.5
@@ -308,7 +342,7 @@ stepstools = {
                         end
                     end
                 else
-                    if dash then
+                    if dash and this.goldstool.exhaustion <= this.goldstool.exhaustionLimit then
                         this.goldstool.flying = true
                         this.goldstool.collides = false
                         this.goldstool.flylock = 11
@@ -395,6 +429,7 @@ stepstools = {
             this.hitstun = 0
             this.rem.x = 0
             this.rem.y = 0
+            this.sweats = {}
             if this.holding then
                 this.holding.held = false
                 this.holding = nil
@@ -470,6 +505,8 @@ stepstools = {
             love.graphics.setColor(1, 1, 1)
         end
 
+        -- exhaustion effect
+
         -- apply pal swaps
         if isBlinking then
             love.graphics.setShader(whiteShader)
@@ -490,7 +527,16 @@ stepstools = {
             love.graphics.rectangle("fill", px + 4, py - 5, 1, 1)
         end
 
+        if not isBlinking then
+            love.graphics.setColor(41/255, 173/255, 255/255, 1)
+            for _, sw in ipairs(this.sweats) do
+                love.graphics.rectangle("fill", math.floor(sw.x), math.floor(sw.y), 1, 1)
+            end
+        end
+
         love.graphics.setShader()
         love.graphics.setColor(1, 1, 1)
+
+        
     end
 }
