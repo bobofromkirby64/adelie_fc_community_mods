@@ -54,7 +54,7 @@ css = {
                 },
                 {
                     id = 2,
-                    char = "stepstools",
+                    char = "gemmy",
                     ready = "1",
                     wins = -1,
                     skin = 2,

@@ -285,7 +285,7 @@ stepstools = {
                     end
                 end
             end
-            
+
             if this.holding and this.holding.flying and this.holding.flystarttimer <= 0 then
                 this.movementFlightLock = true
                 
@@ -350,6 +350,7 @@ stepstools = {
                         pickup.vx = inputSource.getKeyDown(id, "left") and -4 or inputSource.getKeyDown(id, "right") and 4 or (inputSource.getKeyDown(id, "up") or inputSource.getKeyDown(id, "down")) and 0 or this.facing < 0 and -4 or 4
                         pickup.vy = inputSource.getKeyDown(id, "down") and 0 or inputSource.getKeyDown(id, "up") and -3 or -1
                         love.audio.play("lani_throw", "static")
+                        this.movementFlightLock = false
                     else
                         pickup.vx = this.vx * -0.5
                         pickup.vy = this.vy * -0.5

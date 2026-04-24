@@ -91,6 +91,7 @@ lani = {
             obj.vx = vx
             obj.vy = vy
             this.holding = nil
+            this.movementFlightLock = false
             if obj.on_release then
                 obj:on_release(thrown)
             end

@@ -116,7 +116,7 @@ goldstool = {
             this.x = this.owner.x
             this.vx = 0
             this.exhaustion = this.exhaustion + 1
-            table.insert(this.beams, {x = this.x, w = 8})
+            table.insert(this.beams, {x = this.x, w = 8, layer = -2})
         end
 
         -- check for flystarttimer
@@ -133,7 +133,7 @@ goldstool = {
         -- check for finish flying
         if this.flying then
             if this.flystarttimer <= 0 then
-                if ground_hit and this.was_colliding == false then
+                if ground_hit or this:is_solid(0, 2) or this:is_solid(0, 3) and this.was_colliding == false then
                     this.was_colliding = true
                 elseif ground_hit == false and this.was_colliding == true then
                     if this.flylock <= 0 then
@@ -323,13 +323,6 @@ goldstool = {
     end,
 
     draw = function(this)
-        local anim = this.animations[this.current_anim]
-        local frame_idx = anim.frames[this.anim_frame]
-        this.spr = this.spritesheet[frame_idx]
-        local cx = this.hurtbox.x + (this.hurtbox.w)
-
-        sprites.draw(this.spr, this.x + 1, this.y - 1, 0, 1, 1, cx, 0)
-
         love.graphics.setColor(41/255, 173/255, 255/255, 1)
         for _, sw in ipairs(this.sweats) do
             love.graphics.rectangle("fill", math.floor(sw.x), math.floor(sw.y), 1, 1)
@@ -346,6 +339,16 @@ goldstool = {
                 love.graphics.rectangle("fill", math.floor(b.x), stage.blastZone.t, b.w, 500)
             end
         end
+
+        love.graphics.setShader()
+        love.graphics.setColor(1, 1, 1, 1)
+
+        local anim = this.animations[this.current_anim]
+        local frame_idx = anim.frames[this.anim_frame]
+        this.spr = this.spritesheet[frame_idx]
+        local cx = this.hurtbox.x + (this.hurtbox.w)
+
+        sprites.draw(this.spr, this.x + 1, this.y - 1, 0, 1, 1, cx, 0)
 
         love.graphics.setShader()
         love.graphics.setColor(1, 1, 1, 1)

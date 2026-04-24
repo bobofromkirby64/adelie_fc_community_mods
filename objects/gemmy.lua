@@ -448,7 +448,7 @@ gemmy = {
         elseif this.djump == 0 then
             hr, hg, hb = 41 / 255, 173 / 255, 255 / 255
         end
-        if this.dash_cooldown > 0 then
+        if this.dash_cooldown > 0 and this.djump > 0 then
             hr = hr * 0.75 + 0.25 * tint
             hg = hg * 0.75 + 0.25 * tint
             hb = hb * 0.75 + 0.25 * tint
