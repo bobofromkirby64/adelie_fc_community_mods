@@ -5,6 +5,9 @@ local frameRate = 0
 
 dbg = {
     update = function(dt)
+        if css.mode == "TRAINING" then debugEnabled = DEBUG_SOLO
+        else debugEnabled = false end
+
         if love.keyboard.isScancodeDown("escape") and love.keyboard.isScancodeDown("lshift") then
             love.event.quit()
         elseif input.getKeyDown("d") then

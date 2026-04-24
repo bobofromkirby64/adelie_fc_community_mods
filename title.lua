@@ -234,6 +234,36 @@ local function refreshReplayList()
     end
 end
 
+local function deleteOldReplays()
+    local time_limit
+    if REPLAY_DELETION == 0 then return
+    elseif REPLAY_DELETION == 6 then time_limit = 1 * 24 * 3600
+    elseif REPLAY_DELETION == 5 then time_limit = 3 * 24 * 3600
+    elseif REPLAY_DELETION == 4 then time_limit = 5 * 24 * 3600
+    elseif REPLAY_DELETION == 3 then time_limit = 7 * 24 * 3600
+    elseif REPLAY_DELETION == 2 then time_limit = 2 * 7 * 24 * 3600
+    elseif REPLAY_DELETION == 1 then time_limit = 4 * 7 * 24 * 3600
+    else return end
+
+    replay_files = {}
+    if love.filesystem.getInfo("replays") then
+        local items = love.filesystem.getDirectoryItems("replays")
+        for _, item in ipairs(items) do
+            if item:sub(-4) == ".txt" then
+                local content = love.filesystem.read("replays/" .. item)
+                local replayData = replay.loadFromString(content)
+                if replayData then
+                    local base_name = item:sub(1, -5)
+                    local time_match = base_name:match("^replay_(%d+)$")
+                    if time_match then
+                        if math.abs(tonumber(time_match) - tonumber(os.time())) > time_limit then love.filesystem.remove("replays/" .. item) end
+                    end
+                end
+            end
+        end
+    end
+end
+
 local function isValidIP(ip)
     if ip == "0.0.0.0" then return false end
     local o1, o2, o3, o4 = ip:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)$")
@@ -361,6 +391,20 @@ local options_menu = {
         onCancel = function() VOL_SFX = config["vol_sfx"] or 8 end,
         onSave = function(val) VOL_SFX = val; config["vol_sfx"] = val; saveConfig() end
     },
+    {
+        type = "slider",
+        min = 0, max = 1,
+        getValue = function() return config["debug"] or 0 end,
+        getText = function(active, val) return active and ("< debug mode in solo : " .. (val == 1 and "on" or "off") .. " >") or ("debug mode in solo : " .. (DEBUG_SOLO and "on" or "off")) end,
+        onSave = function(val) DEBUG_SOLO = (val == 1); config["debug"] = val; saveConfig(); end
+    },
+    {
+        type = "slider",
+        min = 0, max = 6,
+        getValue = function() return config["replay_deletion"] or 0 end,
+        getText = function(active, val) return active and ("< delete replays older than : " .. ((val == 0 and "never") or (val == 1 and "1 month") or (val == 2 and "2 weeks") or (val == 3 and "1 week") or (val == 4 and "5 days") or (val == 5 and "3 days") or (val == 6 and "1 day") or "never") .. " >") or ("delete replays older than : " .. ((val == 0 and "never") or (val == 1 and "1 month") or (val == 2 and "2 weeks") or (val == 3 and "1 week") or (val == 4 and "5 days") or (val == 5 and "3 days") or (val == 6 and "1 day") or "never")) end,
+        onSave = function(val) REPLAY_DELETION = (val); config["replay_deletion"] = val; saveConfig(); end
+    }
 }
 
 local controls_menu = {
@@ -786,6 +830,7 @@ state_handlers = {
         hideLogo = true,
         overlay = "UD : navigate | O : select | X : back",
         onEnter = function()
+            deleteOldReplays()
             refreshReplayList()
             replay_acting = false
         end,
