@@ -2,6 +2,7 @@ goldstool = {
     name = "goldstool",
     init = function(this, skin, owner)
         this.connectionID = "goldstool_" .. math.floor(this.x) .. "_" .. math.floor(this.y)
+        this.throwerID = nil
 
         local player_skins = {
                 {sprites["objects/goldstool_1"], {255 / 255, 236 / 255, 39 / 255, 0.5}}, -- gold
@@ -57,6 +58,9 @@ goldstool = {
         this.beams = {}
         this.beamTimer = 0
 
+        this.was_held = false
+        this.body_hitbox_lock = 0
+
         this.corner_correct = function(this_obj, dir_x, dir_y, side_dist, only_sign)
             only_sign = only_sign or 0
             if dir_x ~= 0 then
@@ -97,26 +101,7 @@ goldstool = {
 
         -- check for oob
         if this:oob() then
-            if this.exhaustion < this.exhaustionLimit then
-                this.flying = true
-                this.was_flying = true
-                this.flystarttimer = 0
-                this.collides = false
-                this.y = stage.blastZone.b - 5
-                this.vy = -3.5
-                this.was_colliding = false
-            else
-                this.flying = false
-                this.was_flying = false
-                this.collides = true
-                this.y = stage.blastZone.t
-                this.vy = 2.6
-                this.was_colliding = true
-            end
-            this.x = this.owner.x
-            this.vx = 0
-            this.exhaustion = this.exhaustion + 1
-            table.insert(this.beams, {x = this.x, w = 8, layer = -2})
+            goldstool.oobbehavior(this)
         end
 
         -- check for flystarttimer
@@ -133,7 +118,7 @@ goldstool = {
         -- check for finish flying
         if this.flying then
             if this.flystarttimer <= 0 then
-                if ground_hit or this:is_solid(0, 2) or this:is_solid(0, 3) and this.was_colliding == false then
+                if this:is_solid(0, 0) or ground_hit or this:is_solid(0, 2) or this:is_solid(0, 3) and this.was_colliding == false then
                     this.was_colliding = true
                 elseif ground_hit == false and this.was_colliding == true then
                     if this.flylock <= 0 then
@@ -180,6 +165,25 @@ goldstool = {
 
         this.was_on_ground = on_ground
 
+        if this.held then
+            local is_actually_held = false
+            for _, obj in ipairs(objects) do
+                if obj.holding == this or obj.grapple_hit == this then
+                    this.throwerID = obj.connectionID
+                    is_actually_held = true
+                    break
+                end
+            end
+            this.was_held = true
+        else
+            if this.was_held and this.throwerID and this.throwerID ~= this.owner.connectionID then
+                this.was_held = false
+                this.body_hitbox_lock = 17
+            end
+        end
+
+        if this.body_hitbox_lock > 0 then this.body_hitbox_lock = this.body_hitbox_lock - 1 end
+
         -- Set Up Riders
         local px = this.x
         local py = this.y
@@ -204,7 +208,7 @@ goldstool = {
                 this.body_timer = 0
                 this.body_was_active = true
             end
-            if this.body_timer % 3 == 0 then
+            if this.body_timer % 3 == 0 and this.body_hitbox_lock <= 0 then
                 if this.flying then this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w - (this.hurtbox.w / 2), hb_h - (this.hurtbox.h / 2), 2, util.sign(this.vx)*4, util.sign(this.vy) * 2.5 - 1, 2 + 2)
                 else this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*4, util.sign(this.vy) * 2.5 - 1, 2 + 2) end
             end
@@ -253,6 +257,7 @@ goldstool = {
         local dy = this.y - py
         for _, r in ipairs(riders) do
             r:move(dx, dy)
+            if r.type.name == "goldstool" and r:oob() then goldstool.oobbehavior(r) end
         end
 
          -- exhaustion effect
@@ -322,7 +327,32 @@ goldstool = {
         end
     end,
 
+    oobbehavior = function(this)
+        if this.exhaustion < this.exhaustionLimit then
+                this.flying = true
+                this.was_flying = true
+                this.flystarttimer = 0
+                this.collides = false
+                this.y = stage.blastZone.b - 5
+                this.vy = -3.5
+                this.was_colliding = false
+            else
+                this.flying = false
+                this.was_flying = false
+                this.collides = true
+                this.y = stage.blastZone.t
+                this.vy = 2.6
+                this.was_colliding = true
+            end
+        this.x = this.owner.x
+        this.vx = 0
+        this.exhaustion = this.exhaustion + 1
+        table.insert(this.beams, {x = this.x, w = 8, layer = -2})
+    end,
+
     draw = function(this)
+        local isBlinking = this.body_hitbox_lock > 0 and (math.floor(this.body_hitbox_lock / 4) % 2 == 0 or debugEnabled)
+
         love.graphics.setColor(41/255, 173/255, 255/255, 1)
         for _, sw in ipairs(this.sweats) do
             love.graphics.rectangle("fill", math.floor(sw.x), math.floor(sw.y), 1, 1)
@@ -342,6 +372,12 @@ goldstool = {
 
         love.graphics.setShader()
         love.graphics.setColor(1, 1, 1, 1)
+
+        -- apply pal swaps
+        if isBlinking then
+            love.graphics.setShader(whiteShader)
+            love.graphics.setColor(1, 1, 1)
+        end
 
         local anim = this.animations[this.current_anim]
         local frame_idx = anim.frames[this.anim_frame]

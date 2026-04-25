@@ -396,13 +396,29 @@ local options_menu = {
         min = 0, max = 1,
         getValue = function() return config["debug"] or 0 end,
         getText = function(active, val) return active and ("< debug mode in solo : " .. (val == 1 and "on" or "off") .. " >") or ("debug mode in solo : " .. (DEBUG_SOLO and "on" or "off")) end,
+        onCancel = function() DEBUG_SOLO = config["debug"] or 0 end,
         onSave = function(val) DEBUG_SOLO = (val == 1); config["debug"] = val; saveConfig(); end
     },
     {
         type = "slider",
         min = 0, max = 6,
         getValue = function() return config["replay_deletion"] or 0 end,
-        getText = function(active, val) return active and ("< delete replays older than : " .. ((val == 0 and "never") or (val == 1 and "1 month") or (val == 2 and "2 weeks") or (val == 3 and "1 week") or (val == 4 and "5 days") or (val == 5 and "3 days") or (val == 6 and "1 day") or "never") .. " >") or ("delete replays older than : " .. ((val == 0 and "never") or (val == 1 and "1 month") or (val == 2 and "2 weeks") or (val == 3 and "1 week") or (val == 4 and "5 days") or (val == 5 and "3 days") or (val == 6 and "1 day") or "never")) end,
+        getText = function(active, val)
+            local display_val = active and val or (config["replay_deletion"] or 0)
+
+            local labels = {
+                [0] = "never",
+                [1] = "1 month",
+                [2] = "2 weeks",
+                [3] = "1 week",
+                [4] = "5 days",
+                [5] = "3 days",
+                [6] = "1 day"
+            }
+            local label = labels[display_val] or "never"
+
+            if active then return "< delete replays older than : " .. label .. " >" else return "delete replays older than : " .. label end
+        end,
         onSave = function(val) REPLAY_DELETION = (val); config["replay_deletion"] = val; saveConfig(); end
     }
 }
