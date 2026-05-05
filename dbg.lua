@@ -5,8 +5,7 @@ local frameRate = 0
 
 dbg = {
     update = function(dt)
-        if css.mode == "TRAINING" then debugEnabled = DEBUG_SOLO
-        else debugEnabled = false end
+        dbg.debug_setting(this) -- Modded option to enable debug mode in training
 
         if love.keyboard.isScancodeDown("escape") and love.keyboard.isScancodeDown("lshift") then
             love.event.quit()
@@ -24,6 +23,10 @@ dbg = {
             frameRate = 1/avgDt
             dtQueue = {}
         end
+    end,
+    debug_setting = function(this)
+        if css.mode == "TRAINING" then debugEnabled = DEBUG_SOLO -- 
+        else debugEnabled = false end
     end,
     draw = function()
         if debugEnabled then

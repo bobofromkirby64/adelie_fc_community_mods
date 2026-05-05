@@ -219,7 +219,7 @@ goldstool = {
         -- Wing Damage
         if(this.flying and this.flystarttimer <= 0) then
             if not this.wings_were_active then
-                this.leftwing_hb = hitbox.create(this.owner.connectionID, hb_x - hb_w, hb_y, hb_w, hb_h, 8, 5, util.sign(this.vy) * 2.5 - 1, 2 + 2)
+                this.leftwing_hb = hitbox.create(this.owner.connectionID, hb_x - hb_w, hb_y, hb_w, hb_h, 8, -5, util.sign(this.vy) * 2.5 - 1, 2 + 2)
                 this.rightwing_hb = hitbox.create(this.owner.connectionID, hb_x + hb_w, hb_y, hb_w, hb_h, 8, 5, util.sign(this.vy) * 2.5 - 1, 2 + 2)
 
                 this.leftwing_hb.firstframe = true

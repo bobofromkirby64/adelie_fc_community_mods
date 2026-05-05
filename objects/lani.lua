@@ -485,7 +485,7 @@ lani = {
 
                     if hit_type == 0 then
                         for _, o in ipairs(objects) do
-                            if o.type and (o.type.name == "snowball" or o.type.name == "goldstool") and not o.held and not o.destroyed then
+                            if o.type and (o.type.name == "snowball" or o.type.name == "goldstool") and not o.held and not o.destroyed then -- SlimeGuy's Mods adds goldstool check
                                 if check_x >= o:left() and check_x <= o:right() and check_y >= o:top() and check_y <= o:bottom() then
                                     this.grapple_hit = o
                                     hit_type = 3
@@ -664,32 +664,6 @@ lani = {
             end
         end
 
-        if this.holding and this.holding.flying and this.holding.flystarttimer <= 0 then
-                this.movementFlightLock = true
-                
-                -- ONLY force a drop if we hit a CEILING or a WALL. 
-                -- We ignore the floor (is_solid(0, 1)) because you start on the floor.
-                local hit_ceiling = this:is_solid(0, -1) or this.holding:is_solid(0, -1)
-                local hit_wall = this:is_solid(util.sign(this.vx), 0)
-
-                -- Use <= 0 so it works with the goldstool's countdown
-                if (hit_ceiling or hit_wall) and (this.holding.flylock <= 0) then
-                    this.holding.held = false
-                    this.holding.collides = true
-                    this.holding = nil
-                    this.movementFlightLock = false
-                end
-
-                -- OOB check
-                if this.holding and this.holding:oob() then
-                    this.holding.held = false
-                    this.holding.collides = true
-                    this.holding = nil
-                    this.movementFlightLock = false
-                    this.y = stage.blastZone.t - 50
-                end
-            end
-
         if this.state ~= 10 and this.grapple_hb then
             this.grapple_hb.active = false
             this.grapple_hb = nil
@@ -703,6 +677,7 @@ lani = {
             end
         end
 
+        -- Mod checks for if lani should follow goldstool in flight
         if this.movementFlightLock and this.holding then 
             this:move(this.holding.vx, this.holding.vy) --
         else 
@@ -726,6 +701,8 @@ lani = {
                 this.slam_hb = nil
             end
         end
+
+        lani.check_goldstool_is_flying(this) -- Mod checks for if lani needs to goldstool fly
 
         if this.holding then
             this.holding.x = this.x
@@ -876,6 +853,32 @@ lani = {
                 this.x = -1000
                 this.y = -1000
                 this.active = false
+            end
+        end
+    end,
+
+    check_goldstool_is_flying = function(this)
+        if this.holding and this.holding.flying and this.holding.flystarttimer <= 0 then
+            this.movementFlightLock = true
+            
+            -- force a drop if lani hits a celing or wall
+            local hit_ceiling = this:is_solid(0, -1) or this.holding:is_solid(0, -1)
+            local hit_wall = this:is_solid(util.sign(this.vx), 0)
+
+            if (hit_ceiling or hit_wall) and (this.holding.flylock <= 0) then
+                this.holding.held = false
+                this.holding.collides = true
+                this.holding = nil
+                this.movementFlightLock = false
+            end
+
+            -- OOB check
+            if this.holding and this.holding:oob() then
+                this.holding.held = false
+                this.holding.collides = true
+                this.holding = nil
+                this.movementFlightLock = false
+                this.y = stage.blastZone.t - 50
             end
         end
     end,
