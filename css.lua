@@ -4,8 +4,9 @@ local config = require("config")
 
 NUM_PLAYER_SKINS = {
     maddy = 4,
-    lani = 4,
+    gemmy = 4,
     heavymaddy = 4,
+    lani = 4,
     stepstools = 4,
     roundelie = 3
 }
