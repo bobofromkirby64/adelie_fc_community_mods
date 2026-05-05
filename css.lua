@@ -4,9 +4,13 @@ local config = require("config")
 
 NUM_PLAYER_SKINS = {
     maddy = 4,
-    lani = 4
+    lani = 4,
+    heavymaddy = 4,
+    stepstools = 4,
+    roundelie = 3
 }
-AVAILABLE_CHARS = {"maddy", "lani"}
+AVAILABLE_CHARS = {"maddy", "heavymaddy", "lani", "stepstools","roundelie"}
+VANILLA_CHARS = {"maddy", "lani"}
 
 css = {
     players = {},
@@ -19,13 +23,22 @@ css = {
         --css.players = {}
         css.localReady = false
         css.btnPressed = {}
-
+        
         css.player_char = css.player_char or "maddy"
         css.char_idx = css.char_idx or 1
         css.player_skin = css.player_skin or 1
 
+        css.modded_char = css.modded_char or css.player_char
+        css.modded_idx = css.modded_idx or css.char_idx
+        css.modded_skin = css.modded_skin or css.player_skin
+
         if css.mode == "ONLINE" and network and network.sendCSSReady then
             network.sendCSSReady(false)
+        end
+
+        if css.mode == "ONLINE" and network and network.sendCSSSkin and network.modVersion ~= 1000 then
+            network.sendCSSSkin(1000 + css.player_skin) -- Offset by 1000 to signal modded client
+            network.sendCSSSkin(css.player_skin)
         end
 
         overlay.setInputDisplay("O : ready | LR : character | UD : skin | X : leave")
@@ -42,7 +55,7 @@ css = {
                 },
                 {
                     id = 2,
-                    char = "maddy",
+                    char = "heavymaddy",
                     ready = "1",
                     wins = -1,
                     skin = 2,
@@ -58,6 +71,7 @@ css = {
             css.localReady = not css.localReady
 
             if css.mode == "ONLINE" then
+                network.sendCSSSkin(css.player_skin)
                 network.sendCSSReady(css.localReady)
             else
                 css.players[1].ready = css.localReady and "1" or "0"
@@ -79,6 +93,7 @@ css = {
 
         if not css.localReady then
             local n_skins = NUM_PLAYER_SKINS[css.player_char]
+            local character_set = (network.modVersion == 1000 or css.mode == "TRAINING") and AVAILABLE_CHARS or VANILLA_CHARS
             local updated = false
 
             if input.checkPressed("up") then
@@ -90,14 +105,14 @@ css = {
                 updated = true
             end
             if input.checkPressed("right") then
-                css.char_idx = css.char_idx % #AVAILABLE_CHARS + 1
-                css.player_char = AVAILABLE_CHARS[css.char_idx]
+                css.char_idx = css.char_idx % #character_set + 1
+                css.player_char = character_set[css.char_idx]
                 css.player_skin = 1
                 updated = true
             end
             if input.checkPressed("left") then
-                css.char_idx = (css.char_idx - 2) % #AVAILABLE_CHARS + 1
-                css.player_char = AVAILABLE_CHARS[css.char_idx]
+                css.char_idx = (css.char_idx - 2) % #character_set + 1
+                css.player_char = character_set[css.char_idx]
                 css.player_skin = 1
                 updated = true
             end
@@ -130,6 +145,22 @@ css = {
         love.graphics.print(title, GAME_WIDTH/2 - (#title * 2) + 1, 8 + 1)
         love.graphics.setColor(util.color(7)) -- white
         love.graphics.print(title, GAME_WIDTH/2 - (#title * 2), 8)
+
+        -- mod notice
+        local modNotice
+        if network.modVersion == 1000 or css.mode == "TRAINING" then
+            modNotice = "mods enabled!"
+            love.graphics.setColor(util.color(0)) -- shadow
+            love.graphics.print(modNotice, GAME_WIDTH/2 - (#modNotice * 2) + 1, 8 + 1 + 7)
+            love.graphics.setColor(util.color(11)) -- green
+            love.graphics.print(modNotice, GAME_WIDTH/2 - (#modNotice * 2), 8 + 7)
+        else
+            modNotice = "mods disabled!"
+            love.graphics.setColor(util.color(0)) -- shadow
+            love.graphics.print(modNotice, GAME_WIDTH/2 - (#modNotice * 2) + 1, 8 + 1 + 7)
+            love.graphics.setColor(util.color(8)) -- red
+            love.graphics.print(modNotice, GAME_WIDTH/2 - (#modNotice * 2), 8 + 7)
+        end
 
         -- vs
         local vs = "vs"
@@ -233,14 +264,55 @@ css = {
         css.players = {}
         for _, pStr in ipairs(util.split(dataStr, "-")) do
             local parts = util.split(pStr, ",")
-            table.insert(css.players, {
-                id = parts[1],
-                char = parts[2],
-                ready = parts[3],
-                wins = parts[4],
-                skin = parts[5],
-                username = parts[6] or "opp"
-            })
+            if #parts >= 5 then
+                local pID = tonumber(parts[1])
+                local pSkin = tonumber(parts[5])
+                
+                -- Ensure connectionID is a number and not the default -1
+                local myID = tonumber(connectionID) or -1
+
+                -- STICKY HANDSHAKE:
+                -- If we see skin 1000 from someone else, lock modVersion to 1000.
+                -- We do NOT include an 'else' here, so the state persists.
+                if math.floor(pSkin / 100) == 10 and pID ~= myID and myID ~= -1 and network.modVersion ~= 1000 then
+                    network.modVersion = 1000
+                    css.player_char = css.modded_char
+                    css.char_idx = css.modded_idx
+                    css.player_skin = css.modded_skin
+                    network.sendCSSChar(css.player_char)
+                    network.sendCSSSkin(css.player_skin)
+                end
+
+                table.insert(css.players, {
+                    id = parts[1],
+                    char = parts[2],
+                    ready = parts[3],
+                    wins = parts[4],
+                    skin = parts[5],
+                    username = parts[6] or "opp"
+                })
+            end
         end
+    end,
+
+    modded_skin_routine = function(self)
+        network.modVersion = 0
+        css.modded_char = css.player_char or "maddy"
+        css.modded_idx = css.char_idx or 1
+        css.modded_skin = css.player_skin or 1
+        if not css:char_is_vanilla(css.player_char) then
+            css.player_char = "maddy"
+            css.char_idx = 1
+            css.player_skin = 1
+        end
+    end,
+
+    char_is_vanilla = function(css, char)
+        for _, c in ipairs(VANILLA_CHARS) do
+            if c == char then
+                return true
+            end
+        end
+        return false
     end
 }
