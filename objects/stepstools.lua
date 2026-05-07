@@ -64,6 +64,7 @@ stepstools = {
 
         this.self_throw = 0
         this.self_throw_cooldown = 0
+        this.self_throw_blink_timer = 0;
 
         this.movementFlightLock = false
 
@@ -81,6 +82,15 @@ stepstools = {
             end
             return nil
         end
+
+        this.check_for_goldstool = function(this)
+            if this:right() >= this.goldstool:left() and this:left() <= this.goldstool:right() and this:bottom() >= (this.goldstool:top() - 4) and this:top() <= (this.goldstool:bottom() + 4) and not this.goldstool.held then
+                return true
+            else
+                return false
+            end
+        end
+
 
         this.check_snowballs = function(this)
             if this.hitstun > 0 then return end
@@ -155,7 +165,7 @@ stepstools = {
         end
 
         -- exhaustion effect
-        if this.self_throw ~= 0 then
+        if this.exhaustion >= this.exhaustionLimit then
             this.sweatTimer = this.sweatTimer + 1
             if this.sweatTimer >= 3 then
                 table.insert(this.sweats, {
@@ -209,6 +219,7 @@ stepstools = {
             local ground_hit = this:is_solid(0, 1)
             local on_ground = ground_hit ~= false
             local on_semisolid = ground_hit and (ground_hit.type == "semisolid" or ground_hit.semisolid)
+            local on_self_goldstool = on_semisolid and this:check_for_goldstool(this)
 
             if on_ground and not this.was_on_ground then
                 game.init_smoke(this.x, this.y + 4)
@@ -217,6 +228,10 @@ stepstools = {
 
             if on_ground and this.vy > 0 then
                 this.vy = 0
+            end
+
+            if on_ground and (not on_self_goldstool or (this.goldstool:is_solid(0, 1) and not this.goldstool.flying)) then
+                this.exhaustion = 0
             end
 
             if not (this.holding and this.holding.flying) then
@@ -349,6 +364,10 @@ stepstools = {
                     if dash then
                         pickup.vx = inputSource.getKeyDown(id, "left") and -4 or inputSource.getKeyDown(id, "right") and 4 or (inputSource.getKeyDown(id, "up") or inputSource.getKeyDown(id, "down")) and 0 or this.facing < 0 and -4 or 4
                         pickup.vy = inputSource.getKeyDown(id, "down") and 0 or inputSource.getKeyDown(id, "up") and -3 or -1
+                        if pickup.type.name == "snowball" and (this.facing == 1 and this:is_solid(1, 0)) or (this.facing == -1 and this:is_solid(-1, 0)) then
+                            pickup.y = pickup.y - 29
+                            pickup.vy = -3
+                        end
                         love.audio.play("lani_throw", "static")
                         this.movementFlightLock = false
                     else
@@ -360,7 +379,7 @@ stepstools = {
                 end
             else
                 local pickup = this:check_objects()
-                if dash and inputSource.getKeyDown(id, "down") and pickup and not touching_field then
+                if dash and inputSource.getKeyDown(id, "down") and pickup and not touching_field and this.exhaustion < this.exhaustionLimit then
                     dash = false
                     
                     if this.self_throw == 2 then this.self_throw = 1 end
@@ -369,6 +388,7 @@ stepstools = {
                     pickup.flying = false
                     pickup.throwerID = this.connectionID
                     this.holding = pickup
+                    this.exhaustion = this.exhaustion + 1
                     
                     -- boost
                     if not this:is_solid(0, 1) then
@@ -390,6 +410,7 @@ stepstools = {
                             this.vy = inputSource.getKeyDown(id, "down") and 0 or inputSource.getKeyDown(id, "up") and -3 or -1
                             this.self_throw = 2
                             this.self_throw_cooldown = 15
+                            this.self_throw_blink_timer = 0
                         end
                     end
                 end
@@ -424,6 +445,10 @@ stepstools = {
 
         -- sprite stuff
         local anim_on_ground = this.vy >= 0 and this:is_solid(0, 1)
+
+        -- self_throw_blink_timer managment
+        this.self_throw_blink_timer = this.self_throw_blink_timer + 1
+        this.self_throw_blink_timer = this.self_throw_blink_timer % 15
 
         local next_anim = "idle"
         if not anim_on_ground then
@@ -482,6 +507,7 @@ stepstools = {
             this.sweats = {}
             this.self_throw = 0
             this.self_throw_cooldown = 0
+            this.exhaustion = 0
             if this.holding then
                 this.holding.held = false
                 this.holding = nil
@@ -504,16 +530,14 @@ stepstools = {
                 this.body_timer = 0
                 this.body_was_active = true
             end
-            if this.body_timer % 3 == 0 then
-                local hb_w, hb_h = this.hurtbox.w + (this.hurtbox.w / 2), this.hurtbox.h + (this.hurtbox.h / 2)
-                local targetX = this.x + this.vx
-                local targetY = this.y + this.vy
-                local cx = targetX + this.hurtbox.x
-                local cy = targetY + this.hurtbox.y
-                local hb_x = cx - (hb_w / 4)
-                local hb_y = cy - (hb_h / 4)
-                this.body_hb = hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*4, util.sign(this.vy) * 1.25 - 0.5, 2 + 2)
-            end
+            local hb_w, hb_h = this.hurtbox.w * 2, this.hurtbox.h * 2
+            local targetX = this.x + this.vx
+            local targetY = this.y + this.vy
+            local cx = targetX + this.hurtbox.x
+            local cy = targetY + this.hurtbox.y
+            local hb_x = cx - (hb_w / 4)
+            local hb_y = cy - (hb_h / 4)
+            this.body_hb = hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*4, util.sign(this.vy) * 1.25 - 0.5, 2)
             this.body_timer = this.body_timer + 1
         else
             this.body_was_active = false
@@ -576,11 +600,11 @@ stepstools = {
         -- sprite hitstun tint
         if this.hitstun > 0 then
             love.graphics.setColor(255 / 255, 119 / 255, 168 / 255)
+        elseif this.self_throw > 0 and this.self_throw_blink_timer < 6 then
+            love.graphics.setColor(162 / 255, 136 / 255, 121 / 255)
         else
             love.graphics.setColor(1, 1, 1)
         end
-
-        -- exhaustion effect
 
         -- apply pal swaps
         if isBlinking then
@@ -602,6 +626,7 @@ stepstools = {
             love.graphics.rectangle("fill", px + 4, py - 5, 1, 1)
         end
 
+        -- exhaustion effect
         if not isBlinking then
             love.graphics.setColor(41/255, 173/255, 255/255, 1)
             for _, sw in ipairs(this.sweats) do

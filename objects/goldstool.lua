@@ -51,7 +51,7 @@ goldstool = {
         this.rightwing_hb = nil
 
         this.exhaustion = 0
-        this.exhaustionLimit = 5
+        this.exhaustionLimit = 3
         this.sweats = {}
         this.sweatTimer = 0
 
@@ -166,6 +166,7 @@ goldstool = {
         this.was_on_ground = on_ground
 
         if this.held then
+            this.flystarttimer = 0
             local is_actually_held = false
             for _, obj in ipairs(objects) do
                 if obj.holding == this or obj.grapple_hit == this then
@@ -209,7 +210,7 @@ goldstool = {
                 this.body_was_active = true
             end
             if this.body_timer % 3 == 0 and this.body_hitbox_lock <= 0 then
-                if this.flying then this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w - (this.hurtbox.w / 2), hb_h - (this.hurtbox.h / 2), 2, util.sign(this.vx)*4, util.sign(this.vy) * 2.5 - 1, 2 + 2)
+                if this.flying then --this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w - (this.hurtbox.w / 2), hb_h - (this.hurtbox.h / 2), 2, util.sign(this.vx)*4, util.sign(this.vy) * 2.5 - 1, 2 + 2)
                 else this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*4, util.sign(this.vy) * 2.5 - 1, 2 + 2) end
             end
             this.body_timer = this.body_timer + 1
@@ -260,7 +261,7 @@ goldstool = {
             if r.type.name == "goldstool" and r:oob() then goldstool.oobbehavior(r) end
         end
 
-         -- exhaustion effect
+        -- exhaustion effect
         if this.exhaustion > this.exhaustionLimit then
             this.sweatTimer = this.sweatTimer + 1
             if this.sweatTimer >= 3 then
@@ -353,6 +354,7 @@ goldstool = {
     draw = function(this)
         local isBlinking = this.body_hitbox_lock > 0 and (math.floor(this.body_hitbox_lock / 4) % 2 == 0 or debugEnabled)
 
+        -- Sweat
         love.graphics.setColor(41/255, 173/255, 255/255, 1)
         for _, sw in ipairs(this.sweats) do
             love.graphics.rectangle("fill", math.floor(sw.x), math.floor(sw.y), 1, 1)
