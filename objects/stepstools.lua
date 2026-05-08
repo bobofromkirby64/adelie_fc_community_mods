@@ -58,7 +58,7 @@ stepstools = {
         this.heldobject = this.goldstool
 
         this.exhaustion = 0
-        this.exhaustionLimit = 4
+        this.exhaustionLimit = 3
         this.sweats = {}
         this.sweatTimer = 0
 
@@ -364,7 +364,7 @@ stepstools = {
                     if dash then
                         pickup.vx = inputSource.getKeyDown(id, "left") and -4 or inputSource.getKeyDown(id, "right") and 4 or (inputSource.getKeyDown(id, "up") or inputSource.getKeyDown(id, "down")) and 0 or this.facing < 0 and -4 or 4
                         pickup.vy = inputSource.getKeyDown(id, "down") and 0 or inputSource.getKeyDown(id, "up") and -3 or -1
-                        if pickup.type.name == "snowball" and (this.facing == 1 and this:is_solid(1, 0)) or (this.facing == -1 and this:is_solid(-1, 0)) then
+                        if pickup.type.name == "snowball" and ((this.facing == 1 and this:is_solid(1, 0)) or (this.facing == -1 and this:is_solid(-1, 0))) then
                             pickup.y = pickup.y - 29
                             pickup.vy = -3
                         end
@@ -411,6 +411,7 @@ stepstools = {
                             this.self_throw = 2
                             this.self_throw_cooldown = 15
                             this.self_throw_blink_timer = 0
+                            love.audio.play("lani_throw", "static")
                         end
                     end
                 end

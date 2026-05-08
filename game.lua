@@ -45,6 +45,8 @@ game = {
         hitboxes = {}
         history = {}
         particles_bg = {}
+        -- particles_mg placed here for the goldstool's beam effect, as it needs to happen in front of background elements but behind players
+        particles_mg = {}
         particles_fg = {}
 
         frameCounter = 1
@@ -159,6 +161,11 @@ game = {
                 table.remove(particles_bg, i)
             end
         end
+        for i = #particles_mg,1,-1 do
+            if particles_mg[i]:update() then
+                table.remove(particles_mg, i)
+            end
+        end
         for i = #particles_fg,1,-1 do
             if particles_fg[i]:update() then
                 table.remove(particles_fg, i)
@@ -176,6 +183,8 @@ game = {
 
         for _,p in ipairs(particles_bg) do p:draw() end
         stage.draw_bg()
+
+        for _,p in ipairs(particles_mg) do p:draw() end
 
         local previous_canvas = love.graphics.getCanvas()
 

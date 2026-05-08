@@ -51,12 +51,9 @@ goldstool = {
         this.rightwing_hb = nil
 
         this.exhaustion = 0
-        this.exhaustionLimit = 3
+        this.exhaustionLimit = 2
         this.sweats = {}
         this.sweatTimer = 0
-
-        this.beams = {}
-        this.beamTimer = 0
 
         this.was_held = false
         this.body_hitbox_lock = 0
@@ -283,23 +280,7 @@ goldstool = {
             if sw.t <= 0 then
                 table.remove(this.sweats, i)
             end
-        end
-
-        -- Beam effect
-        for b = #this.beams, 1, -1 do
-            local beam = this.beams[b]
-            if(this.beamTimer <= 0) then
-                beam.w = beam.w - 2
-                beam.x = beam.x + 1
-                this.beamTimer = 8
-            end
-            this.beamTimer = this.beamTimer - 1
-            if beam.w == 0 then
-                table.remove(this.beams, b)
-            end
-        end
-
-        
+        end  
 
         -- sprite stuff
 
@@ -348,7 +329,35 @@ goldstool = {
         this.x = this.owner.x
         this.vx = 0
         this.exhaustion = this.exhaustion + 1
-        table.insert(this.beams, {x = this.x, w = 8, layer = -2})
+
+        table.insert(particles_mg, {
+            x = this.x,
+            y = stage.blastZone.t,
+            w = 8,
+            timer = 0,
+            update = function(b)
+                -- Beam effect
+                if b.timer <= 0 then
+                    b.w = b.w - 2
+                    b.x = b.x + 1
+                    b.timer = 8
+                end
+                b.timer = b.timer - 1
+                return b.w <= 0
+            end,
+            draw = function(b)
+                if b.w > 2 then
+                    love.graphics.setColor(1, 1, 1, 0.5)
+                    love.graphics.rectangle("fill", math.floor(b.x), stage.blastZone.t, b.w, 500)
+                    love.graphics.setColor(this.beamColor)
+                    love.graphics.rectangle("fill", math.floor(b.x + 1), stage.blastZone.t, b.w - 2, 500)
+                else
+                    love.graphics.setColor(this.beamColor)
+                    love.graphics.rectangle("fill", math.floor(b.x), stage.blastZone.t, b.w, 500)
+                end
+                love.graphics.setColor(1, 1, 1)
+            end,
+        })
     end,
 
     draw = function(this)
@@ -358,18 +367,6 @@ goldstool = {
         love.graphics.setColor(41/255, 173/255, 255/255, 1)
         for _, sw in ipairs(this.sweats) do
             love.graphics.rectangle("fill", math.floor(sw.x), math.floor(sw.y), 1, 1)
-        end
-
-        for _, b in ipairs(this.beams) do
-            if b.w > 2 then
-                love.graphics.setColor(1, 1, 1, 0.5)
-                love.graphics.rectangle("fill", math.floor(b.x), stage.blastZone.t, b.w, 500)
-                love.graphics.setColor(this.beamColor)
-                love.graphics.rectangle("fill", math.floor(b.x + 1), stage.blastZone.t, b.w - 2, 500)
-            else
-                love.graphics.setColor(this.beamColor)
-                love.graphics.rectangle("fill", math.floor(b.x), stage.blastZone.t, b.w, 500)
-            end
         end
 
         love.graphics.setShader()

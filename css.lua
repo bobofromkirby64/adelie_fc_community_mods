@@ -12,6 +12,7 @@ NUM_PLAYER_SKINS = {
 }
 AVAILABLE_CHARS = {"maddy", "gemmy", "heavymaddy", "lani", "stepstools","roundelie"}
 VANILLA_CHARS = {"maddy", "lani"}
+CPU_CHARS = {"maddy", "gemmy", "heavymaddy"}
 
 css = {
     players = {},
@@ -29,6 +30,11 @@ css = {
         css.char_idx = css.char_idx or 1
         css.player_skin = css.player_skin or 1
 
+        css.cpu_char = css.cpu_char or "maddy"
+        css.cpu_char_idx = css.cpu_char_idx or 1
+        css.cpu_skin = css.cpu_skin or 2
+
+        -- set modded skin selection
         css.modded_char = css.modded_char or css.player_char
         css.modded_idx = css.modded_idx or css.char_idx
         css.modded_skin = css.modded_skin or css.player_skin
@@ -37,6 +43,7 @@ css = {
             network.sendCSSReady(false)
         end
 
+        -- modded send signal
         if css.mode == "ONLINE" and network and network.sendCSSSkin and network.modVersion ~= 1000 then
             network.sendCSSSkin(1000 + css.player_skin) -- Offset by 1000 to signal modded client
             network.sendCSSSkin(css.player_skin)
@@ -56,10 +63,10 @@ css = {
                 },
                 {
                     id = 2,
-                    char = "heavymaddy",
-                    ready = "1",
+                    char = css.cpu_char,
+                    ready = "0",
                     wins = -1,
-                    skin = 2,
+                    skin = css.cpu_skin,
                     username = "cpu"
                 }
             }
@@ -75,8 +82,12 @@ css = {
                 network.sendCSSSkin(css.player_skin)
                 network.sendCSSReady(css.localReady)
             else
-                css.players[1].ready = css.localReady and "1" or "0"
-                if css.localReady then
+                if css.players[1].ready == "0" then css.players[1].ready = css.localReady and "1" or "0"
+                else
+                    css.localReady = not css.localReady
+                    css.players[2].ready = css.localReady and "1" or "0"
+                end
+                if css.players[2].ready == "1" and css.players[1].ready == "1" then
                     gameController.enterSSS(css.players, css.mode)
                 end
             end
@@ -125,6 +136,35 @@ css = {
                     css.players[1].char = css.player_char
                     css.players[1].skin = css.player_skin
                 end
+            end
+        elseif css.mode == "TRAINING" then
+            local n_skins = NUM_PLAYER_SKINS[css.player_char]
+            local character_set = CPU_CHARS
+            local updated = false
+
+            if input.checkPressed("up") then
+                css.cpu_skin = css.cpu_skin % n_skins + 1
+                updated = true
+            end
+            if input.checkPressed("down") then
+                css.cpu_skin = (css.cpu_skin - 2) % n_skins + 1
+                updated = true
+            end
+            if input.checkPressed("right") then
+                css.cpu_char_idx = css.cpu_char_idx % #character_set + 1
+                css.cpu_char = character_set[css.cpu_char_idx]
+                css.cpu_skin = 2
+                updated = true
+            end
+            if input.checkPressed("left") then
+                css.cpu_char_idx = (css.cpu_char_idx - 2) % #character_set + 1
+                css.cpu_char = character_set[css.cpu_char_idx]
+                css.cpu_skin = 2
+                updated = true
+            end
+            if updated then
+                css.players[2].char = css.cpu_char
+                css.players[2].skin = css.cpu_skin
             end
         end
     end,
@@ -294,6 +334,15 @@ css = {
                 })
             end
         end
+    end,
+
+    indexOf = function(array, value)
+        for i, v in ipairs(array) do
+            if v == value then
+                return i
+            end
+        end
+        return nil
     end,
 
     modded_skin_routine = function(self)
