@@ -47,7 +47,7 @@ heavymaddy = {
 
         this.animations = {
             idle = {frames = {1}, speed = 1},
-            run = {frames = {1, 2, 3, 4}, speed = 4},
+            run = {frames = {1, 2, 3, 4}, speed = 5},
             jump = {frames = {3}, speed = 1},
             wallslide = {frames = {5}, speed = 1},
             crouch = {frames = {6}, speed = 1},

@@ -69,7 +69,6 @@ stepstools = {
         this.movementFlightLock = false
 
         this.body_hb = nil
-        this.body_was_active = false
         this.body_timer = 0
 
         this.check_objects = function(this)
@@ -261,7 +260,7 @@ stepstools = {
                 local deccel = 0.16
 
                 if this.self_throw == 2 then
-                    this.vx = util.appr(this.vx, h_input * (maxrun * 0.4), 0.2 or 0.18)
+                    this.vx = util.appr(this.vx, h_input * (maxrun * 0.3), 0.2 or 0.18)
                 else
                     this.vx = math.abs(this.vx) <= maxrun and util.appr(this.vx, h_input * maxrun, accel) or util.appr(this.vx, util.sign(this.vx) * maxrun, deccel)
                 end
@@ -269,6 +268,7 @@ stepstools = {
 
                 local maxfall = 2.6
                 if h_input ~= 0 and this:is_solid(h_input, 0) then
+                    if this.self_throw == 2 then this.self_throw = 1 end
                     maxfall = 0.693
                     if frameCounter % 5 == 0 then
                         game.init_smoke(this.x + h_input * 4, this.y)
@@ -453,10 +453,10 @@ stepstools = {
 
         local next_anim = "idle"
         if not anim_on_ground then
-            if (this.facing == 1 and this:is_solid(1, 0)) or (this.facing == -1 and this:is_solid(-1, 0)) then
-                next_anim = "wallslide"
-            elseif this.self_throw == 2 then
+            if this.self_throw == 2 then
                 next_anim = "kick"
+            elseif (this.facing == 1 and this:is_solid(1, 0)) or (this.facing == -1 and this:is_solid(-1, 0)) then
+                next_anim = "wallslide"
             else
                 next_anim = "jump"
             end
@@ -526,11 +526,7 @@ stepstools = {
         end
 
         -- Self Throw Damage
-        if (math.abs(this.vx) > 0.2 or math.abs(this.vy) > 0.2) and this.self_throw == 2 then
-            if this.body_was_active then
-                this.body_timer = 0
-                this.body_was_active = true
-            end
+        if (math.abs(this.vx) > 0.2 or math.abs(this.vy) > 0.2) and this.self_throw == 2 and this.body_timer <= 0 then
             local hb_w, hb_h = this.hurtbox.w * 2, this.hurtbox.h * 2
             local targetX = this.x + this.vx
             local targetY = this.y + this.vy
@@ -538,11 +534,9 @@ stepstools = {
             local cy = targetY + this.hurtbox.y
             local hb_x = cx - (hb_w / 4)
             local hb_y = cy - (hb_h / 4)
-            this.body_hb = hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*4, util.sign(this.vy) * 1.25 - 0.5, 2)
-            this.body_timer = this.body_timer + 1
-        else
-            this.body_was_active = false
+            this.body_hb = hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx)*3, util.sign(this.vy) * 1.25 - 0.5, 2)
         end
+        this.body_timer = this.body_timer - 1
 
         if this.self_throw_cooldown > 0 then this.self_throw_cooldown = this.self_throw_cooldown - 1 end
     end,
@@ -589,8 +583,11 @@ stepstools = {
                 })
             end
         end
+        if hb == this.body_hb then this.body_timer = 5 end
+        if hb == this.goldstool.body_hb then this.goldstool.body_timer = 5 end
+        if hb == this.goldstool.leftwing_hb or hb == this.goldstool.rightwing_hb then this.goldstool.wings_timer = 5 end
     end,
-
+ 
     draw = function(this)
         if not this.active and this.stocks <= 0 then return end
         if this.respawn_timer > 0 then return end
