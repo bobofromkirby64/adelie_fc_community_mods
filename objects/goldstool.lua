@@ -51,12 +51,9 @@ goldstool = {
         this.rightwing_hb = nil
 
         this.exhaustion = 0
-        this.exhaustionLimit = 5
+        this.exhaustionLimit = 2
         this.sweats = {}
         this.sweatTimer = 0
-
-        this.beams = {}
-        this.beamTimer = 0
 
         this.was_held = false
         this.body_hitbox_lock = 0
@@ -166,6 +163,7 @@ goldstool = {
         this.was_on_ground = on_ground
 
         if this.held then
+            this.flystarttimer = 0
             local is_actually_held = false
             for _, obj in ipairs(objects) do
                 if obj.holding == this or obj.grapple_hit == this then
@@ -205,22 +203,23 @@ goldstool = {
         local hb_y = cy - (hb_h / 4)
         if (math.abs(this.vx) > 0.2 or math.abs(this.vy) > 0.2) and not this.held and this.owner then
             if this.body_was_active then
-                this.body_timer = 0
                 this.body_was_active = true
             end
-            if this.body_timer % 3 == 0 and this.body_hitbox_lock <= 0 then
-                if this.flying then this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w - (this.hurtbox.w / 2), hb_h - (this.hurtbox.h / 2), 2, util.sign(this.vx)*4, util.sign(this.vy) * 2.5 - 1, 2 + 2)
-                else this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*4, util.sign(this.vy) * 2.5 - 1, 2 + 2) end
+            if this.body_timer <= 0 and this.body_hitbox_lock <= 0 then
+                if this.flying then --this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w - (this.hurtbox.w / 2), hb_h - (this.hurtbox.h / 2), 2, util.sign(this.vx)*4, util.sign(this.vy) * 2.5 - 1, 2)
+                else this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx)*3, util.sign(this.vy) * 1.25 - 0.5, 2) end
             end
-            this.body_timer = this.body_timer + 1
         else
             this.body_was_active = false
         end
+        this.body_timer = this.body_timer - 1
         -- Wing Damage
+        hb_w, hb_h = 8, 9
+        hb_x = cx - 1
         if(this.flying and this.flystarttimer <= 0) then
             if not this.wings_were_active then
-                this.leftwing_hb = hitbox.create(this.owner.connectionID, hb_x - hb_w, hb_y, hb_w, hb_h, 8, -5, util.sign(this.vy) * 2.5 - 1, 2 + 2)
-                this.rightwing_hb = hitbox.create(this.owner.connectionID, hb_x + hb_w, hb_y, hb_w, hb_h, 8, 5, util.sign(this.vy) * 2.5 - 1, 2 + 2)
+                this.leftwing_hb = hitbox.create(this.owner.connectionID, hb_x - 7, hb_y, hb_w, hb_h, 8, -3, 4, 2)
+                this.rightwing_hb = hitbox.create(this.owner.connectionID, hb_x + 7, hb_y, hb_w, hb_h, 8, 3, 4, 2)
 
                 this.leftwing_hb.firstframe = true
                 this.leftwing_hb.dir = -1
@@ -228,22 +227,21 @@ goldstool = {
                 this.rightwing_hb.firstframe = true
                 this.rightwing_hb.dir = 1
 
-                this.wings_timer = 0
                 this.wings_were_active = true
 
                 this.leftwing_hb.hit_sfx = "zap"
                 this.rightwing_hb.hit_sfx = "zap"
-            elseif this.wings_timer % 3 == 0 then
-                this.leftwing_hb = hitbox.create(this.owner.connectionID, hb_x - hb_w, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*4 + 1, 2, 2 + 2)
-                this.rightwing_hb = hitbox.create(this.owner.connectionID, hb_x + hb_w, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*4 + 1, 2, 2 + 2)
+            elseif this.wings_timer <= 0 then
+                this.leftwing_hb = hitbox.create(this.owner.connectionID, hb_x - 7, hb_y, hb_w, hb_h, 2, -2, util.sign(this.vy) * -2 - 1, 2)
+                this.rightwing_hb = hitbox.create(this.owner.connectionID, hb_x + 7, hb_y, hb_w, hb_h, 2, 2, util.sign(this.vy) * -2 - 1, 2)
 
                 this.leftwing_hb.dir = -1
                 this.rightwing_hb.dir = 1
             end
-            this.wings_timer = this.wings_timer + 1
         else
             this.wings_were_active = false
         end
+        this.wings_timer = this.wings_timer - 1
 
         -- Move stool
         if this.flying and this.flystarttimer <= 0 then
@@ -260,7 +258,7 @@ goldstool = {
             if r.type.name == "goldstool" and r:oob() then goldstool.oobbehavior(r) end
         end
 
-         -- exhaustion effect
+        -- exhaustion effect
         if this.exhaustion > this.exhaustionLimit then
             this.sweatTimer = this.sweatTimer + 1
             if this.sweatTimer >= 3 then
@@ -282,23 +280,7 @@ goldstool = {
             if sw.t <= 0 then
                 table.remove(this.sweats, i)
             end
-        end
-
-        -- Beam effect
-        for b = #this.beams, 1, -1 do
-            local beam = this.beams[b]
-            if(this.beamTimer <= 0) then
-                beam.w = beam.w - 2
-                beam.x = beam.x + 1
-                this.beamTimer = 8
-            end
-            this.beamTimer = this.beamTimer - 1
-            if beam.w == 0 then
-                table.remove(this.beams, b)
-            end
-        end
-
-        
+        end  
 
         -- sprite stuff
 
@@ -347,27 +329,44 @@ goldstool = {
         this.x = this.owner.x
         this.vx = 0
         this.exhaustion = this.exhaustion + 1
-        table.insert(this.beams, {x = this.x, w = 8, layer = -2})
+
+        table.insert(particles_mg, {
+            x = this.x,
+            y = stage.blastZone.t,
+            w = 8,
+            timer = 0,
+            update = function(b)
+                -- Beam effect
+                if b.timer <= 0 then
+                    b.w = b.w - 2
+                    b.x = b.x + 1
+                    b.timer = 8
+                end
+                b.timer = b.timer - 1
+                return b.w <= 0
+            end,
+            draw = function(b)
+                if b.w > 2 then
+                    love.graphics.setColor(1, 1, 1, 0.5)
+                    love.graphics.rectangle("fill", math.floor(b.x), stage.blastZone.t, b.w, 500)
+                    love.graphics.setColor(this.beamColor)
+                    love.graphics.rectangle("fill", math.floor(b.x + 1), stage.blastZone.t, b.w - 2, 500)
+                else
+                    love.graphics.setColor(this.beamColor)
+                    love.graphics.rectangle("fill", math.floor(b.x), stage.blastZone.t, b.w, 500)
+                end
+                love.graphics.setColor(1, 1, 1)
+            end,
+        })
     end,
 
     draw = function(this)
         local isBlinking = this.body_hitbox_lock > 0 and (math.floor(this.body_hitbox_lock / 4) % 2 == 0 or debugEnabled)
 
+        -- Sweat
         love.graphics.setColor(41/255, 173/255, 255/255, 1)
         for _, sw in ipairs(this.sweats) do
             love.graphics.rectangle("fill", math.floor(sw.x), math.floor(sw.y), 1, 1)
-        end
-
-        for _, b in ipairs(this.beams) do
-            if b.w > 2 then
-                love.graphics.setColor(1, 1, 1, 0.5)
-                love.graphics.rectangle("fill", math.floor(b.x), stage.blastZone.t, b.w, 500)
-                love.graphics.setColor(this.beamColor)
-                love.graphics.rectangle("fill", math.floor(b.x + 1), stage.blastZone.t, b.w - 2, 500)
-            else
-                love.graphics.setColor(this.beamColor)
-                love.graphics.rectangle("fill", math.floor(b.x), stage.blastZone.t, b.w, 500)
-            end
         end
 
         love.graphics.setShader()
