@@ -260,7 +260,7 @@ stepstools = {
                 local deccel = 0.16
 
                 if this.self_throw == 2 then
-                    this.vx = util.appr(this.vx, h_input * (maxrun * 0.3), 0.2 or 0.18)
+                    this.vx = util.appr(this.vx, h_input * (maxrun * 0.35), 0.2 or 0.18)
                 else
                     this.vx = math.abs(this.vx) <= maxrun and util.appr(this.vx, h_input * maxrun, accel) or util.appr(this.vx, util.sign(this.vx) * maxrun, deccel)
                 end
@@ -534,7 +534,7 @@ stepstools = {
             local cy = targetY + this.hurtbox.y
             local hb_x = cx - (hb_w / 4)
             local hb_y = cy - (hb_h / 4)
-            this.body_hb = hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx)*3, util.sign(this.vy) * 1.25 - 0.5, 2)
+            this.body_hb = hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*4, util.sign(this.vy) * 1.25 - 0.5, 2)
         end
         this.body_timer = this.body_timer - 1
 
@@ -583,9 +583,9 @@ stepstools = {
                 })
             end
         end
-        if hb == this.body_hb then this.body_timer = 5 end
-        if hb == this.goldstool.body_hb then this.goldstool.body_timer = 5 end
-        if hb == this.goldstool.leftwing_hb or hb == this.goldstool.rightwing_hb then this.goldstool.wings_timer = 5 end
+        if hb == this.body_hb then this.body_timer = 4 end
+        if hb == this.goldstool.body_hb then this.goldstool.body_timer = 4 end
+        if hb == this.goldstool.leftwing_hb or hb == this.goldstool.rightwing_hb then this.goldstool.wings_timer = 4 end
     end,
  
     draw = function(this)
