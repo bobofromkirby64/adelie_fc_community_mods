@@ -106,7 +106,7 @@ goldstool = {
             if this.was_flying == false then
                 this.flystarttimer = 6
                 this.was_flying = true
-                love.audio.play("menu_back", "static")
+                love.audio.play("stoolfly", "static")
             end
         else
             this.was_flying = false
@@ -207,7 +207,7 @@ goldstool = {
             end
             if this.body_timer <= 0 and this.body_hitbox_lock <= 0 then
                 if this.flying then --this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w - (this.hurtbox.w / 2), hb_h - (this.hurtbox.h / 2), 2, util.sign(this.vx)*4, util.sign(this.vy) * 2.5 - 1, 2)
-                else this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx)*3, util.sign(this.vy) * 1.25 - 0.5, 2) end
+                else this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*3, util.sign(this.vy) * 1.25 - 0.5, 2) end
             end
         else
             this.body_was_active = false
