@@ -1,20 +1,42 @@
 -- objects/roundelie.lua
 
+-- Movement Documentation:
+-- Z to jump, left and right arrow keys to move
+-- X + Up causes a small midair "bounce" slightly smaller than a jump. 
+--   Can be done up to 3 times before touching the ground
+--   Has a 20 frame cooldown, which is enough that you cannot gain height like this
+-- X + Down causes roundelie to accelerate downward quickly while held
+--   Has a top speed higher than the regular terminal velocity
+--   Has a hitbox that pushes opponents downward, which may "trap" them as they fall
+--   If X + Down is held when roundelie hits a wall, roundelie bounces back and upward off the wall
+--   (ie in the direction opposite roundelie's facing direction, not necessarily away from the wall)
+--   If X + Down is held when roundelie hits ground, roundelie bounces back and upward off the ground and sends out a shockwave
+--     Roundelie's bounce and the shockwave are larger if roundelie hits the ground at the max speed of the down + x attack
+--     The shockwave does upward knockback to all opponents at ground height and somewhat close to roundelie laterally
+--     The shockwave is slightly offset laterally in the direction roundelie was facing when they hit the ground
+--     This hitbox is also marked by particles for clarity
+-- X + Left/Right/Nothing causes roundelie to teleport in the held direction
+--   Zeros roundelie's x speed, but does not change its y speed
+--   Has a 2 second cooldown before roundelie can teleport again
+--   This is indicated by the color of roundelie's beak, which changes when the teleport is unavailable
+--   Has a hitbox that sends opponents in the direction held 1f after the teleport (not necessarily the teleport direction)
+-- Jump + Down lets roundelie fall through any semisolids it interacts with
+--   Falling through semisolids which roundelie is standing on requires pressing jump, like other characters
+
 roundelie = {
     name="roundelie",
     init = function(this, skin)
         this.connectionID = nil
 
         local player_skins = {
-            {sprites["characters/roundelie_1"], {1,1,1,1}}, -- roundelie (add more skins later?)
-            {sprites["characters/roundelie_2"], {1,1,1,1}},
-            {sprites["characters/roundelie_3"], {1,1,1,1}},
+            {sprites["characters/roundelie_1"], {1,1,1,1}}, -- roundelie (default)
+            {sprites["characters/roundelie_2"], {1,1,1,1}}, -- delaughter (purple)
+            {sprites["characters/roundelie_3"], {1,1,1,1}}, -- statue (golden)
         }
 
-        this.spritesheet, this.nothing = unpack(player_skins[tonumber(skin)])
-        this.skin = skin
+        this.spritesheet, this.nothing = unpack(player_skins[tonumber(skin)]) --TODO: using this.nothing as a placeholder since this is what the stools do
+        this.skin = tonumber(skin)
         this.spr = this.spritesheet[7]
-        print(this.spr)
         this.damage = 0
         this.stocks = 3
         this.facing = 1
@@ -28,10 +50,6 @@ roundelie = {
         this.jbuffer = 0
         this.bjump = 3
         this.dash_time = 0
-        this.dash_target_x = 0
-        this.dash_target_y = 0
-        this.dash_accel_x = 0
-        this.dash_accel_y = 0
 
         this.p_jump = false
         this.p_dash = false
@@ -57,7 +75,6 @@ roundelie = {
         this.freeze = 0
         this.conk = 0
         this.conkdir = 0
-        this.maxrun = 2
 
         this.check_snowballs = function(this)
             if this.hitstun > 0 then return end
@@ -73,25 +90,12 @@ roundelie = {
 
                         if this.dash_time > 0 then
                             -- dash redirect
-                            if this.dash_target_x == 0 then
-                                o.vx = 3 * util.sign(o.vx)
-                                o.stop = true
-                            else
-                                o.vx = 3 * util.sign(this.dash_target_x)
-                            end
+                            o.vx = 3 * this.facing
+                            o.stop = false --TODO: probably not?
+                            this.vy = -1
+                            o.vy = -3
 
-                            if this.dash_target_y > 0 then
-                                local k = this.dash_target_x == 0 and 1 or 0.7071
-                                snap()
-                                this.vy = -k * 4.7
-                                o.vy = -k * 2
-                                this.bjump = 3
-                            else
-                                this.vy = this.dash_target_x == 0 and 0 or -2
-                                o.vy = this.dash_target_x == 0 and -3 or -2
-                            end
-
-                            this.vx = util.sign(this.vx) * -4
+                            this.vx = this.facing * -4
                             this.dash_cooldown = 4
                             this.dash_time = 0
 
@@ -103,10 +107,7 @@ roundelie = {
                             -- bounce on top
                             snap()
                             this.bjump = 3
-                            this.jbuffer = 0
-                            this.dash_cooldown = 0
-
-                            if this.p_jump or inputSource.getKeyDown(this.connectionID, "b1") then
+                            if this.p_jump or inputSource.getKeyDown(this.connectionID, "b1") or this.down_attack then
                                 this.vy = -3.36
                                 love.audio.play("maddy_jump", "static")
                             else
@@ -122,10 +123,12 @@ roundelie = {
     end,
 
     update = function(this)
+        local id = this.connectionID
+
+        -- bonk timer
         if this.conk > 0 then
             this.conk = this.conk - 1
         end
-        local id = this.connectionID
 
         -- iframes
         if this.invincible_timer > 0 then
@@ -136,6 +139,8 @@ roundelie = {
         if this.dash_cooldown > 0 then
             this.dash_cooldown = this.dash_cooldown - 1
         end
+
+        -- bump cd
         if this.bump_cooldown > 0 then
             this.bump_cooldown = this.bump_cooldown - 1
         end
@@ -148,21 +153,20 @@ roundelie = {
                 love.audio.play("spawn", "static")
                 this.x = 120 - this.hurtbox.x - (this.hurtbox.w / 2)
                 this.y = 20
-
                 this.vx = 0
                 this.vy = 0
                 this.bjump = 3
                 this.hitstun = 0
                 this.invincible_timer = 60
-
-                local spawn_offset_x = this.facing == 1 and 1 or 6
+                this.dash_cooldown = 0
+                this.bump_cooldown = 0
             end
             return
         end
 
         local h_input = (inputSource.getKeyDown(id, "right") and 1 or 0) - (inputSource.getKeyDown(id, "left") and 1 or 0)
         local v_input = (inputSource.getKeyDown(id, "down") and 1 or 0) - (inputSource.getKeyDown(id, "up") and 1 or 0)
-        -- hitstun --TODO: is "hitstun" ever used anywhere?
+        -- hitstun (set by hitbox.lua)
         if this.hitstun > 0 then
             this.dash_time = 0
             this.hitstun = this.hitstun - 1
@@ -187,7 +191,8 @@ roundelie = {
                 game.init_smoke(this.x, this.y + 4)
             end
 
-            if on_semisolid and v_input == 1 and not (this.was_on_ground) and jump_btn then --very hacky fix and I don't like it but I don't want to edit the move function since it breaks compatibility (would be very easy though). Maybe better fix? Or at least a hacky fix that's identical to the ideal case
+            -- weird semisolid fall through
+            if on_semisolid and v_input == 1 and not (this.was_on_ground) and jump_btn then --very hacky fix and I don't like it but I don't want to edit the move function since it breaks interoperability (would be very easy though). Maybe better fix? Or at least a hacky fix that's identical to the ideal case
                 if not this:is_solid(0, 1, true) then
                     this.y = this.y + 1
                     on_ground = false
@@ -199,16 +204,15 @@ roundelie = {
 
             if on_ground and this.vy > 0 then
                 this.vy = 0
-                this.rem.y=0
+                this.rem.y = 0
             end
 
-            -- semisolid fall through
+            -- regular semisolid fall through
             if on_semisolid and v_input == 1 and jump then -- can definitely be combined with above part, but want to keep hacky and normal stuff separate for now
                 if not this:is_solid(0, 1, true) then
                     this.y = this.y + 1
                     on_ground = false
                     jump = false
-                    --this.jbuffer = 0 might add this back if necessary
                 end
             end
 
@@ -219,18 +223,24 @@ roundelie = {
                     this.conk = 15
                     this.down_attack = false
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
+                    -- shockwaves
                     if this.was_vy == 5 then
-                        hitbox.create(this.connectionID, (this.x - 25) + (-5 * this.conkdir), this.y + 4, 60, 4, 3, -2 * this.conkdir, -5, 2)
+                        hitbox.create(this.connectionID, (this.x - 25) + (-5 * this.conkdir), this.y + 4, 60, 4, 3, -2 * this.conkdir, -4, 2)
                         for i = -25,20,10 do
-                            game.init_smoke(this.x + i + (-5 * this.conkdir), this.y + 8)  --could be better lol
+                            game.init_smoke(this.x + i + (-5 * this.conkdir), this.y + 8)  --could be better
                         end
                     else
-                        hitbox.create(this.connectionID, (this.x - 15) + (-5 * this.conkdir), this.y + 4, 40, 4, 3, -2 * this.conkdir, -3, 2)
+                        hitbox.create(this.connectionID, (this.x - 15) + (-5 * this.conkdir), this.y + 4, 40, 4, 2, -2 * this.conkdir, -3, 2)
                         for i = -15,10,10 do
-                            game.init_smoke(this.x + i + (-5 * this.conkdir), this.y + 8)  --could be better lol
+                            game.init_smoke(this.x + i + (-5 * this.conkdir), this.y + 8)  --could be better
                         end
                     end
-                    
+                    if this.was_vy == 5 then
+                        this.vy = -3.75
+                        camera.shake(2, 2, 5)
+                    else
+                        this.vy = -2
+                    end
                 end
                 if this.vy < 0 then
                     this.bump_cooldown = 0;
@@ -244,29 +254,21 @@ roundelie = {
 
             if this.dash_time > 0 then
                 this.dash_time = this.dash_time - 1
+                -- teleporting hitbox
                 if this.dash_time == 0 then
                     hitbox.create(this.connectionID, (this.x  - 1), (this.y  - 1), 10, 10, 3, 5 * this.facing, 0, 2)
                 end
                 game.init_smoke(this.x, this.y)
 
                 if this.dash_time > 0 then
-                    this.vx = 0 -- "dash" is just teleporting for roundelie (TODO edited for a test)
+                    this.vx = 0 -- "dash" is just teleporting for roundelie
                 end
-                local hb_w, hb_h = 24, 24 --TODO: I think these are unused now
-                local cx = this:hmid(this.vx, 0)
-                local cy = this:vmid(0, this.vy)
-                local hb_x = cx - (hb_w / 2)
-                local hb_y = cy - (hb_h / 2)
             end
-            if dash_btn and h_input == 0 and v_input == 0 and on_ground then
-                this.maxrun = 4
-            else
-                this.maxrun = h_input == util.sign(this.vx) and util.appr(this.maxrun, 2, 0.05) or util.appr(this.maxrun,2,0.4) --TODO: change and vary
-            end
+            local maxrun = 2 -- different from ra2, but the speed building doesn't fit well with the character and is overcomplicated
             local accel = on_ground and 0.93 or 0.80
             local deccel = 0.16
 
-            this.vx = math.abs(this.vx) <= this.maxrun and util.appr(this.vx, h_input * this.maxrun, accel) or util.appr(this.vx, util.sign(this.vx) * this.maxrun, deccel)
+            this.vx = math.abs(this.vx) <= maxrun and util.appr(this.vx, h_input * maxrun, accel) or util.appr(this.vx, util.sign(this.vx) * maxrun, deccel)
             if this.vx ~= 0 then this.facing = util.sign(this.vx) end
 
             local maxfall = 3
@@ -277,14 +279,14 @@ roundelie = {
             if this.jbuffer > 0 then
                 if this.grace > 0 then
                     this.jbuffer = 0
-                    this.grace = 0
+                    -- this.grace = 0
                     this.vy = -3.36
 
                     love.audio.play("maddy_jump", "static")
                     game.init_smoke(this.x, this.y + 4)
                 end
             end
-
+            -- might be overcomplicated; left over from maddy code
             local hb_w, hb_h = 10, 10
             local targetX = this.x + this.vx
             local targetY = this.y + this.vy
@@ -294,42 +296,33 @@ roundelie = {
             local hb_y = cy - (hb_h / 2)
             if v_input == 1 and dash_btn and not on_ground and this.conk < 1 then
                 this.down_attack = true
-                this.vy = util.appr(this.vy, 5, 0.75) --TODO: tweak (significantly less powerful than in ra2)
-                if (this:is_solid(-3,0) or this:is_solid(3,0)) then --TODO: attack from conking against the ground?
+                this.vy = util.appr(this.vy, 5, 0.75)
+                if (this:is_solid(-3,0) or this:is_solid(3,0)) then
                     this.conk = 15
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
-                    this.was_vy = 0
+                    this.vy = -2
                 end
-                hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 3, util.sign(this.vx), 4.5, 2)
+                hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx), 4.5, 2)
             else
                 this.down_attack = false
             end
-            if this.conk>0 then
+            if this.conk > 0 then
                 this.conk = this.conk - 1
-		        if this.conk==14 then
-                    if this.was_vy == 5 then --TODO: camera.shake
-                        this.vy = -3.75
-                        camera.shake(2, 2, 5)
-                    else
-                        this.vy = -2
-                    end
-		        end
 		        this.vx = .1 * this.conk * this.conkdir
             elseif v_input == -1 and bump and this.bjump > 0 then
-                this.invincible_timer = 10
                 this.bump_cooldown = 20
                 this.vy = -3
                 love.audio.play("maddy_nodash", "static")
                 this.bjump = this.bjump - 1
             elseif dash then
-                if v_input == 0 and this.maxrun < 4 then
+                if v_input == 0 then
                     this.dash_time = 2
                     this.dash_cooldown = 61
                     this.invincible_timer = 2
                     this.vx = 30 * h_input
                 end
 
-                love.audio.play(this.down_attack and "maddy_downdash" or "maddy_dash", "static")
+                love.audio.play("maddy_dash", "static")
                 game.init_smoke(this.x, this.y)
             end
             this.was_on_ground = on_ground
@@ -418,7 +411,6 @@ roundelie = {
         if this.respawn_timer > 0 then return end
 
         local isBlinking = this.invincible_timer > 0 and (math.floor(this.invincible_timer / 4) % 2 == 0 or debugEnabled)
-        local tint = this.skin == 3 and 1 or 0
 
         -- sprite hitstun tint
         if this.hitstun > 0 then
