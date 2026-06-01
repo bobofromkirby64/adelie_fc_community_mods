@@ -186,11 +186,8 @@ goldstool = {
         local px = this.x
         local py = this.y
         local riders = {}
-        for _, o in ipairs(objects) do
-            if o ~= this and o:bottom() >= this.y - 4 and o:bottom() <= this.y and o:left() <= this:right() and o:right() >= this:left() and o.type.name ~= "cloud" then
-                table.insert(riders, o)
-            end
-        end
+
+        goldstool.set_up_riders(this, riders)
 
         -- damage stuff
         -- Movement damage
@@ -305,6 +302,21 @@ goldstool = {
             this.anim_frame = this.anim_frame + 1
             if this.anim_frame > #anim.frames then
                 this.anim_frame = 1
+            end
+        end
+    end,
+
+    set_up_riders = function(this, riders)
+        for _, o in ipairs(objects) do
+            if o ~= this and o:bottom() >= this.y - 4 and o:bottom() <= this.y and o:left() <= this:right() and o:right() >= this:left() and o.type.name ~= "cloud" then
+                table.insert(riders, o)
+                if o.semisolid then
+                    for _, p in ipairs(objects) do
+                        if p ~= o and p:bottom() >= o.y - 4 and p:bottom() <= o.y and p:left() <= o:right() and p:right() >= o:left() and p.type.name ~= "cloud" then
+                            table.insert(riders, p)
+                        end
+                    end
+                end
             end
         end
     end,
