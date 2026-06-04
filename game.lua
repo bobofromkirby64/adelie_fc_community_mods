@@ -577,7 +577,7 @@ game = {
 
         if game.mode == "TRAINING" and cpuID ~= -1 then
             local cpuSource = inputSource.getInputSource(tonumber(cpuID))
-            cpuSource:recordInputForFrame(targetFrame, cpu.getInputForFrame())
+            cpuSource:recordInputForFrame(targetFrame, cpu.getInputForFrame(game.playerData[2].char))
         end
     end,
 

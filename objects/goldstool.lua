@@ -202,9 +202,9 @@ goldstool = {
             if this.body_was_active then
                 this.body_was_active = true
             end
-            if this.body_timer <= 0 and this.body_hitbox_lock <= 0 then
+            if this.body_timer <= 0 and this.body_hitbox_lock <= 0 and this.flystarttimer >= 0 then
                 if this.flying then --this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w - (this.hurtbox.w / 2), hb_h - (this.hurtbox.h / 2), 2, util.sign(this.vx)*4, util.sign(this.vy) * 2.5 - 1, 2)
-                else this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*3, util.sign(this.vy) * 1.25 - 0.5, 2) end
+                else this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*3, math.abs(util.sign(this.vy) * 1.25 - 0.5) * -1, 2) end
             end
         else
             this.body_was_active = false
@@ -215,8 +215,8 @@ goldstool = {
         hb_x = cx - 1
         if(this.flying and this.flystarttimer <= 0) then
             if not this.wings_were_active then
-                this.leftwing_hb = hitbox.create(this.owner.connectionID, hb_x - 7, hb_y, hb_w, hb_h, 8, -3, 4, 2)
-                this.rightwing_hb = hitbox.create(this.owner.connectionID, hb_x + 7, hb_y, hb_w, hb_h, 8, 3, 4, 2)
+                this.leftwing_hb = hitbox.create(this.owner.connectionID, hb_x - 7, hb_y, hb_w, hb_h, 8, -3, -4, 2)
+                this.rightwing_hb = hitbox.create(this.owner.connectionID, hb_x + 7, hb_y, hb_w, hb_h, 8, 3, -4, 2)
 
                 this.leftwing_hb.firstframe = true
                 this.leftwing_hb.dir = -1
