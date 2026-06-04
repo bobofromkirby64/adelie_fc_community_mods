@@ -534,7 +534,8 @@ stepstools = {
             local cy = targetY + this.hurtbox.y
             local hb_x = cx - (hb_w / 4)
             local hb_y = cy - (hb_h / 4)
-            this.body_hb = hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*4, util.sign(this.vy) * 1.25 - 0.5, 2)
+            local kb_mod = this.vy > 2 and 0.6 or 1
+            this.body_hb = hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 2, (util.sign(this.vx)*4) * kb_mod, (util.sign(this.vy) * 1.25 - 0.5) * kb_mod, 2)
         end
         this.body_timer = this.body_timer - 1
 
