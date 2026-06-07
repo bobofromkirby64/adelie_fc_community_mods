@@ -1,7 +1,7 @@
--- objects/gemmy.lua
+-- objects/gem_maddy.lua
 
-gemmy = {
-    name="gemmy",
+gem_maddy = {
+    name="gem_maddy",
     init = function(this, skin)
         this.connectionID = nil
         
