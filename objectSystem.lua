@@ -1,8 +1,8 @@
 -- objectSystem.lua
 require("objects/maddy")
 require("objects/lani")
-require("objects/heavymaddy")
-require("objects/gemmy")
+require("objects/heavy_maddy")
+require("objects/gem_maddy")
 require("objects/stepstools")
 require("objects/goldstool")
 require("objects/snowball")

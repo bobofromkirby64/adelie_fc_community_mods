@@ -4,15 +4,15 @@ local config = require("config")
 
 NUM_PLAYER_SKINS = {
     maddy = 4,
-    gemmy = 4,
-    heavymaddy = 4,
+    gem_maddy = 4,
+    heavy_maddy = 4,
     lani = 4,
     stepstools = 4,
     roundelie = 3
 }
-AVAILABLE_CHARS = {"maddy", "gemmy", "heavymaddy", "lani", "stepstools","roundelie"}
+AVAILABLE_CHARS = {"maddy", "gem_maddy", "heavy_maddy", "lani", "stepstools","roundelie"}
 VANILLA_CHARS = {"maddy", "lani"}
-CPU_CHARS = {"maddy", "gemmy", "heavymaddy"}
+CPU_CHARS = {"maddy", "gem_maddy", "heavy_maddy", "stepstools"}
 
 css = {
     players = {},
@@ -263,7 +263,7 @@ css = {
 
             -- char name
             love.graphics.setColor(util.color(7))
-            local charName = string.lower(p.char)
+            local charName = string.lower(string.gsub(p.char, "_", " ")) -- Modded alteration: replace underscores with spaces
             love.graphics.print(charName, panelCenter - (#charName * 2), 88)
 
             -- ready status

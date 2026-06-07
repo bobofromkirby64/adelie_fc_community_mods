@@ -52,10 +52,8 @@ stepstools = {
         this.freeze = 0
 
         this.holding = nil
-        this.heldobject = nil
 
         this.goldstool = objectSystem.createObject(goldstool, this.x, stage.blastZone.b + 10, skin, this)
-        this.heldobject = this.goldstool
 
         this.exhaustion = 0
         this.exhaustionLimit = 3
@@ -331,7 +329,7 @@ stepstools = {
 
             local touching_field = false
             for _, o in ipairs(objects) do
-                if o.type and (o.type.name == "goldstool" or o.type.name == "snowball") and not o.destroyed and o ~= this.holding and o ~= this.heldobject and o ~= pickupcheck then
+                if o.type and (o.type.name == "goldstool" or o.type.name == "snowball") and not o.destroyed and o ~= this.holding and o ~= this.goldstool and o ~= pickupcheck then
                     if this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= o:top() and this:top() <= o:bottom() then
                         touching_field = true
                         break

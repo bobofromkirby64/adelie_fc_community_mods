@@ -1,22 +1,22 @@
--- objects/heavymaddy.lua
+-- objects/heavy_maddy.lua
 
-heavymaddy = {
-    name="heavymaddy",
+heavy_maddy = {
+    name="heavy_maddy",
     init = function(this, skin)
         this.connectionID = nil
         
         this.player_skins = {
-            {sprites["characters/heavymaddy_1"], {255 / 255, 0 / 255, 77 / 255, 1}}, -- madeline
-            {sprites["characters/heavymaddy_2"], {126 / 255, 37 / 255, 83 / 255, 1}}, -- badeline
-            {sprites["characters/heavymaddy_3"], {29 / 255, 43 / 255, 83 / 255, 1}}, -- caroline
-            {sprites["characters/heavymaddy_4"], {171 / 255, 82 / 255, 54 / 255, 1}}, -- funkeline
+            {sprites["characters/heavy_maddy_1"], {255 / 255, 0 / 255, 77 / 255, 1}}, -- madeline
+            {sprites["characters/heavy_maddy_2"], {126 / 255, 37 / 255, 83 / 255, 1}}, -- badeline
+            {sprites["characters/heavy_maddy_3"], {29 / 255, 43 / 255, 83 / 255, 1}}, -- caroline
+            {sprites["characters/heavy_maddy_4"], {171 / 255, 82 / 255, 54 / 255, 1}}, -- funkeline
         }
 
         this.player_skins_gem = {
-            {sprites["characters/heavymaddy_1"], {1 / 255, 228 / 255, 54 / 255, 1}}, -- madeline
-            {sprites["characters/heavymaddy_2"], {225 / 255, 109 / 255, 235 / 239, 1}}, -- badeline
-            {sprites["characters/heavymaddy_3"], {255 / 255, 0 / 255, 77 / 255, 1}}, -- caroline
-            {sprites["characters/heavymaddy_4"], {255 / 255, 236 / 255, 39 / 255, 1}}, -- funkeline
+            {sprites["characters/heavy_maddy_1"], {1 / 255, 228 / 255, 54 / 255, 1}}, -- madeline
+            {sprites["characters/heavy_maddy_2"], {225 / 255, 109 / 255, 235 / 239, 1}}, -- badeline
+            {sprites["characters/heavy_maddy_3"], {255 / 255, 0 / 255, 77 / 255, 1}}, -- caroline
+            {sprites["characters/heavy_maddy_4"], {255 / 255, 236 / 255, 39 / 255, 1}}, -- funkeline
         }
         
         this.spritesheet, this.hair_color = unpack(this.player_skins[tonumber(skin)])
