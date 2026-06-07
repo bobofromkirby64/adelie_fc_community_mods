@@ -8,7 +8,7 @@ maddy_cpu = {
         local this, opp
         for _, o in ipairs(objects) do
             if o.connectionID == cpuID then this = o
-            elseif o.connectionID ~= nil and o.type ~= snowball then opp = o end
+            elseif o.connectionID ~= nil and o.type ~= snowball and o.type ~= goldstool then opp = o end
         end
         if not this or not opp then
             return {up=false, down=false, left=false, right=false, b1=false, b2=false}
