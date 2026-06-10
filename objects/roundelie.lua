@@ -310,7 +310,7 @@ roundelie = {
                 this.conk = this.conk - 1
 		        this.vx = .1 * this.conk * this.conkdir
             elseif v_input == -1 and bump and this.bjump > 0 then
-                this.bump_cooldown = 20
+                this.bump_cooldown = 5
                 this.vy = -3
                 love.audio.play("maddy_nodash", "static")
                 this.bjump = this.bjump - 1

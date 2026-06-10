@@ -138,7 +138,7 @@ css = {
                 end
             end
         elseif css.mode == "TRAINING" then
-            local n_skins = NUM_PLAYER_SKINS[css.player_char]
+            local n_skins = NUM_PLAYER_SKINS[css.cpu_char]
             local character_set = CPU_CHARS
             local updated = false
 
