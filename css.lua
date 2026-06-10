@@ -7,7 +7,7 @@ NUM_PLAYER_SKINS = {
     gem_maddy = 4,
     heavy_maddy = 4,
     lani = 4,
-    stepstools = 4,
+    stepstools = 5,
     roundelie = 3
 }
 AVAILABLE_CHARS = {"maddy", "gem_maddy", "heavy_maddy", "lani", "stepstools","roundelie"}
@@ -138,7 +138,7 @@ css = {
                 end
             end
         elseif css.mode == "TRAINING" then
-            local n_skins = NUM_PLAYER_SKINS[css.player_char]
+            local n_skins = NUM_PLAYER_SKINS[css.cpu_char]
             local character_set = CPU_CHARS
             local updated = false
 

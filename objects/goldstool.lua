@@ -36,7 +36,7 @@ goldstool = {
         this.animations = {
             idle = {frames = {1}, speed = 1},
             flying = {frames = {2}, speed = 1},
-            flystart = {frames = {4, 3}, speed = 4}
+            flystart = {frames = {3, 4}, speed = 3}
         }
         this.current_anim = "idle"
         this.anim_frame = 1
