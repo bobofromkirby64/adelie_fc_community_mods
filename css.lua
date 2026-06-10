@@ -7,7 +7,7 @@ NUM_PLAYER_SKINS = {
     gem_maddy = 4,
     heavy_maddy = 4,
     lani = 4,
-    stepstools = 4,
+    stepstools = 5,
     roundelie = 3
 }
 AVAILABLE_CHARS = {"maddy", "gem_maddy", "heavy_maddy", "lani", "stepstools","roundelie"}
