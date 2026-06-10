@@ -9,6 +9,7 @@ goldstool = {
                 {sprites["objects/goldstool_2"], {41 / 255, 173 / 255, 255 / 255, 0.5}}, -- diamond
                 {sprites["objects/goldstool_3"], {0 / 255, 228 / 255, 54 / 255, 0.5}}, -- emerald
                 {sprites["objects/goldstool_4"], {175 / 255, 76 / 255, 255 / 255, 0.5}}, -- amethyst
+                {sprites["objects/goldstool_5"], {41 / 255, 173 / 255, 255 / 255, 0.5}}, -- diamond
             }
 
         this.spritesheet, this.beamColor = unpack(player_skins[tonumber(skin)])
