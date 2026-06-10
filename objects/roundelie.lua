@@ -1,10 +1,11 @@
 -- objects/roundelie.lua
+-- v0.5.0
 
 -- Movement Documentation:
 -- Z to jump, left and right arrow keys to move
 -- X + Up causes a small midair "bounce" slightly smaller than a jump. 
 --   Can be done up to 3 times before touching the ground
---   Has a 20 frame cooldown, which is enough that you cannot gain height like this
+--   Was changed to have no cooldown between uses (but the parameter to adjust cooldown time was not removed)
 -- X + Down causes roundelie to accelerate downward quickly while held
 --   Has a top speed higher than the regular terminal velocity
 --   Has a hitbox that pushes opponents downward, which may "trap" them as they fall
@@ -27,13 +28,13 @@ roundelie = {
     name="roundelie",
     init = function(this, skin)
         this.connectionID = nil
-
+        
         local player_skins = {
             {sprites["characters/roundelie_1"], {1,1,1,1}}, -- roundelie (default)
-            {sprites["characters/roundelie_2"], {1,1,1,1}}, -- delaughter (purple)
-            {sprites["characters/roundelie_3"], {1,1,1,1}}, -- statue (golden)
+            {sprites["characters/roundelie_2"], {1,1,1,1}}, -- delaughter (purple/red)
+            {sprites["characters/roundelie_3"], {1,1,1,1}}, -- statue (golden) ... is wip, so in the meantime ~> nintendo-style palette (light blue)
         }
-
+        
         this.spritesheet, this.nothing = unpack(player_skins[tonumber(skin)]) --TODO: using this.nothing as a placeholder since this is what the stools do
         this.skin = tonumber(skin)
         this.spr = this.spritesheet[7]
@@ -42,32 +43,52 @@ roundelie = {
         this.facing = 1
         this.hitstun = 0
         this.active = true
-
+        
         -- Override the base hurtbox
         this.hurtbox = {x = 1, y = 3, w = 6, h = 5}
-
+        
         this.grace = 0
         this.jbuffer = 0
         this.bjump = 3
         this.dash_time = 0
-
+        
         this.p_jump = false
         this.p_dash = false
         this.was_on_ground = false
-
+        this.was_big_conk = false
+        
         this.animations = {
-            idle = {frames = {1}, speed = 1},
-            run = {frames = {1, 2, 3, 4}, speed = 5},
-            jump = {frames = {5}, speed = 1},
-            wallslide = {frames = {5}, speed = 1},
-            crouch = {frames = {6}, speed = 1}, --TODO: Crouch in midair is a separate sprite I think --what was I talking about
+            -- [to-do]:: messy?
+            idle1 = {frames = {1},  speed = 1}, -- up
+            idle2 = {frames = {14}, speed = 1}, -- right
+            idle3 = {frames = {15}, speed = 1}, -- down
+            idle4 = {frames = {16}, speed = 1}, -- left
+            -- [to-do]::
+            --  - roll doesn't handle direction changes properly (sprite shouldn't flip, and instead it should decrement anim_frame)
+            --  - the different idle poses should start animation from corresponding roll frames (rather than the roll always starting from the top position)
+            roll = {frames = {10, 2, 3, 4}, speed = 3}, -- up -> right -> down -> left ...
+            -- [to-do]::
+            --  - puff probably shouldn't activate e.g. out of knockback or from the bounce after down+x
+            --  - maaaybe only use puff for bjumps and have different pose for grounded jumps/moving up in the air?
+            --  - also maybe should tie animation speed to xspeed? but idk how this would work with the current system
+            jump1 = {frames = {11}, speed = 1}, -- inflate
+            -- [to-do]:: maybe change jump2 => jump3 be an animation instead of based on y-speed?
+            jump2 = {frames = {12}, speed = 1},
+            jump3 = {frames = {5}, speed = 1},
+            dive1 = {frames = {9}, speed = 1},  -- down+x pose
+            dive2 = {frames = {13}, speed = 1}, -- down+x pose *when large shockwave will trigger upon landing
+            crouch = {frames = {6}, speed = 1},
             up = {frames = {7}, speed = 1},
-            conk = {frames = {9}, speed = 1}
+            -- [to-do]:: maaaybe add alternate/random conk poses? could reuse the roll sprites...
+            conk = {frames = {8}, speed = 1},  -- disoriented pose used after down+x collides with ground to trigger large shockwave
+            -- [to-do]:: add fill color to sprites for sadface/tears/sroundelie during hitstun
+            -- pain = {...
         }
-        this.current_anim = "idle"
+        this.idle_poses = { "idle1", "idle2", "idle3", "idle4" }
+        this.current_anim = "idle1"
         this.anim_frame = 1
         this.anim_timer = 0
-
+        
         this.respawn_timer = 0
         this.invincible_timer = 0
         this.dash_cooldown = 0
@@ -75,7 +96,7 @@ roundelie = {
         this.freeze = 0
         this.conk = 0
         this.conkdir = 0
-
+        
         this.check_snowballs = function(this)
             if this.hitstun > 0 then return end
             for _, o in ipairs(objects) do
@@ -87,22 +108,22 @@ roundelie = {
                                 this:move(0, this.y+8-o.y)
                             end
                         end
-
+                        
                         if this.dash_time > 0 then
                             -- dash redirect
                             o.vx = 3 * this.facing
                             o.stop = false --TODO: probably not?
                             this.vy = -1
                             o.vy = -3
-
+                            
                             this.vx = this.facing * -4
                             this.dash_cooldown = 4
                             this.dash_time = 0
-
+                            
                             o.throwerID = this.connectionID
                             o.thrown_timer = 10
                             love.audio.play("hit", "static")
-
+                            
                         elseif this.vy > 0 and this:bottom() <= o:top() + 4 then
                             -- bounce on top
                             snap()
@@ -113,7 +134,7 @@ roundelie = {
                             else
                                 this.vy = -1.5
                             end
-
+                            
                             o.vy = o:is_solid(0, 1) and -1 or -0.5
                         end
                     end
@@ -121,34 +142,34 @@ roundelie = {
             end
         end
     end,
-
+    
     update = function(this)
         local id = this.connectionID
-
+        
         -- bonk timer
         if this.conk > 0 then
             this.conk = this.conk - 1
         end
-
+        
         -- iframes
         if this.invincible_timer > 0 then
             this.invincible_timer = this.invincible_timer - 1
         end
-
+        
         -- dash cd
         if this.dash_cooldown > 0 then
             this.dash_cooldown = this.dash_cooldown - 1
         end
-
+        
         -- bump cd
         if this.bump_cooldown > 0 then
             this.bump_cooldown = this.bump_cooldown - 1
         end
-
+        
         -- respawn
         if this.respawn_timer > 0 then
             this.respawn_timer = this.respawn_timer - 1
-
+            
             if this.respawn_timer == 0 then
                 love.audio.play("spawn", "static")
                 this.x = 120 - this.hurtbox.x - (this.hurtbox.w / 2)
@@ -163,7 +184,7 @@ roundelie = {
             end
             return
         end
-
+        
         local h_input = (inputSource.getKeyDown(id, "right") and 1 or 0) - (inputSource.getKeyDown(id, "left") and 1 or 0)
         local v_input = (inputSource.getKeyDown(id, "down") and 1 or 0) - (inputSource.getKeyDown(id, "up") and 1 or 0)
         -- hitstun (set by hitbox.lua)
@@ -173,24 +194,24 @@ roundelie = {
             this.vy = util.appr(this.vy, 3, 0.15)
             this.vx = util.appr(this.vx, 0, 0.143)
         else
-
+            
             local jump_btn = inputSource.getKeyDown(id, "b1")
             local dash_btn = inputSource.getKeyDown(id, "b2")
-
+            
             local jump = jump_btn and not this.p_jump
             local dash = dash_btn and not this.p_dash and this.dash_cooldown == 0
             local bump = dash_btn and (not this.p_dash) and this.bump_cooldown == 0
             this.p_jump = jump_btn
             this.p_dash = dash_btn
-
+            
             local ground_hit = this:is_solid(0, 1)
             local on_ground = ground_hit ~= false
             local on_semisolid = ground_hit and (ground_hit.type == "semisolid" or ground_hit.semisolid)
-
+            
             if on_ground and not this.was_on_ground then
                 game.init_smoke(this.x, this.y + 4)
             end
-
+            
             -- weird semisolid fall through
             if on_semisolid and v_input == 1 and not (this.was_on_ground) and jump_btn then --very hacky fix and I don't like it but I don't want to edit the move function since it breaks interoperability (would be very easy though). Maybe better fix? Or at least a hacky fix that's identical to the ideal case
                 if not this:is_solid(0, 1, true) then
@@ -201,12 +222,12 @@ roundelie = {
                     this.vy = this.was_vy
                 end
             end
-
+            
             if on_ground and this.vy > 0 then
                 this.vy = 0
                 this.rem.y = 0
             end
-
+            
             -- regular semisolid fall through
             if on_semisolid and v_input == 1 and jump then -- can definitely be combined with above part, but want to keep hacky and normal stuff separate for now
                 if not this:is_solid(0, 1, true) then
@@ -215,9 +236,9 @@ roundelie = {
                     jump = false
                 end
             end
-
+            
             if jump then this.jbuffer = 4 elseif this.jbuffer > 0 then this.jbuffer = this.jbuffer - 1 end
-
+            
             if on_ground then
                 if this.down_attack then
                     this.conk = 15
@@ -236,6 +257,7 @@ roundelie = {
                         end
                     end
                     if this.was_vy == 5 then
+                        this.was_big_conk = true
                         this.vy = -3.75
                         camera.shake(2, 2, 5)
                     else
@@ -251,7 +273,7 @@ roundelie = {
             elseif this.grace > 0 then
                 this.grace = this.grace - 1
             end
-
+            
             if this.dash_time > 0 then
                 this.dash_time = this.dash_time - 1
                 -- teleporting hitbox
@@ -259,7 +281,7 @@ roundelie = {
                     hitbox.create(this.connectionID, (this.x  - 1), (this.y  - 1), 10, 10, 3, 5 * this.facing, 0, 2)
                 end
                 game.init_smoke(this.x, this.y)
-
+                
                 if this.dash_time > 0 then
                     this.vx = 0 -- "dash" is just teleporting for roundelie
                 end
@@ -267,21 +289,21 @@ roundelie = {
             local maxrun = 2 -- different from ra2, but the speed building doesn't fit well with the character and is overcomplicated
             local accel = on_ground and 0.93 or 0.80
             local deccel = 0.16
-
+            
             this.vx = math.abs(this.vx) <= maxrun and util.appr(this.vx, h_input * maxrun, accel) or util.appr(this.vx, util.sign(this.vx) * maxrun, deccel)
             if this.vx ~= 0 then this.facing = util.sign(this.vx) end
-
+            
             local maxfall = 3
             if not on_ground then
                 this.vy = util.appr(this.vy, maxfall, math.abs(this.vy) > 0.124 and 0.334 or 0.167)
             end
-
+            
             if this.jbuffer > 0 then
                 if this.grace > 0 then
                     this.jbuffer = 0
                     -- this.grace = 0
                     this.vy = -3.36
-
+                    
                     love.audio.play("maddy_jump", "static")
                     game.init_smoke(this.x, this.y + 4)
                 end
@@ -296,6 +318,7 @@ roundelie = {
             local hb_y = cy - (hb_h / 2)
             if v_input == 1 and dash_btn and not on_ground and this.conk < 1 then
                 this.down_attack = true
+                this.was_big_conk = false
                 this.vy = util.appr(this.vy, 5, 0.75)
                 if (this:is_solid(-3,0) or this:is_solid(3,0)) then
                     this.conk = 15
@@ -308,12 +331,15 @@ roundelie = {
             end
             if this.conk > 0 then
                 this.conk = this.conk - 1
-		        this.vx = .1 * this.conk * this.conkdir
+                this.vx = .1 * this.conk * this.conkdir
             elseif v_input == -1 and bump and this.bjump > 0 then
-                this.bump_cooldown = 5
+                this.bump_cooldown = 0 --TODO: different from main branch, update documentation and code neatness if you want to keep
                 this.vy = -3
                 love.audio.play("maddy_nodash", "static")
-                this.bjump = this.bjump - 1
+                if this.bjump >= 1 then
+                    game.init_smoke(this.x, this.y)
+                    this.bjump = this.bjump - 1
+                end
             elseif dash then
                 if v_input == 0 then
                     this.dash_time = 2
@@ -321,33 +347,59 @@ roundelie = {
                     this.invincible_timer = 2
                     this.vx = 30 * h_input
                 end
-
+                
                 love.audio.play("maddy_dash", "static")
                 game.init_smoke(this.x, this.y)
             end
             this.was_on_ground = on_ground
             this.was_vy = this.vy -- part of the hacky semisolid fix
         end
-
+        
         this:move(this.vx, this.vy)
         this:check_snowballs()
-
+        
         -- sprite stuff
         local anim_on_ground = this.vy >= 0 and this:is_solid(0, 1)
-
-        local next_anim = "idle"
+        local next_anim = "idle1"
+        -- [to-do]:: bit messy?
+        if this.current_anim == "idle2" or this.current_anim == "idle3" or this.current_anim == "idle4" then
+            next_anim = this.current_anim
+        elseif this.current_anim == "roll" then
+            next_anim = this.idle_poses[this.anim_frame]
+        end
+        
         if this.conk > 0 then
-            next_anim = "conk"
+            -- a different sprite is drawn after the big bounce
+            if this.was_big_conk then
+                next_anim = "conk"
+            else
+                next_anim = "jump2"
+            end
+        --elseif anim_on_ground and not this.was_on_ground then
+        --    next_anim = "crouch"
+        
+        -- [to-do]:: magic numbers
         elseif not anim_on_ground then
-            next_anim = "jump"
+            if this.down_attack and this.vy == 5 then
+                next_anim = "dive2"
+            elseif this.down_attack then
+                next_anim = "dive1"
+            elseif this.vy <= -0.7 then
+                next_anim = "jump1"
+            elseif this.vy >= 0.3 then
+                next_anim = "jump3"
+            else
+                next_anim = "jump2"
+            end
         elseif this.dash_time > 0 and this.vx == 0 then --whar
             next_anim = "crouch"
         elseif v_input == -1 then
             next_anim = "up"
         elseif v_input == 1 then
             next_anim = "crouch"
-        elseif math.abs(this.vx) > 0.1 then
-            next_anim = "run"
+        -- [to-do]:: magic numbers
+        elseif (this.current_anim == roll and math.abs(this.vx) >= 1.2) or (this.current_anim ~= roll and math.abs(this.vx) > 0.1) then
+            next_anim = "roll"
         end
 
         if next_anim ~= this.current_anim then
@@ -358,6 +410,8 @@ roundelie = {
 
         local anim = this.animations[this.current_anim]
         this.anim_timer = this.anim_timer + 1
+        
+        -- [to-do]:: add special logic for roll animations here ~
 
         if this.anim_timer >= anim.speed then
             this.anim_timer = 0
@@ -366,13 +420,13 @@ roundelie = {
                 this.anim_frame = 1
             end
         end
-
-
+        
+        
         -- blast zones and stocks (maybe move elsewhere?)
         if this:oob(0, 0) then
             love.audio.play("kill", "static")
             camera.shake(3, 3, 15)
-
+            
             game.spawnExplosion(math.max(0, math.min(240, this:hmid())),
                 math.max(0, math.min(135, this:vmid())),
                 this:right() < stage.blastZone.l and "left" or
@@ -380,7 +434,7 @@ roundelie = {
                 this:bottom() < stage.blastZone.t and "top" or
                 "bottom",
                 {41/255, 173/255, 255/255})
-
+            
             this.stocks = this.stocks - 1
             this.damage = 0
             this.vx = 0
@@ -388,7 +442,7 @@ roundelie = {
             this.hitstun = 0
             this.rem.x = 0
             this.rem.y = 0
-
+            
             if this.stocks > 0 then
                 this.x = -1000
                 this.y = -1000
@@ -400,30 +454,30 @@ roundelie = {
             end
         end
     end,
-
+    
     on_hit_confirm = function(this, target, hb)
         -- stuff to do on hit confirm (e.g., pogoing?)
         camera.shake(1.5, 1.5, 2)
     end,
-
+    
     draw = function(this)
         if not this.active and this.stocks <= 0 then return end
         if this.respawn_timer > 0 then return end
-
+        
         local isBlinking = this.invincible_timer > 0 and (math.floor(this.invincible_timer / 4) % 2 == 0 or debugEnabled)
-
+        
         -- sprite hitstun tint
         if this.hitstun > 0 then
             love.graphics.setColor(255 / 255, 119 / 255, 168 / 255)
         else
             love.graphics.setColor(1, 1, 1)
         end
-
+        
         local anim = this.animations[this.current_anim]
         local frame_idx = anim.frames[this.anim_frame]
         this.spr = this.spritesheet[frame_idx]
         local cx = this.hurtbox.x + (this.hurtbox.w / 2)
-
+        
         -- apply pal swaps
         if isBlinking then
             love.graphics.setShader(whiteShader)
@@ -440,16 +494,16 @@ roundelie = {
             end
             
         end
-
+        
         sprites.draw(this.spr, this.x + cx, this.y, 0, this.facing, 1, cx, 0)
-
+        
         if this.connectionID == connectionID then
             local px = math.floor(this.x)
             local py = math.floor(this.y)
             love.graphics.rectangle("fill", px + 3, py - 6, 3, 1)
             love.graphics.rectangle("fill", px + 4, py - 5, 1, 1)
         end
-
+        
         love.graphics.setShader()
         love.graphics.setColor(1, 1, 1)
     end
