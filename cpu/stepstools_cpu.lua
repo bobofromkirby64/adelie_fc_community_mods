@@ -148,7 +148,7 @@ stepstools_cpu = {
                         local act_y = (inps.down and 1 or 0) - (inps.up and 1 or 0)
                         local magnitude = math.max(1, math.sqrt(dx*dx + dy*dy))
 
-                        if (act_x * (dx/magnitude)) + (act_y * (dy/magnitude)) > 0.85 then score = score + 25000 end
+                        if (act_x * (dx/magnitude)) + math.abs(act_y * (dy/magnitude)) > 0.85 then score = score + 25000 end
                         if not grounded and dy > 15 and inps.down then score = score + 35000 end
                     end
                 end
