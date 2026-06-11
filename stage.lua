@@ -464,11 +464,205 @@ stage = {
         end,
     },
 
+    modded_layouts = {
+        -- last level from cc2
+        function()
+            stage.name = "destination"
+
+            stage.addPlatform(48, 87, 24, 32, "solid")
+            stage.addPlatform(96, 103, 48, 48, "solid")
+            stage.addPlatform(168, 87, 24, 32, "solid")
+
+            stage.spawnDist = 52
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/destination_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/destination_fg.png")
+
+            stage.bgColor = {}
+            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(15)
+            stage.bgShader = nil
+
+            cc2_clouds(false, util.color(7))
+            cc2_clouds(true, util.color(7))
+            cc2_snowflakes()
+        end,
+        -- last level from cc2
+        function()
+            stage.name = "destination"
+
+            stage.addPlatform(48, 87, 24, 32, "solid")
+            stage.addPlatform(96, 103, 48, 48, "solid")
+            stage.addPlatform(168, 87, 24, 32, "solid")
+
+            stage.spawnDist = 52
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/destination_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/destination_fg.png")
+
+            stage.bgColor = {}
+            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(15)
+            stage.bgShader = nil
+
+            cc2_clouds(false, util.color(7))
+            cc2_clouds(true, util.color(7))
+            cc2_snowflakes()
+        end,
+        -- last level from cc2
+        function()
+            stage.name = "destination"
+
+            stage.addPlatform(48, 87, 24, 32, "solid")
+            stage.addPlatform(96, 103, 48, 48, "solid")
+            stage.addPlatform(168, 87, 24, 32, "solid")
+
+            stage.spawnDist = 52
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/destination_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/destination_fg.png")
+
+            stage.bgColor = {}
+            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(15)
+            stage.bgShader = nil
+
+            cc2_clouds(false, util.color(7))
+            cc2_clouds(true, util.color(7))
+            cc2_snowflakes()
+        end,
+        -- last level from cc2
+        function()
+            stage.name = "destination"
+
+            stage.addPlatform(48, 87, 24, 32, "solid")
+            stage.addPlatform(96, 103, 48, 48, "solid")
+            stage.addPlatform(168, 87, 24, 32, "solid")
+
+            stage.spawnDist = 52
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/destination_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/destination_fg.png")
+
+            stage.bgColor = {}
+            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(15)
+            stage.bgShader = nil
+
+            cc2_clouds(false, util.color(7))
+            cc2_clouds(true, util.color(7))
+            cc2_snowflakes()
+        end,
+        -- last level from cc2
+        function()
+            stage.name = "destination"
+
+            stage.addPlatform(48, 87, 24, 32, "solid")
+            stage.addPlatform(96, 103, 48, 48, "solid")
+            stage.addPlatform(168, 87, 24, 32, "solid")
+
+            stage.spawnDist = 52
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/destination_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/destination_fg.png")
+
+            stage.bgColor = {}
+            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(15)
+            stage.bgShader = nil
+
+            cc2_clouds(false, util.color(7))
+            cc2_clouds(true, util.color(7))
+            cc2_snowflakes()
+        end,
+        -- last level from cc2
+        function()
+            stage.name = "destination"
+
+            stage.addPlatform(48, 87, 24, 32, "solid")
+            stage.addPlatform(96, 103, 48, 48, "solid")
+            stage.addPlatform(168, 87, 24, 32, "solid")
+
+            stage.spawnDist = 52
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/destination_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/destination_fg.png")
+
+            stage.bgColor = {}
+            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(15)
+            stage.bgShader = nil
+
+            cc2_clouds(false, util.color(7))
+            cc2_clouds(true, util.color(7))
+            cc2_snowflakes()
+        end,
+        -- last level from cc2
+        function()
+            stage.name = "destination"
+
+            stage.addPlatform(48, 87, 24, 32, "solid")
+            stage.addPlatform(96, 103, 48, 48, "solid")
+            stage.addPlatform(168, 87, 24, 32, "solid")
+
+            stage.spawnDist = 52
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/destination_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/destination_fg.png")
+
+            stage.bgColor = {}
+            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(15)
+            stage.bgShader = nil
+
+            cc2_clouds(false, util.color(7))
+            cc2_clouds(true, util.color(7))
+            cc2_snowflakes()
+        end,
+        -- last level from cc2
+        function()
+            stage.name = "destination"
+
+            stage.addPlatform(48, 87, 24, 32, "solid")
+            stage.addPlatform(96, 103, 48, 48, "solid")
+            stage.addPlatform(168, 87, 24, 32, "solid")
+
+            stage.spawnDist = 52
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/destination_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/destination_fg.png")
+
+            stage.bgColor = {}
+            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(15)
+            stage.bgShader = nil
+
+            cc2_clouds(false, util.color(7))
+            cc2_clouds(true, util.color(7))
+            cc2_snowflakes()
+        end,
+        -- last level from cc2
+        function()
+            stage.name = "destination"
+
+            stage.addPlatform(48, 87, 24, 32, "solid")
+            stage.addPlatform(96, 103, 48, 48, "solid")
+            stage.addPlatform(168, 87, 24, 32, "solid")
+
+            stage.spawnDist = 52
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/destination_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/destination_fg.png")
+
+            stage.bgColor = {}
+            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(15)
+            stage.bgShader = nil
+
+            cc2_clouds(false, util.color(7))
+            cc2_clouds(true, util.color(7))
+            cc2_snowflakes()
+        end,
+    },
+
     init = function(stageIdx)
         stage.platforms = {}
         stageIdx = stageIdx or 1
         if stage.layouts[stageIdx] then
             stage.layouts[stageIdx]()
+        elseif stage.modded_layouts[stageIdx - #stage.layouts] then
+            stage.modded_layouts[stageIdx - #stage.layouts]()
         else
             stage.layouts[1]()
         end
