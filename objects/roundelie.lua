@@ -1,5 +1,5 @@
 -- objects/roundelie.lua
--- v0.5.0
+-- v0.5.1
 
 -- Movement Documentation:
 -- Z to jump, left and right arrow keys to move
@@ -20,7 +20,10 @@
 --   Zeros roundelie's x speed, but does not change its y speed
 --   Has a 2 second cooldown before roundelie can teleport again
 --   This is indicated by the color of roundelie's beak, which changes when the teleport is unavailable
---   Has a hitbox that sends opponents in the direction held 1f after the teleport (not necessarily the teleport direction)
+--   Has a hitbox that sends opponent in the direction Roundelie is facing
+--   Roundelie is invulnerable for the first two frames of the teleport, and the hitbox is also active for those first two frames
+--   Roundelie can act out of teleport immediately e.g. by buffering a jump
+--   ...
 -- Jump + Down lets roundelie fall through any semisolids it interacts with
 --   Falling through semisolids which roundelie is standing on requires pressing jump, like other characters
 
@@ -47,6 +50,9 @@ roundelie = {
         -- Override the base hurtbox
         this.hurtbox = {x = 1, y = 3, w = 6, h = 5}
         
+        this.prev_x = this.x
+        this.prev_y = this.y
+
         this.grace = 0
         this.jbuffer = 0
         this.bjump = 3
@@ -56,32 +62,36 @@ roundelie = {
         this.p_dash = false
         this.was_on_ground = false
         this.was_big_conk = false
+        this.start_teleport = false --TODO: messy?
+        
+        -- TODO:: probably want to add on-hit effects for at least the shockwave also
+        this.teleport_hb  = nil
         
         this.animations = {
-            -- [to-do]:: messy?
+            -- TODO:: messy?
             idle1 = {frames = {1},  speed = 1}, -- up
             idle2 = {frames = {14}, speed = 1}, -- right
             idle3 = {frames = {15}, speed = 1}, -- down
             idle4 = {frames = {16}, speed = 1}, -- left
-            -- [to-do]::
+            -- TODO::
             --  - roll doesn't handle direction changes properly (sprite shouldn't flip, and instead it should decrement anim_frame)
             --  - the different idle poses should start animation from corresponding roll frames (rather than the roll always starting from the top position)
             roll = {frames = {10, 2, 3, 4}, speed = 3}, -- up -> right -> down -> left ...
-            -- [to-do]::
+            -- TODO::
             --  - puff probably shouldn't activate e.g. out of knockback or from the bounce after down+x
             --  - maaaybe only use puff for bjumps and have different pose for grounded jumps/moving up in the air?
             --  - also maybe should tie animation speed to xspeed? but idk how this would work with the current system
             jump1 = {frames = {11}, speed = 1}, -- inflate
-            -- [to-do]:: maybe change jump2 => jump3 be an animation instead of based on y-speed?
+            -- TODO:: maybe change jump2 => jump3 be an animation instead of based on y-speed?
             jump2 = {frames = {12}, speed = 1},
             jump3 = {frames = {5}, speed = 1},
             dive1 = {frames = {9}, speed = 1},  -- down+x pose
             dive2 = {frames = {13}, speed = 1}, -- down+x pose *when large shockwave will trigger upon landing
             crouch = {frames = {6}, speed = 1},
             up = {frames = {7}, speed = 1},
-            -- [to-do]:: maaaybe add alternate/random conk poses? could reuse the roll sprites...
+            -- TODO:: maaaybe add alternate/random conk poses? could reuse the roll sprites...
             conk = {frames = {8}, speed = 1},  -- disoriented pose used after down+x collides with ground to trigger large shockwave
-            -- [to-do]:: add fill color to sprites for sadface/tears/sroundelie during hitstun
+            -- TODO:: add fill color to sprites for sadface/tears/sroundelie during hitstun?
             -- pain = {...
         }
         this.idle_poses = { "idle1", "idle2", "idle3", "idle4" }
@@ -146,6 +156,15 @@ roundelie = {
     update = function(this)
         local id = this.connectionID
         
+        if this.freeze > 0 then
+            this.freeze = this.freeze - 1
+            if this.freeze == 0 then
+                this:move(this.vx, this.vy)
+                this:check_snowballs()
+            end
+            return
+        end
+        
         -- bonk timer
         if this.conk > 0 then
             this.conk = this.conk - 1
@@ -181,6 +200,8 @@ roundelie = {
                 this.invincible_timer = 60
                 this.dash_cooldown = 0
                 this.bump_cooldown = 0
+                --
+                if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
             end
             return
         end
@@ -193,6 +214,8 @@ roundelie = {
             this.hitstun = this.hitstun - 1
             this.vy = util.appr(this.vy, 3, 0.15)
             this.vx = util.appr(this.vx, 0, 0.143)
+            --
+            if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
         else
             
             local jump_btn = inputSource.getKeyDown(id, "b1")
@@ -275,15 +298,22 @@ roundelie = {
             end
             
             if this.dash_time > 0 then
-                this.dash_time = this.dash_time - 1
-                -- teleporting hitbox
-                if this.dash_time == 0 then
-                    hitbox.create(this.connectionID, (this.x  - 1), (this.y  - 1), 10, 10, 3, 5 * this.facing, 0, 2)
+                if this.dash_time == 2 then
+                    --
+                    this.teleport_hb = hitbox.create(this.connectionID, (this.x  - 1), (this.y  - 1), 10, 10, 3, 5 * this.facing, 0, 2)
+                    this.teleport_hb.telefrag = true
+                    this.teleport_hb.hit_sfx = "zap" -- generic "crit" sfx used for big hits, e.g. Lani's tipper and body slam
                 end
-                game.init_smoke(this.x, this.y)
+                this.dash_time = this.dash_time - 1
                 
                 if this.dash_time > 0 then
+                    hitbox.create(this.connectionID, (this.x  - 1), (this.y  - 1), 10, 10, 3, 5 * this.facing, 0, 2)
                     this.vx = 0 -- "dash" is just teleporting for roundelie
+                end
+            else
+                if this.teleport_hb then
+                    this.teleport_hb.active = false
+                    this.teleport_hb = nil
                 end
             end
             local maxrun = 2 -- different from ra2, but the speed building doesn't fit well with the character and is overcomplicated
@@ -346,17 +376,77 @@ roundelie = {
                     this.dash_cooldown = 61
                     this.invincible_timer = 2
                     this.vx = 30 * h_input
+                    this.start_teleport = true
                 end
                 
                 love.audio.play("maddy_dash", "static")
-                game.init_smoke(this.x, this.y)
             end
             this.was_on_ground = on_ground
             this.was_vy = this.vy -- part of the hacky semisolid fix
         end
         
+        -- used for teleport effects which are drawn after movement/collision is calculated
+        this.prev_x = this.x
+        this.prev_y = this.y
+        
         this:move(this.vx, this.vy)
         this:check_snowballs()
+        
+        -- teleport visuals
+        if this.start_teleport then
+            
+            this.start_teleport = false
+            
+            local x_step = (this.x - this.prev_x) / 5
+            local y_step = (this.y - this.prev_y) / 5
+            local test_cx = this.hurtbox.x + (this.hurtbox.w / 2)
+            local test_cy = this.hurtbox.y + (this.hurtbox.h / 2)
+            
+            table.insert(
+                particles_fg, {
+                    facing = this.facing,
+                    is_frozen = this.freeze > 0,
+                    cx = test_cx,
+                    cy = test_cy,
+                    coords = {
+                        this.prev_x,
+                        this.prev_y,
+                        this.x,
+                        this.y,
+                    },
+                    timer = 0,
+                    duration = 16,
+                    update = function(p)
+                        if p.is_frozen then
+                            p.timer = p.timer + 0.5
+                        else
+                            p.timer = p.timer + 1
+                        end
+                        return p.timer >= p.duration
+                    end,
+                    draw = function(p)
+                        local frame = math.floor(p.timer / p.duration * 3) + 1
+                        local fade = 1
+                        if p.timer >= p.duration / 2 then
+                            fade = 1 - (p.timer / p.duration)
+                        end
+                        if frame > 3 then frame = 3 end
+                        
+                        -- after-images
+                        love.graphics.setColor(1, 1, 1, fade)
+                        sprites.draw(sprites.roundelie_teleport_afterimage[frame], p.coords[1] + p.cx, p.coords[2], 0, p.facing, 1, p.cx, 0)
+                        sprites.draw(sprites.roundelie_teleport_afterimage[frame], p.coords[3] + p.cx, p.coords[4], 0, p.facing, 1, p.cx, 0)
+
+                        -- TODO:: basic concept for the full effect:
+                        -- - add magic-y spark-y particles around the two afterimages, and maybe a scattering in between
+                        -- - add short "explosion" at endpoint (quick burst -> dust settling); maybe play around with making the initial burst/explosion a sprite anim?
+                        -- - ...
+                        -- this move is a bit strange... to me it reads as a "blip" (...out of existence and suddenly appear elsewhere) more than a "zip" (sudden violent burst of speed),
+                        -- but the knockback seems more fitting for a "zip" => opponent in knocked back in the direction of a movement rather than them being blown away by a burst?
+                        -- could play around with knockback, maybe? I think neutral teleport should absolutely behave like a "burst", at least
+                    end
+                })
+        end
         
         -- sprite stuff
         local anim_on_ground = this.vy >= 0 and this:is_solid(0, 1)
@@ -421,7 +511,6 @@ roundelie = {
             end
         end
         
-        
         -- blast zones and stocks (maybe move elsewhere?)
         if this:oob(0, 0) then
             love.audio.play("kill", "static")
@@ -443,6 +532,8 @@ roundelie = {
             this.rem.x = 0
             this.rem.y = 0
             
+            if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
+            
             if this.stocks > 0 then
                 this.x = -1000
                 this.y = -1000
@@ -457,7 +548,31 @@ roundelie = {
     
     on_hit_confirm = function(this, target, hb)
         -- stuff to do on hit confirm (e.g., pogoing?)
-        camera.shake(1.5, 1.5, 2)
+        camera.shake(1.5, 1.5, 2) -- TODO: probably don't want screenshake on every attack?
+        
+        if hb.telefrag then
+            -- telefrag (sorta?)
+            -- // mostly copied over from Lani's body slam)
+            this.freeze = 6
+            target.freeze = 6
+            table.insert(particles_fg, {
+                x = target:hmid(), y = target:vmid(),
+                timer = 0,
+                duration = 8,
+                update = function(p)
+                    p.timer = p.timer + 1
+                    return p.timer >= p.duration
+                end,
+                draw = function(p)
+                    local fade = 1 - (p.timer / p.duration)
+                    local len = p.timer * 4
+                    love.graphics.setColor(1, 1, 1, fade)
+                    love.graphics.rectangle("fill", math.floor(p.x - len / 2), math.floor(p.y - 1), len, 2)
+                    love.graphics.rectangle("fill", math.floor(p.x - 1), math.floor(p.y - len), 2, len * 2)
+                    love.graphics.setColor(1, 1, 1, 1)
+                end
+            })
+        end
     end,
     
     draw = function(this)
