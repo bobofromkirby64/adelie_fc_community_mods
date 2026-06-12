@@ -153,7 +153,7 @@ sss = {
 
         for i, thumb in ipairs(sss.thumbnails) do
             -- Modded var, used to offset the thumbnails for when the cursor goes offscreen
-            local cam_y = (cell_h + pad_y) * -(math.floor(sss.p1_cursor / sss.grid_w) < 2 and 0 or math.floor(sss.p1_cursor / sss.grid_w) - 2)
+            local cam_y = (cell_h + pad_y) * -(math.floor((sss.p1_cursor - 1) / sss.grid_w) < 2 and 0 or math.floor((sss.p1_cursor - 1) / sss.grid_w) - 2)
 
             local row = math.floor((i - 1) / sss.grid_w)
             local col = (i - 1) % sss.grid_w
