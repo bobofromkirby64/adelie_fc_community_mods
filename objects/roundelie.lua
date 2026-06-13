@@ -62,7 +62,9 @@ roundelie = {
         this.p_dash = false
         this.was_on_ground = false
         this.was_big_conk = false
-        this.start_teleport = false --TODO: messy?
+        -- messy?
+        this.start_teleport = false
+        this.start_teleport_h = false
         
         -- TODO:: probably want to add on-hit effects for at least the shockwave also
         this.teleport_hb  = nil
@@ -151,6 +153,207 @@ roundelie = {
                 end
             end
         end
+
+        
+        -- this.init_sparkburst = function(this, angle)
+            -- for i = 1, 8 do
+                -- local angle2 = angle + (2 * math.pi * math.random() * 0.5)-- * 0.5)
+                -- local cx = this.hurtbox.x + (this.hurtbox.w / 2)
+                -- local cy = this.hurtbox.y + (this.hurtbox.h / 2)
+                -- table.insert(particles_fg, {
+                    -- x = this.x + cx,
+                    -- y = this.y + cy,
+                    -- speed = 1.05,--0.85,
+                    -- drag = 0.05,
+                    -- vx = math.sin(angle2) * (math.random(12,13) * 0.1) * 3 * 1.1,--(math.random(10,12) * 0.1),
+                    -- vy = math.cos(angle2) * (math.random(12,13) * 0.1) * 3 * 1.1,--(math.random(10,12) * 0.1),
+                    -- -- vx = math.sin(angle2) * (math.random() + 1),
+                    -- -- vy = math.cos(angle2) * (math.random() + 1),
+                    -- --vx = math.sin(angle2) * (math.random() * 8 - 4) + this.facing * 1.5,
+                    -- --vy = math.cos(angle2) * (math.random() * 8 - 4) - 1,
+                    -- timer = 0,
+                    -- duration = 5 + math.random(0, 5),
+                    -- update = function(p)
+                        -- p.x = p.x + p.vx
+                        -- p.y = p.y + p.vy
+                        -- p.vx = p.vx * p.speed
+                        -- p.vy = p.vy * p.speed
+                        -- p.timer = p.timer + 1
+                        -- return p.timer >= p.duration
+                    -- end,
+                    -- draw = function(p)
+                        -- local fade = 1 - (p.timer / p.duration)
+                        -- if (p.vx * p.vx + p.vy * p.vy) > 1.5 then
+                            -- love.graphics.setColor(255/255, 163/255, 0/255, 1)--fade * p.drag)
+                            -- love.graphics.setLineStyle("rough")
+                            -- love.graphics.line(math.floor(p.x), math.floor(p.y), math.floor(p.x - p.vx * p.drag), math.floor(p.y - p.vy * p.drag))
+                            -- love.graphics.line(math.floor(1 + p.x), math.floor(1 + p.y), math.floor(1 + p.x - p.vx * p.drag), math.floor(1 + p.y - p.vy * p.drag))
+                            -- --love.graphics.rectangle("fill", math.floor(p.x - p.vx * p.drag), math.floor(p.y - p.vy * p.drag), 1, 1)
+                            -- --love.graphics.rectangle("fill", math.floor(1 + p.x - p.vx * p.drag), math.floor(1 + p.y - p.vy * p.drag), 1, 1)
+                            -- -- if (p.vx * p.vx + p.vy * p.vy) > 2.5 then
+                                -- -- love.graphics.rectangle("fill", math.floor(p.x - 2 * p.vx * p.drag), math.floor(p.y - 2 * p.vy * p.drag), 1, 1)
+                                -- -- love.graphics.rectangle("fill", math.floor(1 + p.x - 2 * p.vx * p.drag), math.floor(1 + p.y - 2 * p.vy * p.drag), 1, 1)
+                            -- -- end
+                            -- if p.timer < 4 then
+                                -- love.graphics.setColor(1, 0, 0, 1)--fade)
+                            -- else
+                                -- love.graphics.setColor(255/255, 236/255, 39/255, 1)--, fade)
+                            -- end
+                            -- love.graphics.rectangle("fill", math.floor(p.x), math.floor(p.y), 1, 1)
+                            -- love.graphics.rectangle("fill", math.floor(1 + p.x), math.floor(1 + p.y), 1, 1)
+                        -- end
+                        -- love.graphics.setColor(1, 1, 1, 1)
+                    -- end
+                -- })
+            -- end
+        this.init_sparkburst = function(this, angle)
+            for i = 1, 7 do
+                local angle2 = angle + (2 * math.pi * math.random() * 0.5)-- * 0.5)
+                local cx = this.hurtbox.x + (this.hurtbox.w / 2)
+                local cy = this.hurtbox.y + (this.hurtbox.h / 2) - 1
+                table.insert(particles_fg, {
+                    x = this.x + cx,
+                    y = this.y + cy,
+                    speed = 4 + math.random(6,14) * 0.1,--1.10,--0.85,
+                    drag = 0.5,--0.6,
+                    vx = math.sin(angle2),-- * (math.random(11,12) * 0.1),--(math.random(10,12) * 0.1),
+                    vy = math.cos(angle2),-- * (math.random(11,12) * 0.1),--(math.random(10,12) * 0.1),
+                    -- vx = math.sin(angle2) * (math.random() + 1),
+                    -- vy = math.cos(angle2) * (math.random() + 1),
+                    --vx = math.sin(angle2) * (math.random() * 8 - 4) + this.facing * 1.5,
+                    --vy = math.cos(angle2) * (math.random() * 8 - 4) - 1,
+                    timer = 0,
+                    duration = 7 + math.random(0, 3),
+                    update = function(p)
+                        p.x = p.x + p.vx * p.speed
+                        p.y = p.y + p.vy * p.speed
+                        if p.timer == 0 then
+                            p.x = p.x + p.vx * p.speed
+                            p.y = p.y + p.vy * p.speed
+                        end
+                        p.vx = p.vx * p.drag-- * p.speed
+                        p.vy = p.vy * p.drag-- * p.speed
+                        if p.is_frozen then
+                            p.timer = p.timer + 0.5
+                        else
+                            p.timer = p.timer + 1
+                        end
+                        return p.timer >= p.duration
+                    end,
+                    draw = function(p)
+                        local fade = 1 - (p.timer / (p.duration + 5))
+                        love.graphics.setColor(1, 1, 1, 1)
+                        if p.timer <= 2 then
+                            love.graphics.setColor(1, 1, 1, 1)--fade)
+                        else
+                            --love.graphics.setColor(1, 0, 0, 1)
+                            -- was 236
+                            love.graphics.setColor((245*fade*1.95)/255, (186*fade*1.95)/255, (39*fade*1.8)/255, 1)--, fade)
+                            --love.graphics.setColor((255*fade*1.99)/255, (196*fade*1.85)/255, (39*fade*1.5)/255, 1)--, fade)
+                        end
+                        love.graphics.rectangle("fill", math.floor(p.x), math.floor(p.y), 1, 1)
+                        love.graphics.setColor((255*fade*1.95)/255, (153*fade*1.95)/255, 0/255, 1)--fade * p.drag)
+                        if p.timer >= 1 and (p.x - p.vx * p.speed >= 1.5) then
+                        --if (p.vx * p.vx + p.vy * p.vy) >= 1.5 then --> 1.5 then
+                            --love.graphics.setColor(255/255, 163/255, 0/255, 1)--fade * p.drag)
+                            love.graphics.rectangle("fill", math.floor(p.x - p.vx * p.speed), math.floor(p.y - p.vy * p.speed), 1, 1)
+                            if (p.x - p.vx * p.speed >= 2.5) then
+                                -- I don't think this even happens with current config
+                                love.graphics.rectangle("fill", math.floor(p.x - p.vx * p.speed - ((p.vx / p.drag) * p.speed)), math.floor(p.y - p.vy * p.speed - ((p.vy/p.drag) * p.speed)), 1, 1)
+                            end
+                        end
+                        -- if (p.vx * p.vx + p.vy * p.vy) >= 1.5 then
+                            -- love.graphics.rectangle("fill", math.floor(p.x - 2 * p.vx * p.speed), math.floor(p.y - 2 * p.vy * p.speed), 1, 1)
+                        -- end
+                        love.graphics.setColor(1, 1, 1, 1)
+                    end
+                })
+            end
+        end
+        
+        -- TODO: clean-up
+        -- this.init_sparkburst = function(this, angle)
+            -- -- (ty @ Lazy Devs on youtube, lol)
+            -- --local angle = 2 * math.pi * math.random()
+            -- local cx = this.hurtbox.x + (this.hurtbox.w / 2)
+            -- local cy = this.hurtbox.y + (this.hurtbox.h / 2)
+            -- local init_delay = 1
+            
+            -- for i=1,6 do
+                -- -- lua cos/sin functions expect radians not "% of a circle" like pico8
+                -- -- 0.4 is the range of possible angles
+                -- local angle2 = angle + (2 * math.pi * math.random() * 0.4)-- * 0.5)
+                -- --local spark_color = math.random(1,3)
+                -- table.insert(
+                    -- particles_fg, {
+                        -- -- range of 
+                        -- --angle = ref_angle + math.random() * 0.5,
+                        
+                        -- x = this.x + cx,
+                        -- y = this.y + cy,
+                        -- vx = math.sin(angle2) * (math.random(10,12) * 0.2),
+                        -- vy = math.cos(angle2) * (math.random(10,12) * 0.2),
+                        -- drag = 0.2,
+                        -- speed = math.random(4,5),--math.random(4, 6),
+                        
+                        -- timer = 0,
+                        -- duration = 6 - math.random(-1, 0) + init_delay, -- messy!
+                        
+                        -- update = function(p)
+                            -- if p.timer < init_delay then
+                                -- p.timer = p.timer + 1
+                                -- return false -- ?
+                            -- end
+                            
+                            -- -- if you uncomment watch for s
+                            -- -- if p.timer > p.duration - init_delay - 2 then
+                                -- -- -- messy
+                                -- -- p.s = p.s - 1
+                            -- -- end
+                            
+                            -- p.x = p.x - p.vx * p.speed
+                            -- p.y = p.y - p.vy * p.speed
+                            
+                            -- p.vx = p.vx * p.drag -- min 1
+                            -- p.vy = p.vy * p.drag -- min 1
+                            
+                            -- if p.is_frozen then
+                                -- p.timer = p.timer + 0.5
+                            -- else
+                                -- p.timer = p.timer + 1
+                            -- end
+                            -- return p.timer >= p.duration
+                        -- end,
+                        
+                        -- draw = function(p)
+                            
+                            -- love.graphics.setLineStyle("rough")
+                            -- love.graphics.setLineWidth(2)
+                            -- -- if spark_color == 1 then
+                                -- -- love.graphics.setColor(1, 1, 0)
+                            -- -- elseif spark_color == 2 then
+                                -- -- love.graphics.setColor(1, 0, 1)
+                            -- -- else
+                                -- -- love.graphics.setColor(0, 1, 1)
+                            -- -- end
+                            -- if p.timer - init_delay <= (p.duration - init_delay) / 2 then
+                                -- love.graphics.setColor(1, 1, 1)
+                            -- else
+                                -- love.graphics.setColor(0.5, 0.5, 0.5)
+                            -- end
+                            -- love.graphics.line(p.x, p.y, p.x - p.vx * p.speed, p.y - p.vy * p.speed)
+                            -- if p.timer - init_delay <= (p.duration - init_delay) / 2 then
+                                -- love.graphics.setColor(1, 1, 0)
+                            -- else
+                                -- love.graphics.setColor(0.8, 0.8, 0.8)
+                            -- end
+                            -- --love.graphics.setColor(0.8, 0.8, 0.8)
+                            -- love.graphics.line(p.x+1, p.y+1, p.x - p.vx * p.speed, p.y - p.vy * p.speed)
+                            -- love.graphics.setColor(1, 1, 1) -- idk if this is needed or not
+                        -- end
+                    -- })
+            -- end
+        -- end
     end,
     
     update = function(this)
@@ -300,6 +503,7 @@ roundelie = {
             if this.dash_time > 0 then
                 if this.dash_time == 2 then
                     --
+                    this.freeze = 3 -- half of the on-hit value
                     this.teleport_hb = hitbox.create(this.connectionID, (this.x  - 1), (this.y  - 1), 10, 10, 3, 5 * this.facing, 0, 2)
                     this.teleport_hb.telefrag = true
                     this.teleport_hb.hit_sfx = "zap" -- generic "crit" sfx used for big hits, e.g. Lani's tipper and body slam
@@ -373,10 +577,14 @@ roundelie = {
             elseif dash then
                 if v_input == 0 then
                     this.dash_time = 2
-                    this.dash_cooldown = 61
+                    -- TEST TEST TEST (DASH COOLDOWN)
+                    this.dash_cooldown = 10--61
+                    -- TEST TEST TEST (DASH COOLDOWN)
                     this.invincible_timer = 2
-                    this.vx = 30 * h_input
+                    -- 30 -> 32
+                    this.vx = 32 * h_input
                     this.start_teleport = true
+                    this.start_teleport_h = h_input ~= 0
                 end
                 
                 love.audio.play("maddy_dash", "static")
@@ -392,30 +600,132 @@ roundelie = {
         this:move(this.vx, this.vy)
         this:check_snowballs()
         
-        -- teleport visuals
+        -- teleport visuals effects
+        -- TODO: should probably move this elsewhere?
         if this.start_teleport then
-            
-            this.start_teleport = false
             
             local x_step = (this.x - this.prev_x) / 5
             local y_step = (this.y - this.prev_y) / 5
             local test_cx = this.hurtbox.x + (this.hurtbox.w / 2)
             local test_cy = this.hurtbox.y + (this.hurtbox.h / 2)
+            local offset = this.hurtbox.w / 2 + 1
+            
+            -- 1/3 of a circle in radians
+            local r = 2 * math.pi / 3
+            -- use offset for diameter
+            
+            -- poof out (startpoint)
+            if this.start_teleport_h then
+                table.insert(
+                    particles_fg, {
+                        
+                        facing = this.facing,
+                        is_frozen = this.freeze > 0,
+                        cx = test_cx,
+                        cy = test_cy,
+                        --
+                        ax = this.prev_x,
+                        ay = this.prev_y,
+                        bx = this.x,
+                        by = this.y,
+                        
+                        x = this.prev_x,
+                        y = this.prev_y,
+                        
+                        -- coords = {
+                            -- this.prev_x,
+                            -- this.prev_y,
+                            -- this.x,
+                            -- this.y,
+                        -- },
+                        
+                        timer = 0,
+                        duration = 15,
+                        -- TODO: messy?
+                        smoke = false,
+                        
+                        update = function(p)
+                            -- p.x_tele_a = p.x_tele_a + p.vx
+                            -- p.y_tele_a = p.y_tele_a + p.vy
+                            -- p.x_tele_b = p.x_tele_b + p.vx
+                            -- p.y_tele_b = p.y_tele_b + p.vy
+                            
+                            if p.is_frozen then
+                                p.timer = p.timer + 0.5
+                            else
+                                p.timer = p.timer + 1
+                            end
+                            return p.timer >= p.duration
+                        end,
+                        
+                        draw = function(p)
+                            local frame = math.floor(p.timer / p.duration * 3) + 1
+                            -- local fade = 1
+                            -- if p.timer >= p.duration / 2 then
+                                -- fade = 1 - (p.timer / p.duration)
+                            -- end
+                            if frame > 3 then frame = 3 end
+                            
+                            -- smoke
+                            -- local dx, dy = math.floor(p.x_tele_a), math.floor(p.y_tele_a)
+                            -- sprites.draw(sprites.smoke[frame], p.flipX == -1 and dx + 8 or dx, p.flipY == -1 and dy + 8 or dy, 0, p.flipX, p.flipY, 0, 0)
+                            -- dx, dy = math.floor(p.x_tele_b), math.floor(p.y_tele_b)
+                            -- sprites.draw(sprites.smoke[frame], p.flipX == -1 and dx + 8 or dx, p.flipY == -1 and dy + 8 or dy, 0, p.flipX, p.flipY, 0, 0)
+                            
+                             love.graphics.setColor(1, 1, 1)
+                            
+                            --smoke
+                            if (not p.smoke) and p.timer >= 0 then
+                                p.smoke = true
+                                local angle = 1 * r  + 2 * math.pi * math.random() * 0.3
+                                game.init_smoke(p.x + math.sin(angle) * 4, p.y + math.cos(angle) * 4 + 1)
+                                angle = 2 * r + 2 * math.pi * math.random() * 0.3
+                                game.init_smoke(p.x + math.sin(angle) * 4, p.y + math.cos(angle) * 4 + 1)
+                                angle = 3 * r + 2 * math.pi * math.random() * 0.3
+                                game.init_smoke(p.x + math.sin(angle) * 4, p.y + math.cos(angle) * 4 + 1)
+                                
+                                --game.init_smoke(p.ax + offset, p.ay + math.random(-4, 4))
+                                --game.init_smoke(p.ax - offset, p.ay + math.random(-4, 4))
+                                --game.init_smoke(p.ax + math.random(-4, 4), p.ay + offset)
+                                --
+                                --game.init_smoke(p.ax + math.random(-4, 4), p.ay - offset)
+                            end
+                            
+                            -- afterimage formed in smoke :0
+                            sprites.draw(sprites.roundelie_teleport_afterimage[frame], p.ax + p.cx, p.ay, 0, p.facing, 1, p.cx, 0)
+                            
+                            --sprites.draw(sprites.roundelie_teleport_afterimage[frame], p.coords[3] + p.cx, p.coords[4], 0, p.facing, 1, p.cx, 0)
+                            
+                            -- TODO:: basic concept for the full effect:
+                            -- - add magic-y spark-y particles around the two afterimages, and maybe a scattering in between
+                            -- - add short "explosion" at endpoint (quick burst -> dust settling); maybe play around with making the initial burst/explosion a sprite anim?
+                            -- - ...
+                            -- this move is a bit strange... to me it reads as a "blip" (...out of existence and suddenly appear elsewhere) more than a "zip" (sudden violent burst of speed),
+                            -- but the knockback seems more fitting for a "zip" => opponent in knocked back in the direction of a movement rather than them being blown away by a burst?
+                            -- could play around with knockback, maybe? I think neutral teleport should absolutely behave like a "burst", at least
+                        end
+                    })
+            end
+            
+            -- burst/pop in (endpoint)
+
+            
             
             table.insert(
+                
                 particles_fg, {
-                    facing = this.facing,
-                    is_frozen = this.freeze > 0,
-                    cx = test_cx,
-                    cy = test_cy,
-                    coords = {
-                        this.prev_x,
-                        this.prev_y,
-                        this.x,
-                        this.y,
-                    },
+                    x = this.x,
+                    y = this.y,
+                    cx = this.hurtbox.x + (this.hurtbox.w / 2),
+                    cy = this.hurtbox.y + (this.hurtbox.h / 2),
+                    
                     timer = 0,
-                    duration = 16,
+                    duration = 15,
+                    
+                    is_frozen = this.freeze > 0,
+                    smoke = false,
+                    burst = false,
+
                     update = function(p)
                         if p.is_frozen then
                             p.timer = p.timer + 0.5
@@ -424,28 +734,47 @@ roundelie = {
                         end
                         return p.timer >= p.duration
                     end,
+                    
                     draw = function(p)
-                        local frame = math.floor(p.timer / p.duration * 3) + 1
-                        local fade = 1
-                        if p.timer >= p.duration / 2 then
-                            fade = 1 - (p.timer / p.duration)
-                        end
-                        if frame > 3 then frame = 3 end
+                        -- messy?
+                        if p.smoke and p.burst then return end
                         
-                        -- after-images
-                        love.graphics.setColor(1, 1, 1, fade)
-                        sprites.draw(sprites.roundelie_teleport_afterimage[frame], p.coords[1] + p.cx, p.coords[2], 0, p.facing, 1, p.cx, 0)
-                        sprites.draw(sprites.roundelie_teleport_afterimage[frame], p.coords[3] + p.cx, p.coords[4], 0, p.facing, 1, p.cx, 0)
-
-                        -- TODO:: basic concept for the full effect:
-                        -- - add magic-y spark-y particles around the two afterimages, and maybe a scattering in between
-                        -- - add short "explosion" at endpoint (quick burst -> dust settling); maybe play around with making the initial burst/explosion a sprite anim?
-                        -- - ...
-                        -- this move is a bit strange... to me it reads as a "blip" (...out of existence and suddenly appear elsewhere) more than a "zip" (sudden violent burst of speed),
-                        -- but the knockback seems more fitting for a "zip" => opponent in knocked back in the direction of a movement rather than them being blown away by a burst?
-                        -- could play around with knockback, maybe? I think neutral teleport should absolutely behave like a "burst", at least
+                        -- smoke
+                        if (not p.smoke) and p.timer >= 2 then
+                            p.smoke = true
+                            --game.init_smoke(p.x, p.y)
+                            local angle = 1 * r  + 2 * math.pi * math.random() * 0.3
+                            game.init_smoke(p.x + math.sin(angle) * 2, p.y + math.cos(angle) * 2 + 1)
+                            angle = 2 * r + 2 * math.pi * math.random() * 0.3
+                            game.init_smoke(p.x + math.sin(angle) * 2, p.y + math.cos(angle) * 2 + 1)
+                            angle = 3 * r + 2 * math.pi * math.random() * 0.3
+                            game.init_smoke(p.x + math.sin(angle) * 2, p.y + math.cos(angle) * 2 + 1)
+                        end
+                        -- burst
+                        if p.timer <= 2 then
+                            -- hitbox is size 10x10 and centered on roundelie => 12-diameter circle fits well enough
+                            love.graphics.setColor(1, 1, 1)
+                            love.graphics.circle("fill", p.x + p.cx, p.y + p.cy, 6)
+                        end
+                        if (not p.burst) then
+                            p.burst = true
+                            
+                            local angle = r * 1
+                            this:init_sparkburst(angle)
+                            angle = r * 2
+                            this:init_sparkburst(angle)
+                            angle = r * 3
+                            this:init_sparkburst(angle)
+                            
+                            love.graphics.setColor(1, 1, 1) -- not sure if needed
+                        end
                     end
                 })
+            
+            -- messy?
+            this.start_teleport = false
+            this.start_teleport_h = false
+
         end
         
         -- sprite stuff
@@ -555,6 +884,7 @@ roundelie = {
             -- // mostly copied over from Lani's body slam)
             this.freeze = 6
             target.freeze = 6
+            camera.shake(3, 3, 5)
             table.insert(particles_fg, {
                 x = target:hmid(), y = target:vmid(),
                 timer = 0,
