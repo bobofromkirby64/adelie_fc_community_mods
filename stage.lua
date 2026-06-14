@@ -84,6 +84,34 @@ cc_snowflakes = function()
     end
 end
 
+--cc_snowflakes with customizable snowflakes for the Depths of Hell stage
+cc_snowflakes_custom = function(spd, r, g, b)
+    for i = 1, 47 do
+        table.insert(particles_fg, {
+            x = math.random() * 240,
+            y = math.random() * 135,
+            s = math.floor(math.random() * 1.25),
+            spd = (0.25 + math.random() * spd) * 0.5,
+            off = math.random(),
+            c = {r, g, b},
+            update = function(p)
+                p.x = p.x + p.spd
+                p.y = p.y - math.sin(p.off * math.pi * 2)
+                p.off = p.off + math.min(0.05, (p.spd * 2) / 32) * 0.5
+                if p.x > 244 then
+                    p.x = -4
+                    p.y = math.random() * 135
+                end
+            end,
+            draw = function(p)
+                love.graphics.setColor(p.c)
+                love.graphics.rectangle("fill", math.floor(p.x), math.floor(p.y), p.s + 1, p.s + 1)
+                love.graphics.setColor(1, 1, 1, 1)
+            end
+        })
+    end
+end
+
 cc2_snowflakes = function()
     for i = 1, 47 do
         table.insert(particles_fg, {
@@ -144,6 +172,35 @@ make_flag = function(x, y, flip_x)
             local sx = p.flip_x and -1 or 1
             local ox = p.flip_x and 16 or 0
             sprites.draw(sprites["stages/summit_flag"][frame], p.x, p.y, 0, sx, 1, ox, 0)
+        end
+    }
+    table.insert(particles_fg, f)
+    return f
+end
+
+--modded make_flag variant for color selection
+make_flag_custom = function(x, y, flip_x, r, g, b)
+    local f = {
+        x = x,
+        y = y,
+        flip_x = flip_x,
+        secret = false,
+        update = function(p) end,
+        draw = function(p)
+            local anim_offset = p.flip_x and 1 or 0
+            local frame = (math.floor(frameCounter / 4) + anim_offset) % 3 + (p.secret and 4 or 1)
+            local sx = p.flip_x and -1 or 1
+            local ox = p.flip_x and 16 or 0
+
+            love.graphics.setShader(paletteSwapShader)
+
+            local rr, gr, br = util.color(8)
+            paletteSwapShader:send("color_find", {rr, gr, br, 1})
+            paletteSwapShader:send("color_replace", {r, g, b, 1})
+
+            sprites.draw(sprites["stages/summit_flag"][frame], p.x, p.y, 0, sx, 1, ox, 0)
+
+            love.graphics.setShader()
         end
     }
     table.insert(particles_fg, f)
@@ -598,6 +655,34 @@ stage = {
             cc_clouds(util.color(1))
             cc_snowflakes()
         end,
+        -- Depths of Hell (Normal Route Summit) from SNEK mod
+        function()
+            stage.name = "depths of hell"
+
+            --mainland
+            stage.addPlatform(80, 103, 16, 56, "solid")
+            stage.addPlatform(96, 111, 64, 48, "solid")
+
+            --roof
+            stage.addPlatform(112, 47, 24, 24, "solid")
+            stage.addPlatform(104, 55, 8, 16, "solid")
+            stage.addPlatform(96, 63, 8, 8, "solid")
+
+            --ledge
+            stage.addPlatform(136, 87, 16, 4, "semisolid")
+
+            stage.spawnDist = 28
+            stage.blastZone = {l=0,r=240,t=-30,b=126}
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/hell_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/hell_fg.png")
+
+            stage.bgColor = {}
+            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(2)
+            stage.bgShader = nil
+
+            make_flag_custom(125, 103, false, util.color(11)).secret = enable_secret
+            cc_snowflakes_custom(10, util.color(0))
+        end,
         -- burnin' trail
         function()
             stage.name = "burnin' trail"
@@ -610,7 +695,7 @@ stage = {
             stage.addPlatform(136, 119, 24, 32, "solid")
 
             --island
-            stage.addPlatform(128 + 8, 47 + 8, 16, 8, "semisolid")
+            stage.addPlatform(128 + 8, 47 + 8, 16, 4, "semisolid")
             stage.addPlatform(144 + 8, 47 + 8, 32, 16, "solid")
             stage.addPlatform(160 + 8, 63 + 8, 16, 8, "solid")
 
