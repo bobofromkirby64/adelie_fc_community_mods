@@ -34,7 +34,7 @@ sss = {
 
         -- stage caching
         sss.thumbnails = {}
-        local _particles_bg, _particles_fg = particles_bg, particles_fg
+        local _particles_bg, _particles_mg, _particles_fg = particles_bg, particles_mg, particles_fg
         particles_bg, particles_fg = {}, {}
         
         table.insert(sss.thumbnails, {
@@ -47,7 +47,7 @@ sss = {
         local cell_w, cell_h = 36, 20
 
         for i = 1, num_stages do
-            particles_bg, particles_fg = {}, {}
+            particles_bg, particles_mg, particles_fg = {}, {}, {}
             stage.init(i)
             
             table.insert(sss.thumbnails, {
@@ -60,11 +60,12 @@ sss = {
                 bgColor = stage.bgColor,
                 idx = i,
                 p_bg = particles_bg,
+                p_mg = particles_mg,
                 p_fg = particles_fg
             })
         end
         
-        particles_bg, particles_fg = _particles_bg, _particles_fg
+        particles_bg, particles_mg, particles_fg = _particles_bg, _particles_mg, _particles_fg
     end,
 
     update = function()
@@ -198,6 +199,19 @@ sss = {
                     end
                     love.graphics.setColor(1, 1, 1)
                     love.graphics.draw(thumb.bg, 0, 0)
+                    love.graphics.setShader()
+                end
+                if thumb.p_mg then
+                    for _, p in ipairs(thumb.p_mg) do p:draw() end
+                end
+                if thumb.mg then 
+                    local shader = thumb.mgShader or thumb.shader
+                    if shader then
+                        love.graphics.setShader(shader)
+                        if shader:hasUniform("t") then shader:send("t", 1.5) end
+                    end
+                    love.graphics.setColor(1, 1, 1)
+                    love.graphics.draw(thumb.mg, 0, 0)
                     love.graphics.setShader()
                 end
                 if thumb.fg then 

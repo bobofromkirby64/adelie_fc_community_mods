@@ -10,7 +10,6 @@ stepstools = {
             {sprites["characters/woodstool_2"], {1, 1, 1, 1}}, -- birch
             {sprites["characters/woodstool_3"], {1, 1, 1, 1}}, -- acacia
             {sprites["characters/woodstool_4"], {1, 1, 1, 1}}, -- cherry
-            {sprites["characters/woodstool_2"], {1, 1, 1, 1}}, -- birch
         }
         
         this.spritesheet, this.nothing = unpack(player_skins[tonumber(skin)])

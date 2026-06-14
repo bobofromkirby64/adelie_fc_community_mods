@@ -150,6 +150,64 @@ make_flag = function(x, y, flip_x)
     return f
 end
 
+make_burning_trail_fire = function(x, y, flip_x)
+    local f = {
+        x = x,
+        y = y,
+        flip_x = flip_x,
+        secret = false,
+        update = function(p) end,
+        draw = function(p)
+            local anim_offset = p.flip_x and 1 or 0
+            local frame = (math.floor(frameCounter / 3) + anim_offset) % 5 + (p.secret and 4 or 1)
+            local sx = p.flip_x and -1 or 1
+            local ox = p.flip_x and 16 or 0
+            sprites.draw(sprites["stages/burning_trail_fire"][frame], p.x, p.y, 0, sx, 1, ox, 0)
+        end
+    }
+    table.insert(particles_mg, f)
+    return f
+end
+
+make_burning_trail_small_grass = function(x, y, flip_x)
+    local f = {
+        x = x,
+        y = y,
+        flip_x = flip_x,
+        secret = false,
+        anim_dir = 1;
+        update = function(p) end,
+        draw = function(p)
+            local anim_offset = p.flip_x and 1 or 0
+            local frame = math.floor(anim_offset + 1.5 + math.sin(frameCounter / 5 * 1.2)) + 1
+            local sx = p.flip_x and -1 or 1
+            local ox = p.flip_x and 16 or 0
+            sprites.draw(sprites["stages/burning_trail_small_grass"][frame], p.x, p.y, 0, sx, 1, ox, 0)
+        end
+    }
+    table.insert(particles_mg, f)
+    return f
+end
+
+make_burning_trail_tall_grass = function(x, y, flip_x)
+    local f = {
+        x = x,
+        y = y,
+        flip_x = flip_x,
+        secret = false,
+        update = function(p) end,
+        draw = function(p)
+            local anim_offset = p.flip_x and 1 or 0
+            local frame = math.floor(anim_offset + 1.5 + math.sin(frameCounter / 5 * 1.2)) + 1
+            local sx = p.flip_x and -1 or 1
+            local ox = p.flip_x and 16 or 0
+            sprites.draw(sprites["stages/burning_trail_tall_grass"][frame], p.x, p.y, 0, sx, 1, ox, 0)
+        end
+    }
+    table.insert(particles_mg, f)
+    return f
+end
+
 stage = {
     platforms = {},
 
@@ -539,6 +597,48 @@ stage = {
 
             cc_clouds(util.color(1))
             cc_snowflakes()
+        end,
+        -- burnin' trail
+        function()
+            stage.name = "burnin' trail"
+
+            --mainland
+            stage.addPlatform(56, 71, 24, 40, "solid")
+            stage.addPlatform(80, 79, 8, 48, "solid")
+            stage.addPlatform(88, 95, 40, 56, "solid")
+            stage.addPlatform(128, 111, 8, 40, "solid")
+            stage.addPlatform(136, 119, 24, 32, "solid")
+
+            --island
+            stage.addPlatform(128 + 8, 47 + 8, 16, 8, "semisolid")
+            stage.addPlatform(144 + 8, 47 + 8, 32, 16, "solid")
+            stage.addPlatform(160 + 8, 63 + 8, 16, 8, "solid")
+
+            --torches
+            make_burning_trail_fire(64, 57)
+            make_burning_trail_fire(72, 57)
+            make_burning_trail_fire(88, 81)
+            make_burning_trail_fire(112, 81)
+            make_burning_trail_fire(136, 105)
+
+            --small grass
+            make_burning_trail_small_grass(96, 91)
+            make_burning_trail_small_grass(128, 207)
+            make_burning_trail_small_grass(144, 115)
+            make_burning_trail_small_grass(152, 115)
+
+            --tall grass
+            make_burning_trail_tall_grass(56, 65)
+            make_burning_trail_tall_grass(176, 49)
+            make_burning_trail_tall_grass(168, 49)
+
+            stage.spawnDist = 24
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/burning_trail_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/burning_trail_fg.png")
+
+            stage.bgColor = nil
+            stage.bgShader = nil
         end,
     },
 
