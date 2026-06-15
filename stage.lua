@@ -683,6 +683,65 @@ stage = {
             make_flag_custom(125, 103, false, util.color(11)).secret = enable_secret
             cc_snowflakes_custom(10, util.color(0))
         end,
+        -- puzzlemod
+        function()
+            stage.name = "puzzlemod"
+
+            --control center chunk
+            stage.addPlatform(96, 47, 48, 8, "solid")
+
+            --falling brick chunk
+            stage.addPlatform(160, 15, 8, 16, "solid")
+            stage.addPlatform(184, 31, 8, 16, "solid")
+
+            stage.addPlatform(144, 31, 16, 4, "semisolid")
+            stage.addPlatform(168, 31, 16, 4, "semisolid")
+
+            --classic chunk
+            stage.addPlatform(48, 63, 16, 8, "solid")
+            stage.addPlatform(48, 71, 8, 8, "solid")
+            stage.addPlatform(88, 87, 8, 8, "solid")
+
+            
+
+            --lava chunk
+            stage.addPlatform(96, 87, 24, 8, "solid")
+            stage.addPlatform(120, 71, 24, 4, "semisolid")
+
+            --grey chunk
+            stage.addPlatform(144, 71, 8, 16, "solid")
+            stage.addPlatform(184, 63, 8, 16, "solid")
+
+            --rocky chunk
+            stage.addPlatform(64, 119, 16, 32, "solid")
+
+            stage.addPlatform(56, 95, 16, 4, "semisolid")
+
+            make_flag_custom(65, 111, false, util.color(11)).secret = enable_secret
+
+            --grass chunk
+            stage.addPlatform(96, 119, 16, 32, "solid")
+            stage.addPlatform(128, 111, 16, 40, "solid")
+
+            stage.addPlatform(112, 119, 16, 4, "semisolid")
+
+            --snow chunk
+            stage.addPlatform(184, 103, 8, 24, "solid")
+            stage.addPlatform(176, 111, 8, 8, "solid")
+
+            stage.addPlatform(144, 111, 32, 4, "semisolid")
+
+            stage.spawnDist = 52
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/puzzlemod_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/puzzlemod_fg.png")
+
+            stage.bgColor = nil
+            stage.bgShader = nil
+
+            cc_clouds(util.color(1))
+            cc_snowflakes()
+        end,
         -- burnin' trail
         function()
             stage.name = "burnin' trail"
