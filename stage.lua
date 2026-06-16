@@ -714,6 +714,14 @@ stage = {
 
             stage.music = nil;
 
+            local enable_secret = false
+
+            local date = os.date("*t")
+            if (date.month == 11 and date.day == 20) or (date.month == 3 and date.day == 31) or love.math.random() < 0.01 then
+                -- secret always enabled on nov. 20th and march 31st. otherwise 1% chance to happen
+                enable_secret = true
+            end
+
             make_flag_custom(125, 103, false, util.color(11)).secret = enable_secret
             cc_snowflakes_custom(10, util.color(0))
         end,
@@ -750,6 +758,14 @@ stage = {
             stage.addPlatform(64, 119, 16, 32, "solid")
 
             stage.addPlatform(56, 95, 16, 4, "semisolid")
+
+            local enable_secret = false
+
+            local date = os.date("*t")
+            if (date.month == 11 and date.day == 20) or (date.month == 3 and date.day == 31) or love.math.random() < 0.01 then
+                -- secret always enabled on nov. 20th and march 31st. otherwise 1% chance to happen
+                enable_secret = true
+            end
 
             make_flag_custom(65, 111, false, util.color(11)).secret = enable_secret
 
