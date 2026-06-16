@@ -284,6 +284,8 @@ stage = {
 
             stage.bgColor = nil
             stage.bgShader = lavaShader
+
+            stage.music = nil;
         end,
         function()
             stage.name = "final iceberg"
@@ -297,6 +299,8 @@ stage = {
 
             stage.bgColor = nil
             stage.bgShader = auroraShader
+
+            stage.music = nil;
         end,
         function()
             stage.name = "temple of roundelie"
@@ -312,6 +316,8 @@ stage = {
 
             stage.bgColor = nil
             stage.bgShader = sunsetShader
+
+            stage.music = nil;
         end,
         -- tinker
         function()
@@ -331,6 +337,8 @@ stage = {
 
             stage.bgColor = nil
             stage.bgShader = steampunkShader
+
+            stage.music = nil;
 
             make_cog(125, 106)
             cc_snowflakes()
@@ -358,6 +366,8 @@ stage = {
 
             stage.bgColor = nil
             stage.bgShader = daytimeShader
+
+            stage.music = nil;
 
             local enable_secret = false
 
@@ -389,6 +399,8 @@ stage = {
 
             stage.bgColor = nil
             stage.bgShader = spaceShader
+
+            stage.music = nil;
             -- TODO: this is also called in the stage select screen
             objectSystem.createObject(cloud, -60, 128, 1)
         end,
@@ -415,6 +427,8 @@ stage = {
 
             stage.bgColor = nil
             stage.bgShader = amazonShader
+
+            stage.music = nil;
         end,
         -- old site from solanum
         function()
@@ -434,6 +448,8 @@ stage = {
 
             stage.bgColor = nil
             stage.bgShader = nil
+            
+            stage.music = nil;
 
             cc_clouds(util.color(1))
             cc_snowflakes()
@@ -461,6 +477,8 @@ stage = {
             stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(14)
             stage.bgShader = nil
 
+            stage.music = nil;
+
             cc2_clouds(false, util.color(15))
             cc2_snowflakes()
         end,
@@ -482,6 +500,8 @@ stage = {
             stage.bgColor = nil
             stage.bgShader = nil
 
+            stage.music = nil;
+
             cc_clouds(util.color(1))
             cc_snowflakes()
         end,
@@ -501,6 +521,8 @@ stage = {
 
             stage.bgColor = nil
             stage.bgShader = nil
+
+            stage.music = nil;
 
             cc_clouds(util.color(1))
             cc_snowflakes()
@@ -529,6 +551,8 @@ stage = {
             stage.bgColor = nil
             stage.bgShader = nil
 
+            stage.music = nil;
+
             cc2_clouds(false, 81 / 255, 72 / 255, 100 / 255)
             cc2_snowflakes()
         end,
@@ -552,6 +576,8 @@ stage = {
             stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(13)
             stage.bgShader = nil
 
+            stage.music = nil;
+
             cc2_clouds(false, util.color(15))
             cc2_clouds(true, util.color(15))
             cc2_snowflakes()
@@ -572,6 +598,8 @@ stage = {
             stage.bgColor = {}
             stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(15)
             stage.bgShader = nil
+
+            stage.music = nil;
 
             cc2_clouds(false, util.color(7))
             cc2_clouds(true, util.color(7))
@@ -619,6 +647,8 @@ stage = {
             stage.bgColor = nil
             stage.bgShader = nil
 
+            stage.music = nil;
+
             cc_clouds(util.color(1))
             cc_snowflakes()
         end,
@@ -652,6 +682,8 @@ stage = {
             stage.bgColor = nil
             stage.bgShader = nil
 
+            stage.music = nil;
+
             cc_clouds(util.color(1))
             cc_snowflakes()
         end,
@@ -679,6 +711,8 @@ stage = {
             stage.bgColor = {}
             stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(2)
             stage.bgShader = nil
+
+            stage.music = nil;
 
             make_flag_custom(125, 103, false, util.color(11)).secret = enable_secret
             cc_snowflakes_custom(10, util.color(0))
@@ -739,6 +773,8 @@ stage = {
             stage.bgColor = nil
             stage.bgShader = nil
 
+            stage.music = "music/menu_theme.ogg"
+
             cc_clouds(util.color(1))
             cc_snowflakes()
         end,
@@ -783,6 +819,8 @@ stage = {
 
             stage.bgColor = nil
             stage.bgShader = nil
+
+            stage.music = nil;
         end,
     },
 

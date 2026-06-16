@@ -33,6 +33,7 @@ roundelie = {
             {sprites["characters/roundelie_1"], {1,1,1,1}}, -- roundelie (default)
             {sprites["characters/roundelie_2"], {1,1,1,1}}, -- delaughter (purple/red)
             {sprites["characters/roundelie_3"], {1,1,1,1}}, -- statue (golden) ... is wip, so in the meantime ~> nintendo-style palette (light blue)
+            {sprites["characters/roundelie_4"], {1,1,1,1}}, -- ancient monument (from rosetta)
         }
         
         this.spritesheet, this.nothing = unpack(player_skins[tonumber(skin)]) --TODO: using this.nothing as a placeholder since this is what the stools do
@@ -483,7 +484,7 @@ roundelie = {
             love.graphics.setShader(whiteShader)
             love.graphics.setColor(1, 1, 1)
         elseif this.dash_cooldown > 0 then
-            if this.skin == 3 then
+            if this.skin == 3 or this.skin == 4 then
                 love.graphics.setShader(paletteSwapShader)
                 paletteSwapShader:send("color_find", {171/255, 82/255, 54/255, 1.0})
                 paletteSwapShader:send("color_replace", {255/255, 119/255, 168/255, 1.0})
