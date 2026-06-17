@@ -5,12 +5,12 @@ INCREMENT = 1013904223
 localRandom = {
     player_seed = 0,
     opponent_seed = 0,
-    combo_seed = 0,
+    combo_seed = math.random(),
 
     init = function()
         localRandom.player_seed = 0
         localRandom.opponent_seed = 0
-        localRandom.combo_seed = os.time()
+        localRandom.combo_seed = math.random()
     end,
 
     setSeed = function(newSeed)

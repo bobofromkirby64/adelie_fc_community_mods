@@ -641,12 +641,7 @@ game = {
 
     -- playMusic function replaces the playBGM calls within the file to allow for editable stage tracks
     playMusic = function()
-        if stage.layouts[game.stageIdx] then
-            if stage.music ~= nil then playBGM(stage.music)
-            else playBGM("music/fight_theme.ogg") end
-        elseif stage.modded_layouts[game.stageIdx - #stage.layouts] then
-            if stage.music ~= nil then playBGM(stage.music)
-            else playBGM("music/fight_theme.ogg") end
+        if stage.music ~= nil then playBGM(stage.music)
         else playBGM("music/fight_theme.ogg") end
     end
 }

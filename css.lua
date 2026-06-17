@@ -50,8 +50,8 @@ css = {
 
         -- modded send signal
         if css.mode == "ONLINE" and network and network.sendCSSSkin and network.moddedConnection ~= true then
-            localRandom.player_seed = math.random(SEED_MAX)
-            network.sendCSSSkin(MOD_VERSION * (SEED_MAX + 1) + localRandom.player_seed) -- Set the skin way out of bounds to signal modded client
+            localRandom.player_seed = MOD_VERSION * (SEED_MAX + 1) + math.random(SEED_MAX)
+            network.sendCSSSkin(localRandom.player_seed) -- Set the skin way out of bounds to signal modded client
             network.sendCSSSkin(css.player_skin)
         end
 
@@ -78,7 +78,8 @@ css = {
             }
 
             -- set the local seed since the online process doesn't occur
-            localRandom.combo_seed = math.random(SEED_MAX * 2)
+            math.randomseed(os.time())
+            localRandom.setSeed(math.random(SEED_MAX * 2))
         end
     end,
 
@@ -329,8 +330,8 @@ css = {
                     network.moddedConnection = true
 
                     -- set local RNG seed
-                    localRandom.opponent_seed = pSkin % MOD_VERSION
-                    localRandom.combo_seed = localRandom.player_seed + localRandom.opponent_seed
+                    localRandom.opponent_seed = pSkin
+                    localRandom.setSeed(localRandom.player_seed + localRandom.opponent_seed)
 
                     -- send modded skin
                     css.player_char = css.modded_char
