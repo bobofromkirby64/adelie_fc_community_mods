@@ -19,7 +19,7 @@ sss = {
         sss.players = players
         sss.mode = mode
         
-        local num_stages = #stage.layouts + ((network.modVersion == 1000 or sss.mode == "TRAINING") and #stage.modded_layouts or 0)
+        local num_stages = #stage.layouts + ((network.moddedConnection == true or sss.mode == "TRAINING") and #stage.modded_layouts or 0)
         sss.random_slot = 1
         sss.p1_cursor = 1
         sss.p2_cursor = 1 
@@ -101,7 +101,7 @@ sss = {
             sss.p1_ready = not sss.p1_ready
             love.audio.play("readyup", "static")
             if sss.mode == "ONLINE" then
-                network.sendSSSReady(sss.p1_ready, sss.p1_cursor, sss.thumbnails[sss.p1_cursor].idx, #stage.layouts + (network.modVersion == 1000 and #stage.modded_layouts or 0))
+                network.sendSSSReady(sss.p1_ready, sss.p1_cursor, sss.thumbnails[sss.p1_cursor].idx, #stage.layouts + (network.moddedConnection == true and #stage.modded_layouts or 0))
             end
         end
 

@@ -20,10 +20,10 @@ local socket = nil
 
 network = {
     connected = false,
-    modVersion = -1,
+    moddedConnection = false,
     init = function()
         if network.connected then return end
-        network.modVersion = 0
+        network.moddedConnection = false
         connectionID = -1
         connectionIDs = {}
         network.version_mismatch = false

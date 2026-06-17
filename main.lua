@@ -10,6 +10,7 @@ require("audio")
 require("networking/client/network")
 require("recorder")
 require("replay")
+require("localRandom")
 
 local push = require("libraries/push")
 
@@ -46,6 +47,7 @@ function love.load()
 
     sprites.init()
     network.init()
+    localRandom.init() --modded alteration: initialize the localRandom file for syncing random events
 
     --bgMusic = love.audio.play("music/main_theme.ogg", "stream", true)
     --bgMusic:setVolume(0.2)

@@ -372,7 +372,7 @@ stage = {
             local enable_secret = false
 
             local date = os.date("*t")
-            if (date.month == 11 and date.day == 20) or (date.month == 3 and date.day == 31) or love.math.random() < 0.01 then
+            if (date.month == 11 and date.day == 20) or (date.month == 3 and date.day == 31) or localRandom.float() < 0.01 then
                 -- secret always enabled on nov. 20th and march 31st. otherwise 1% chance to happen
                 enable_secret = true
             end
@@ -717,7 +717,7 @@ stage = {
             local enable_secret = false
 
             local date = os.date("*t")
-            if (date.month == 11 and date.day == 20) or (date.month == 3 and date.day == 31) or love.math.random() < 0.01 then
+            if (date.month == 11 and date.day == 20) or (date.month == 3 and date.day == 31) or localRandom.float() < 0.01 then
                 -- secret always enabled on nov. 20th and march 31st. otherwise 1% chance to happen
                 enable_secret = true
             end
@@ -762,7 +762,7 @@ stage = {
             local enable_secret = false
 
             local date = os.date("*t")
-            if (date.month == 11 and date.day == 20) or (date.month == 3 and date.day == 31) or love.math.random() < 0.01 then
+            if (date.month == 11 and date.day == 20) or (date.month == 3 and date.day == 31) or localRandom.float() < 0.01 then
                 -- secret always enabled on nov. 20th and march 31st. otherwise 1% chance to happen
                 enable_secret = true
             end
