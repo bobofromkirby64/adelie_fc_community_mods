@@ -15,7 +15,9 @@ cloud = {
                 table.insert(riders, o)
                 -- Modded Clause for Goldstools on top of clouds to carry other objects on top of them
                 if o.type.name == "goldstool" then
-                    goldstool.set_up_riders(o, riders);
+                    goldstool.set_up_riders(o, riders)
+                elseif o.type.name == "rock" then
+                    rock.set_up_riders(o, riders)
                 end
             end
         end

@@ -71,7 +71,7 @@ stepstools = {
 
         this.check_objects = function(this)
             for _, o in ipairs(objects) do
-                if o.type and (o.type.name == "goldstool" or o.type.name == "snowball") and not o.destroyed then
+                if o.type and (o.type.name == "goldstool" or o.type.name == "snowball" or (o.type.name == "rock" and (o:is_solid(0, 1) or this:is_solid(0, 1)))) and not o.destroyed then
                     if this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= (o:top() - 4) and this:top() <= (o:bottom() + 4) and not o.held then
                         return o
                     end
@@ -87,7 +87,6 @@ stepstools = {
                 return false
             end
         end
-
 
         this.check_snowballs = function(this)
             if this.hitstun > 0 then return end
@@ -362,6 +361,9 @@ stepstools = {
                     if dash then
                         pickup.vx = inputSource.getKeyDown(id, "left") and -4 or inputSource.getKeyDown(id, "right") and 4 or (inputSource.getKeyDown(id, "up") or inputSource.getKeyDown(id, "down")) and 0 or this.facing < 0 and -4 or 4
                         pickup.vy = inputSource.getKeyDown(id, "down") and 0 or inputSource.getKeyDown(id, "up") and -3 or -1
+                        if pickup.on_release then
+                            pickup:on_release()
+                        end
                         if pickup.type.name == "snowball" and ((this.facing == 1 and this:is_solid(1, 0)) or (this.facing == -1 and this:is_solid(-1, 0))) then
                             pickup.y = pickup.y - 29
                             pickup.vy = -3

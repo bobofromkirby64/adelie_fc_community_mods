@@ -97,9 +97,7 @@ goldstool = {
         if this.owner.respawn_timer > 0 then this.exhaustion = 0 end
 
         -- check for oob
-        if this:oob() then
-            goldstool.oobbehavior(this)
-        end
+        if this:oob() then goldstool.oobbehavior(this) end
 
         -- check for flystarttimer
         if this.flying then

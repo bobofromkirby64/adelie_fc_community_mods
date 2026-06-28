@@ -645,16 +645,15 @@ stage = {
     modded_layouts = {
         -- 500m from arielle
         function()
-            stage.name = "arielle mountain 500 m"
+            stage.name = "arielle 500 m"
             --this stage is accurate to the gaps under the platforms, so if there is ever a character that can teleport into the gaps, be sure to redo the hitboxes
 
             --left region
-            stage.addPlatform(0, 95, 8, 8, "solid")
             stage.addPlatform(0, 103, 80, 8, "solid")
             stage.addPlatform(0, 111, 16, 40, "solid")
 
             stage.addPlatform(8, 71, 40, 8, "solid")
-            stage.addPlatform(24, 63, 16, 48, "solid")
+            stage.addPlatform(24, 63, 16, 16, "solid")
 
             stage.addPlatform(48, 111, 32, 8, "solid")
             stage.addPlatform(56, 119, 48, 8, "solid")
@@ -672,7 +671,7 @@ stage = {
             stage.addPlatform(216, 127, 16, 24, "solid")
 
             stage.addPlatform(192, 87, 40, 8, "solid")
-            stage.addPlatform(200, 79, 16, 48, "solid")
+            stage.addPlatform(200, 79, 16, 16, "solid")
 
             stage.spawnDist = 68
             stage.blastZone = {l=0,r=240,t=-30,b=151}
@@ -689,7 +688,7 @@ stage = {
         end,
         -- 1500m from perisher
         function()
-            stage.name = "perisher mountain 1500 m"
+            stage.name = "perisher 1500 m"
 
             --left island
             stage.addPlatform(32, 79, 72, 16, "solid")
@@ -711,8 +710,8 @@ stage = {
 
             stage.spawnDist = 52
             stage.blastZone = {l=0,r=240,t=-30,b=151}
-            stage.bgImage = love.graphics.newImage("resources/graphics/stages/perisher_mountain_1500m_bg.png")
-            stage.fgImage = love.graphics.newImage("resources/graphics/stages/perisher_mountain_1500m_fg.png")
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/perisher_1500m_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/perisher_1500m_fg.png")
 
             stage.bgColor = nil
             stage.bgShader = nil
@@ -869,7 +868,7 @@ stage = {
                 elseif(curChunk == 3) then
                     stage.addPlatform(cx + 0, cy + 32, 16, 16, "solid")
                     stage.addPlatform(cx + 32, cy + 16, 16, 16, "solid")
-                    stage.addPlatform(cx + 16, cy + 40, 16, 4, "semisolid")
+                    stage.addPlatform(cx + 16, cy + 16, 16, 4, "semisolid")
 
                     table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/classic_bg.png"), p.x, p.y) end })
                     table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/classic_fg.png"), p.x, p.y) end })
@@ -877,9 +876,10 @@ stage = {
                     table.insert(snowflakeColors, {util.color(7)})
                 -- Lava Chunk
                 elseif(curChunk == 4) then
-                    stage.addPlatform(cx + 0, cy + 0, 16, 8, "solid")
                     stage.addPlatform(cx + 0, cy + 32, 32, 16, "solid")
-                    stage.addPlatform(cx + 32, cy + 40, 16, 4, "semisolid")
+                    stage.addPlatform(cx + 32, cy + 32, 16, 4, "semisolid")
+
+                    objectSystem.createObject(rock, cx + 8, cy + 24, 1)
 
                     table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/lava_bg.png"), p.x, p.y) end })
                     table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/lava_fg.png"), p.x, p.y) end })
@@ -894,11 +894,11 @@ stage = {
                     table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/grey_fg.png"), p.x, p.y) end })
 
                     table.insert(snowflakeColors, {util.color(6)})
-                -- Rocky Chunk
+                -- Sand Chunk
                 elseif(curChunk == 6) then
                     stage.addPlatform(cx + 16, cy + 32, 16, 16, "solid")
                     stage.addPlatform(cx + 32, cy + 16, 16, 32, "solid")
-                    stage.addPlatform(cx + 0, cy + 40, 16, 4, "semisolid")
+                    stage.addPlatform(cx + 0, cy + 32, 16, 4, "semisolid")
 
                     local enable_secret = false
 
@@ -910,8 +910,8 @@ stage = {
 
                     make_flag_custom(cx + 21, cy + 24, false, util.color(11)).secret = enable_secret
 
-                    table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/rock_bg.png"), p.x, p.y) end })
-                    table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/rock_fg.png"), p.x, p.y) end })
+                    table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/sand_bg.png"), p.x, p.y) end })
+                    table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/sand_fg.png"), p.x, p.y) end })
 
                     table.insert(snowflakeColors, {162/255, 136/255, 121/255})
                 -- Grass Chunk
@@ -950,7 +950,8 @@ stage = {
             stage.bgColor = nil
             stage.bgShader = nil
 
-            stage.music = "music/puzzlemod.ogg"
+            stage.music = nil
+            --stage.music = "music/puzzlemod.ogg"
 
             cc_clouds(util.color(1))
             cc_snowflakes_puzzlemod(snowflakeColors[1][1], snowflakeColors[1][2], snowflakeColors[1][3], snowflakeColors[2][1], snowflakeColors[2][2], snowflakeColors[2][3], snowflakeColors[3][1], snowflakeColors[3][2], snowflakeColors[3][3], snowflakeColors[4][1], snowflakeColors[4][2], snowflakeColors[4][3])
