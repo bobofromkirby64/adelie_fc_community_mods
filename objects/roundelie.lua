@@ -20,7 +20,7 @@
 --   Zeros roundelie's x speed, but does not change its y speed
 --   Has a 2 second cooldown before roundelie can teleport again
 --   This is indicated by the color of roundelie's beak, which changes when the teleport is unavailable
---   Has a hitbox that sends opponent in the direction Roundelie is facing
+--   Has a hitbox that sends opponents in the direction held 1f after the teleport (not necessarily the teleport direction)
 --   Roundelie is invulnerable for the first two frames of the teleport, and the hitbox is also active for those first two frames
 --   There's a 3f delay before roundelie can act out of a teleport, e.g. buffering a grace-jump
 -- Jump + Down lets roundelie fall through any semisolids it interacts with
@@ -49,9 +49,6 @@ roundelie = {
         -- Override the base hurtbox
         this.hurtbox = {x = 1, y = 3, w = 6, h = 5}
         
-        this.prev_x = this.x
-        this.prev_y = this.y
-
         this.grace = 0
         this.jbuffer = 0
         this.bjump = 3
@@ -219,7 +216,7 @@ roundelie = {
                         particles_fg, {
                             x = (this.teleport_info.horizontal and this.teleport_info.x or this.x) + cx,
                             y = (this.teleport_info.horizontal and this.teleport_info.y or this.y) + cy,
-                            vx = math.sin(angle), --
+                            vx = math.sin(angle),
                             vy = math.cos(angle),
                             speed = 4 + math.random(8,14) * 0.10,  -- magnitude for movement vector
                             drag = 0.5,  -- i.e. deceleration applied on each tick
@@ -233,8 +230,8 @@ roundelie = {
                             update = function(p)
                                 if (not p.on_hit_flag) and p.tp_info.on_hit then
                                     p.on_hit_flag = true
-                                    p.speed = p.speed * 1.5
-                                    p.drag  = p.drag * 1.5
+                                    p.speed = p.speed * 1.35  -- <~ increase to make on-hit effect bigger
+                                    p.drag  = p.drag * 1.35   --
                                 end
                                 p.x = p.x + p.vx * p.speed
                                 p.y = p.y + p.vy * p.speed
@@ -247,25 +244,24 @@ roundelie = {
                             
                             draw = function(p)
                                 local fade = 1 - (p.timer / (p.duration + (p.duration/2)))
+                                local scalar = 1.95
                                 love.graphics.setColor(1, 1, 1, 1)
                                 
-                                if p.timer <= 2 then  -- meant to line up with initial "burst" (white circle over hitbox)
+                                if p.timer <= 2 then  -- meant to match up with initial "burst" (white circle drawn over the hitbox for 1f)
                                     love.graphics.setColor(1, 1, 1, 1)
                                 else
-                                    -- TODO: I don't think the "scalar" values (e.g. 1.95) are doing what I think they're doing...
+                                    -- TODO: messy, and I don't think the "scalar" is doing what I think it's' doing...
                                     if p.tp_info and p.tp_info.on_hit then
-                                        love.graphics.setColor((255*fade*1.95)/255, (156*fade*1.95)/255, (39*fade*1.95)/255, 1)
+                                        love.graphics.setColor((255*fade*scalar)/255, (156*fade*scalar)/255, (39*fade*scalar)/255, 1)
                                     else
-                                        --love.graphics.setColor((245*fade*1.95)/255, (186*fade*1.95)/255, (39*fade*1.8)/255, 1)
-                                        love.graphics.setColor((229*fade*1.95)/255, (229*fade*1.95)/255, (229*fade*1.95)/255, fade)
+                                        love.graphics.setColor((229*fade*scalar)/255, (229*fade*scalar)/255, (229*fade*scalar)/255, fade)
                                     end
                                 end
                                 love.graphics.rectangle("fill", math.floor(p.x), math.floor(p.y), 1, 1)
                                 if p.tp_info and p.tp_info.on_hit then
-                                    love.graphics.setColor((255*fade*1.95)/255, (116*fade*1.95)/255, (39*fade*1.95)/255, 1)
+                                    love.graphics.setColor((255*fade*scalar)/255, (116*fade*scalar)/255, (39*fade*scalar)/255, 1)
                                 else
-                                    --love.graphics.setColor((255*fade*1.95)/255, (153*fade*1.95)/255, 0/255, 1)
-                                    love.graphics.setColor((215*fade*1.95)/255, (215*fade*1.95)/255, (215*fade*1.95)/255, fade)
+                                    love.graphics.setColor((215*fade*scalar)/255, (215*fade*scalar)/255, (215*fade*scalar)/255, fade)
                                 end
                                 if p.timer >= 1 and (p.x - p.vx * p.speed >= 1.5) then
                                     love.graphics.rectangle("fill", math.floor(p.x - p.vx * p.speed), math.floor(p.y - p.vy * p.speed), 1, 1)
@@ -372,7 +368,7 @@ roundelie = {
                 this.invincible_timer = 60
                 this.dash_cooldown = 0
                 this.bump_cooldown = 0
-                --
+                
                 if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
             end
             return
@@ -386,7 +382,7 @@ roundelie = {
             this.hitstun = this.hitstun - 1
             this.vy = util.appr(this.vy, 3, 0.15)
             this.vx = util.appr(this.vx, 0, 0.143)
-            --
+            
             if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
         else
             
@@ -471,8 +467,7 @@ roundelie = {
             
             if this.dash_time > 0 then
                 if this.dash_time == 2 then  -- TODO: messy
-                    --
-                    this.freeze = 3  -- half of the on-hit value
+                    this.freeze = 3  -- half of the value applied on-hit
                     this.teleport_hb = hitbox.create(this.connectionID, (this.x  - 1), (this.y  - 1), 10, 10, 3, 5 * this.facing, 0, 2)
                     this.teleport_hb.telefrag = true
                     this.teleport_hb.hit_sfx = "zap"  -- generic "crit" sfx used for big hits, e.g. Lani's tipper and body slam
@@ -543,12 +538,9 @@ roundelie = {
             elseif dash then
                 if v_input == 0 then
                     this.dash_time = 2
-                    -- TEST TEST TEST REMOVE THIS (DASH COOLDOWN)
-                    this.dash_cooldown = 10--61
-                    -- TEST TEST TEST REMOVE THIS (DASH COOLDOWN)
+                    this.dash_cooldown = 61
                     this.invincible_timer = 2
                     this.vx = 32 * h_input
-                    -- TODO: review usage
                     this.teleport_info.init = true
                     this.teleport_info.horizontal = h_input ~= 0
                     this.teleport_info.on_hit = false
@@ -672,8 +664,6 @@ roundelie = {
         camera.shake(1.5, 1.5, 2)
         
         if hb.telefrag then
-            -- telefrag (sorta?)
-            
             this.teleport_info.on_hit = true
             
             table.insert(particles_fg, {
@@ -693,7 +683,7 @@ roundelie = {
                     love.graphics.setColor(1, 1, 1, 1)
                 end
             })
-            --
+            
             this.freeze = 6
             target.freeze = 6
             camera.shake(3, 3, 5)
