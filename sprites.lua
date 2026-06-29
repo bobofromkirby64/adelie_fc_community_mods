@@ -39,6 +39,7 @@ local spriteList = {
     "heart",
     "adelie",
     {"smoke", 3, 1},
+    {"roundelie_teleport_afterimage", 3, 1},
     {"characters/maddy_1", 7, 1},
     {"characters/maddy_2", 7, 1},
     {"characters/maddy_3", 7, 1},
