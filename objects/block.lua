@@ -1,9 +1,9 @@
--- objects/rock.lua
+-- objects/block.lua
 
-rock = {
-    name = "rock",
+block = {
+    name = "block",
     init = function(this)
-        this.connectionID = "rock_" .. math.floor(this.x) .. "_" .. math.floor(this.y)
+        this.connectionID = "block_" .. math.floor(this.x) .. "_" .. math.floor(this.y)
         
         this.hurtbox = {x = 0, y = 0, w = 8, h = 8}
         this.thrown_timer = 0
@@ -28,6 +28,7 @@ rock = {
         this.w = 8
 
         this.body_hitbox_lock = 0
+        this.body_timer = 0
 
         this.corner_correct = function(this_obj, dir_x, dir_y, side_dist, only_sign)
             only_sign = only_sign or 0
@@ -63,6 +64,7 @@ rock = {
             if not thrown then this.stop = true end
             this.thrown_timer = 25
             this.draw_offset_y = 0
+            this.body_hitbox_lock = 9
         end
     end,   
 
@@ -93,11 +95,16 @@ rock = {
         local hb_y = cy - (hb_h / 4)
         local kb_mod = this.vy > 0 and 2 or 1
         if (math.abs(this.vx) > 0.2 or math.abs(this.vy) > 0.2) and not this.held then
-            if not this.held and this.body_hitbox_lock <= 0 then
-                this.body_hb = hitbox.create(this.thrown_timer > 0 and this.throwerID or this.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*3, math.abs(util.sign(this.vy) * (1.25 * kb_mod) - (0.5 * kb_mod)) * -1, 2)
+            if this.body_timer <= 0 and this.body_hitbox_lock <= 0 then
+                this.body_hb = hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*3, math.abs(util.sign(this.vy) * (1.25 * kb_mod) - (0.5 * kb_mod)) * -1, 2)
             end
         end
         if this.body_hitbox_lock > 0 then this.body_hitbox_lock = this.body_hitbox_lock - 1 end
+        if this.body_timer > 0 then this.body_timer = this.body_timer - 1 end
+    end,
+
+    on_hit_confirm = function(this, target, hb)
+        this.body_timer = 4
     end,
 
     set_up_riders = function(this, riders)
@@ -117,9 +124,17 @@ rock = {
 
     draw = function(this)
         if this.destroyed then return end
+
+        local isBlinking = this.body_hitbox_lock > 0 and (math.floor(this.body_hitbox_lock / 4) % 2 == 0 or debugEnabled)
+
+        -- apply pal swaps
+        if isBlinking then
+            love.graphics.setShader(whiteShader)
+            love.graphics.setColor(1, 1, 1)
+        end
         
         love.graphics.setColor(1, 1, 1, 1)
-        sprites.draw(sprites["objects/rock"], math.floor(this.x), math.floor(this.y + this.draw_offset_y))
+        sprites.draw(sprites["objects/block"], math.floor(this.x), math.floor(this.y + this.draw_offset_y))
 
         love.graphics.setColor(1, 1, 1, 1)
     end

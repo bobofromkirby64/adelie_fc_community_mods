@@ -69,23 +69,19 @@ stepstools = {
         this.body_hb = nil
         this.body_timer = 0
 
-        this.check_objects = function(this)
+        this.in_pickup_range = function(this, o)
+            return this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= (o:top() - 4) and this:top() <= (o:bottom() + 4) and not o.held
+        end
+
+        this.check_for_pickup = function()
             for _, o in ipairs(objects) do
-                if o.type and (o.type.name == "goldstool" or o.type.name == "snowball" or (o.type.name == "rock" and (o:is_solid(0, 1) or this:is_solid(0, 1)))) and not o.destroyed then
-                    if this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= (o:top() - 4) and this:top() <= (o:bottom() + 4) and not o.held then
+                if o.on_release and not o.destroyed then
+                    if this:in_pickup_range(o) then
                         return o
                     end
                 end
             end
             return nil
-        end
-
-        this.check_for_goldstool = function(this)
-            if this:right() >= this.goldstool:left() and this:left() <= this.goldstool:right() and this:bottom() >= (this.goldstool:top() - 4) and this:top() <= (this.goldstool:bottom() + 4) and not this.goldstool.held then
-                return true
-            else
-                return false
-            end
         end
 
         this.check_snowballs = function(this)
@@ -102,7 +98,6 @@ stepstools = {
                         if this.vy > 0 and this:bottom() <= o:top() + 4 then
                             -- bounce on top
                             snap()
-                            this.djump = 1
                             this.jbuffer = 0
                             this.dash_cooldown = 0
                             
@@ -149,7 +144,7 @@ stepstools = {
 
                 this.vx = 0
                 this.vy = 0
-                this.djump = 1
+                this.self_throw = 1
                 this.hitstun = 0
                 this.invincible_timer = 60
 
@@ -215,7 +210,7 @@ stepstools = {
             local ground_hit = this:is_solid(0, 1)
             local on_ground = ground_hit ~= false
             local on_semisolid = ground_hit and (ground_hit.type == "semisolid" or ground_hit.semisolid)
-            local on_self_goldstool = on_semisolid and this:check_for_goldstool(this)
+            local on_self_goldstool = on_semisolid and this:check_for_pickup() and this:check_for_pickup().type.name == "goldstool"
 
             if on_ground and not this.was_on_ground then
                 game.init_smoke(this.x, this.y + 4)
@@ -245,7 +240,6 @@ stepstools = {
 
                 if on_ground then
                     this.grace = 6
-                    this.djump = 1
                     if this.vy < 0 then
                         love.audio.play("maddy_clip", "static")
                     end
@@ -324,7 +318,7 @@ stepstools = {
                 end
             end
 
-            local pickupcheck = this.check_objects(this)
+            local pickupcheck = this:check_for_pickup()
 
             local touching_field = false
             for _, o in ipairs(objects) do
@@ -378,7 +372,7 @@ stepstools = {
                     dash = false
                 end
             else
-                local pickup = this:check_objects()
+                local pickup = this:check_for_pickup()
                 if dash and inputSource.getKeyDown(id, "down") and pickup and not touching_field and this.exhaustion < this.exhaustionLimit then
                     dash = false
                     
@@ -396,7 +390,6 @@ stepstools = {
                         
                         if not this:is_solid(0, -3) then
                             this.grace = 6
-                            this.djump = 1
                         end
                     end
                 else

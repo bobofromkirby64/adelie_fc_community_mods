@@ -879,7 +879,7 @@ stage = {
                     stage.addPlatform(cx + 0, cy + 32, 32, 16, "solid")
                     stage.addPlatform(cx + 32, cy + 32, 16, 4, "semisolid")
 
-                    objectSystem.createObject(rock, cx + 8, cy + 24, 1)
+                    objectSystem.createObject(block, cx + 8, cy + 24, 1)
 
                     table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/lava_bg.png"), p.x, p.y) end })
                     table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/lava_fg.png"), p.x, p.y) end })

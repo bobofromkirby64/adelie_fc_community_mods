@@ -64,7 +64,7 @@ local spriteList = {
     {"objects/goldstool_3", 4, 1},
     {"objects/goldstool_4", 4, 1},
     "objects/snowball",
-    "objects/rock",
+    "objects/block",
     "objects/cloud",
     {"stages/tinker_cog", 4, 1},
     {"stages/summit_flag", 6, 1},

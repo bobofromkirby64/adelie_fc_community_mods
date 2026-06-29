@@ -6,7 +6,7 @@ require("objects/gem_maddy")
 require("objects/stepstools")
 require("objects/goldstool")
 require("objects/snowball")
-require("objects/rock")
+require("objects/block")
 require("objects/roundelie")
 
 objectSystem = {
