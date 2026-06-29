@@ -485,7 +485,7 @@ lani = {
 
                     if hit_type == 0 then
                         for _, o in ipairs(objects) do
-                            if o.type and (o.type.name == "snowball" or o.type.name == "goldstool") and not o.held and not o.destroyed then -- SlimeGuy's Mods adds goldstool check
+                            if o.type and (o.type.name == "snowball" or o.type.name == "goldstool" or (o.type.name == "block" and (o:is_solid(0, 1) or this:is_solid(0, 1)))) and not o.held and not o.destroyed then -- SlimeGuy's Mods adds goldstool check
                                 if check_x >= o:left() and check_x <= o:right() and check_y >= o:top() and check_y <= o:bottom() then
                                     this.grapple_hit = o
                                     hit_type = 3

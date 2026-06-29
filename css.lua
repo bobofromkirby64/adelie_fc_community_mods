@@ -2,13 +2,18 @@
 require("controller")
 local config = require("config")
 
+-- Mod Version Variable, used for authentication. Format is MajorVersion.MinorVersion.Hotfix => [FirstDigit][SecondDigit][ThirdDigit]
+MOD_VERSION = 100
+-- The Maximum Value that can be used as a seed
+SEED_MAX = 9999
+
 NUM_PLAYER_SKINS = {
     maddy = 4,
     gem_maddy = 4,
     heavy_maddy = 4,
     lani = 4,
-    stepstools = 5,
-    roundelie = 3
+    stepstools = 4,
+    roundelie = 4
 }
 AVAILABLE_CHARS = {"maddy", "gem_maddy", "heavy_maddy", "lani", "stepstools","roundelie"}
 VANILLA_CHARS = {"maddy", "lani"}
@@ -44,8 +49,9 @@ css = {
         end
 
         -- modded send signal
-        if css.mode == "ONLINE" and network and network.sendCSSSkin and network.modVersion ~= 1000 then
-            network.sendCSSSkin(1000 + css.player_skin) -- Offset by 1000 to signal modded client
+        if css.mode == "ONLINE" and network and network.sendCSSSkin and network.moddedConnection ~= true then
+            localRandom.player_seed = MOD_VERSION * (SEED_MAX + 1) + math.random(SEED_MAX)
+            network.sendCSSSkin(localRandom.player_seed) -- Set the skin way out of bounds to signal modded client
             network.sendCSSSkin(css.player_skin)
         end
 
@@ -70,6 +76,10 @@ css = {
                     username = "cpu"
                 }
             }
+
+            -- set the local seed since the online process doesn't occur
+            math.randomseed(os.time())
+            localRandom.setSeed(math.random(SEED_MAX * 2))
         end
     end,
 
@@ -105,7 +115,7 @@ css = {
 
         if not css.localReady then
             local n_skins = NUM_PLAYER_SKINS[css.player_char]
-            local character_set = (network.modVersion == 1000 or css.mode == "TRAINING") and AVAILABLE_CHARS or VANILLA_CHARS
+            local character_set = (network.moddedConnection == true or css.mode == "TRAINING") and AVAILABLE_CHARS or VANILLA_CHARS
             local updated = false
 
             if input.checkPressed("up") then
@@ -189,7 +199,7 @@ css = {
 
         -- mod notice
         local modNotice
-        if network.modVersion == 1000 or css.mode == "TRAINING" then
+        if network.moddedConnection == true or css.mode == "TRAINING" then
             modNotice = "mods enabled!"
             love.graphics.setColor(util.color(0)) -- shadow
             love.graphics.print(modNotice, GAME_WIDTH/2 - (#modNotice * 2) + 1, 8 + 1 + 7)
@@ -313,10 +323,17 @@ css = {
                 local myID = tonumber(connectionID) or -1
 
                 -- STICKY HANDSHAKE:
-                -- If we see skin 1000 from someone else, lock modVersion to 1000.
+                -- If we see skin 1000 from someone else, lock moddedConnection to 1000.
                 -- We do NOT include an 'else' here, so the state persists.
-                if math.floor(pSkin / 100) == 10 and pID ~= myID and myID ~= -1 and network.modVersion ~= 1000 then
-                    network.modVersion = 1000
+                if math.floor(pSkin / (SEED_MAX + 1)) == MOD_VERSION and pID ~= myID and myID ~= -1 and network.moddedConnection ~= true then
+                    -- flip modded connection on
+                    network.moddedConnection = true
+
+                    -- set local RNG seed
+                    localRandom.opponent_seed = pSkin
+                    localRandom.setSeed(localRandom.player_seed + localRandom.opponent_seed)
+
+                    -- send modded skin
                     css.player_char = css.modded_char
                     css.char_idx = css.modded_idx
                     css.player_skin = css.modded_skin
@@ -346,7 +363,7 @@ css = {
     end,
 
     modded_skin_routine = function(self)
-        network.modVersion = 0
+        network.moddedConnection = false
         css.modded_char = css.player_char or "maddy"
         css.modded_idx = css.char_idx or 1
         css.modded_skin = css.player_skin or 1

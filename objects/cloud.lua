@@ -14,8 +14,8 @@ cloud = {
             if o ~= this and o:bottom() == this.y - 1 and o:left() <= this:right() and o:right() >= this:left() then
                 table.insert(riders, o)
                 -- Modded Clause for Goldstools on top of clouds to carry other objects on top of them
-                if o.type.name == "goldstool" then
-                    goldstool.set_up_riders(o, riders);
+                if o.set_up_riders then
+                    o.set_up_riders(o, riders)
                 end
             end
         end

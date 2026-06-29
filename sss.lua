@@ -19,7 +19,7 @@ sss = {
         sss.players = players
         sss.mode = mode
         
-        local num_stages = #stage.layouts
+        local num_stages = #stage.layouts + ((network.moddedConnection == true or sss.mode == "TRAINING") and #stage.modded_layouts or 0)
         sss.random_slot = 1
         sss.p1_cursor = 1
         sss.p2_cursor = 1 
@@ -34,7 +34,7 @@ sss = {
 
         -- stage caching
         sss.thumbnails = {}
-        local _particles_bg, _particles_fg = particles_bg, particles_fg
+        local _particles_bg, _particles_mg, _particles_fg = particles_bg, particles_mg, particles_fg
         particles_bg, particles_fg = {}, {}
         
         table.insert(sss.thumbnails, {
@@ -47,7 +47,7 @@ sss = {
         local cell_w, cell_h = 36, 20
 
         for i = 1, num_stages do
-            particles_bg, particles_fg = {}, {}
+            particles_bg, particles_mg, particles_fg = {}, {}, {}
             stage.init(i)
             
             table.insert(sss.thumbnails, {
@@ -60,11 +60,12 @@ sss = {
                 bgColor = stage.bgColor,
                 idx = i,
                 p_bg = particles_bg,
+                p_mg = particles_mg,
                 p_fg = particles_fg
             })
         end
         
-        particles_bg, particles_fg = _particles_bg, _particles_fg
+        particles_bg, particles_mg, particles_fg = _particles_bg, _particles_mg, _particles_fg
     end,
 
     update = function()
@@ -100,7 +101,7 @@ sss = {
             sss.p1_ready = not sss.p1_ready
             love.audio.play("readyup", "static")
             if sss.mode == "ONLINE" then
-                network.sendSSSReady(sss.p1_ready, sss.p1_cursor, sss.thumbnails[sss.p1_cursor].idx, #stage.layouts)
+                network.sendSSSReady(sss.p1_ready, sss.p1_cursor, sss.thumbnails[sss.p1_cursor].idx, #stage.layouts + (network.moddedConnection == true and #stage.modded_layouts or 0))
             end
         end
 
@@ -108,7 +109,7 @@ sss = {
         if sss.mode == "TRAINING" and sss.p1_ready and sss.p2_ready then
             local picked = sss.p1_cursor
             if picked == sss.random_slot then 
-                picked = love.math.random(1, #stage.layouts) 
+                picked = love.math.random(1, #stage.layouts + #stage.modded_layouts) 
             else
                 picked = sss.thumbnails[picked].idx
             end
@@ -144,12 +145,7 @@ sss = {
         love.graphics.setColor(0, 0, 0, 0.4)
         love.graphics.rectangle("fill", 0, 0, GAME_WIDTH, GAME_HEIGHT)
 
-        -- header
-        local title = "stage select"
-        love.graphics.setColor(util.color(0))
-        love.graphics.print(title, GAME_WIDTH/2 - (#title * 2) + 1, 8)
-        love.graphics.setColor(util.color(7))
-        love.graphics.print(title, GAME_WIDTH/2 - (#title * 2), 7)
+        -- Modded alteration: header moved after thumbnials so that it always renders over them
 
         local cell_w, cell_h = 36, 20
         local pad_x, pad_y = 6, 8
@@ -157,10 +153,13 @@ sss = {
         local start_y = 20
 
         for i, thumb in ipairs(sss.thumbnails) do
+            -- Modded var, used to offset the thumbnails for when the cursor goes offscreen
+            local cam_y = (cell_h + pad_y) * -(math.floor((sss.p1_cursor - 1) / sss.grid_w) < 2 and 0 or math.floor((sss.p1_cursor - 1) / sss.grid_w) - 2)
+
             local row = math.floor((i - 1) / sss.grid_w)
             local col = (i - 1) % sss.grid_w
             local cx = start_x + col * (cell_w + pad_x)
-            local cy = start_y + row * (cell_h + pad_y)
+            local cy = start_y + row * (cell_h + pad_y) + cam_y
 
             -- thumbnail frame
             love.graphics.setColor(util.color(0))
@@ -200,6 +199,19 @@ sss = {
                     end
                     love.graphics.setColor(1, 1, 1)
                     love.graphics.draw(thumb.bg, 0, 0)
+                    love.graphics.setShader()
+                end
+                if thumb.p_mg then
+                    for _, p in ipairs(thumb.p_mg) do p:draw() end
+                end
+                if thumb.mg then 
+                    local shader = thumb.mgShader or thumb.shader
+                    if shader then
+                        love.graphics.setShader(shader)
+                        if shader:hasUniform("t") then shader:send("t", 1.5) end
+                    end
+                    love.graphics.setColor(1, 1, 1)
+                    love.graphics.draw(thumb.mg, 0, 0)
                     love.graphics.setShader()
                 end
                 if thumb.fg then 
@@ -251,6 +263,13 @@ sss = {
             end
             love.graphics.setLineWidth(1)
         end
+
+        -- header
+        local title = "stage select"
+        love.graphics.setColor(util.color(0))
+        love.graphics.print(title, GAME_WIDTH/2 - (#title * 2) + 1, 8)
+        love.graphics.setColor(util.color(7))
+        love.graphics.print(title, GAME_WIDTH/2 - (#title * 2), 7)
         
         -- stage name
         local name = sss.thumbnails[sss.p1_cursor].name

@@ -28,10 +28,10 @@ local spriteList = {
     "ui/portrait_stepstools_2",
     "ui/portrait_stepstools_3",
     "ui/portrait_stepstools_4",
-    "ui/portrait_stepstools_5",
     "ui/portrait_roundelie_1",
     "ui/portrait_roundelie_2",
     "ui/portrait_roundelie_3",
+    "ui/portrait_roundelie_4",
     "ready",
     "set",
     "go",
@@ -59,16 +59,19 @@ local spriteList = {
     {"characters/roundelie_1", 16, 1},
     {"characters/roundelie_2", 16, 1},
     {"characters/roundelie_3", 16, 1},
+    {"characters/roundelie_4", 16, 1},
     {"objects/goldstool_1", 4, 1},
     {"objects/goldstool_2", 4, 1},
     {"objects/goldstool_3", 4, 1},
     {"objects/goldstool_4", 4, 1},
-    {"objects/goldstool_5", 4, 1},
     "objects/snowball",
+    "objects/block",
     "objects/cloud",
     {"stages/tinker_cog", 4, 1},
     {"stages/summit_flag", 6, 1},
-
+    {"stages/burning_trail_fire", 5, 1},
+    {"stages/burning_trail_small_grass", 3, 1},
+    {"stages/burning_trail_tall_grass", 3, 1},
 }
 
 sprites = {

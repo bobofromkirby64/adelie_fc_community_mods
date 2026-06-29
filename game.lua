@@ -480,7 +480,7 @@ game = {
         if matchState == "PLAYING" then
             -- music on go
             if frameCounter == 90 and frameCounter == frontierFrame then
-                playBGM("music/fight_theme.ogg")
+                game.playMusic()
             end
 
             local alivePlayers = {}
@@ -620,7 +620,7 @@ game = {
         -- fix music on rollback?? (ruby help)
         if matchState == "PLAYING" and frameCounter >= 90 then
             if bgMusic and not bgMusic:isPlaying() then
-                playBGM("music/fight_theme.ogg")
+                game.playMusic()
             end
         end
     end,
@@ -637,5 +637,11 @@ game = {
             obj.playerNum = i
             if i == 2 then obj.facing = -1 end
         end
+    end,
+
+    -- playMusic function replaces the playBGM calls within the file to allow for editable stage tracks
+    playMusic = function()
+        if stage.music ~= nil then playBGM(stage.music)
+        else playBGM("music/fight_theme.ogg") end
     end
 }

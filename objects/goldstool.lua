@@ -9,7 +9,6 @@ goldstool = {
                 {sprites["objects/goldstool_2"], {41 / 255, 173 / 255, 255 / 255, 0.5}}, -- diamond
                 {sprites["objects/goldstool_3"], {0 / 255, 228 / 255, 54 / 255, 0.5}}, -- emerald
                 {sprites["objects/goldstool_4"], {175 / 255, 76 / 255, 255 / 255, 0.5}}, -- amethyst
-                {sprites["objects/goldstool_5"], {41 / 255, 173 / 255, 255 / 255, 0.5}}, -- diamond
             }
 
         this.spritesheet, this.beamColor = unpack(player_skins[tonumber(skin)])
@@ -59,6 +58,9 @@ goldstool = {
         this.was_held = false
         this.body_hitbox_lock = 0
 
+        this.on_release = function()
+        end
+
         this.corner_correct = function(this_obj, dir_x, dir_y, side_dist, only_sign)
             only_sign = only_sign or 0
             if dir_x ~= 0 then
@@ -98,9 +100,7 @@ goldstool = {
         if this.owner.respawn_timer > 0 then this.exhaustion = 0 end
 
         -- check for oob
-        if this:oob() then
-            goldstool.oobbehavior(this)
-        end
+        if this:oob() then goldstool.oobbehavior(this) end
 
         -- check for flystarttimer
         if this.flying then
@@ -205,7 +205,7 @@ goldstool = {
                 this.body_was_active = true
             end
             if this.body_timer <= 0 and this.body_hitbox_lock <= 0 and this.flystarttimer >= 0 then
-                if this.flying then --this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w - (this.hurtbox.w / 2), hb_h - (this.hurtbox.h / 2), 2, util.sign(this.vx)*4, util.sign(this.vy) * 2.5 - 1, 2)
+                if this.flying then
                 else this.body_hb = hitbox.create(this.owner.connectionID, hb_x, hb_y, hb_w, hb_h, 2, util.sign(this.vx)*3, math.abs(util.sign(this.vy) * (1.25 * kb_mod) - (0.5 * kb_mod)) * -1, 2) end
             end
         else
@@ -250,7 +250,7 @@ goldstool = {
         end
 
         -- Move riders
-        local dx = this.x - px
+        local dx = this.x - px 
         local dy = this.y - py
         for _, r in ipairs(riders) do
             r:move(dx, dy)
