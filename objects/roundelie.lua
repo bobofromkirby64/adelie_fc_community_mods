@@ -1,5 +1,5 @@
 -- objects/roundelie.lua
--- v0.5.0
+-- v0.5.1
 
 -- Movement Documentation:
 -- Z to jump, left and right arrow keys to move
@@ -21,6 +21,8 @@
 --   Has a 2 second cooldown before roundelie can teleport again
 --   This is indicated by the color of roundelie's beak, which changes when the teleport is unavailable
 --   Has a hitbox that sends opponents in the direction held 1f after the teleport (not necessarily the teleport direction)
+--   Roundelie is invulnerable for the first two frames of the teleport, and the hitbox is also active for those first two frames
+--   There's a 3f delay before roundelie can act out of a teleport, e.g. buffering a grace-jump
 -- Jump + Down lets roundelie fall through any semisolids it interacts with
 --   Falling through semisolids which roundelie is standing on requires pressing jump, like other characters
 
@@ -57,31 +59,43 @@ roundelie = {
         this.was_on_ground = false
         this.was_big_conk = false
         
+        this.teleport_info = {
+            init = false,       -- true if teleport has started (=> flag used to trigger vfx)
+            prev_x = 0,         -- pos (x) at teleport start-point
+            prev_y = 0,         -- pos (y) at teleport start-point
+            horizontal = false, -- true if teleport has an input direction (i.e. not a neutral input)
+            on_hit = false      -- true if teleport has hit the opponent
+        }
+        -- TODO:: probably want to add on-hit effects for the other attacks also
+        --      - dive starts sort of abruptly and definitely could use an impact effect
+        --      - big shockwave needs a suitably big impact effect
+        this.teleport_hb  = nil
+        
         this.animations = {
-            -- [to-do]:: messy?
-            idle1 = {frames = {1},  speed = 1}, -- up
-            idle2 = {frames = {14}, speed = 1}, -- right
-            idle3 = {frames = {15}, speed = 1}, -- down
-            idle4 = {frames = {16}, speed = 1}, -- left
-            -- [to-do]::
+            -- TODO:: messy?
+            idle1 = {frames = {1},  speed = 1},  -- up
+            idle2 = {frames = {14}, speed = 1},  -- right
+            idle3 = {frames = {15}, speed = 1},  -- down
+            idle4 = {frames = {16}, speed = 1},  -- left
+            -- TODO::
             --  - roll doesn't handle direction changes properly (sprite shouldn't flip, and instead it should decrement anim_frame)
             --  - the different idle poses should start animation from corresponding roll frames (rather than the roll always starting from the top position)
             roll = {frames = {10, 2, 3, 4}, speed = 3}, -- up -> right -> down -> left ...
-            -- [to-do]::
+            -- TODO::
             --  - puff probably shouldn't activate e.g. out of knockback or from the bounce after down+x
             --  - maaaybe only use puff for bjumps and have different pose for grounded jumps/moving up in the air?
             --  - also maybe should tie animation speed to xspeed? but idk how this would work with the current system
             jump1 = {frames = {11}, speed = 1}, -- inflate
-            -- [to-do]:: maybe change jump2 => jump3 be an animation instead of based on y-speed?
+            -- TODO:: maybe change jump2 => jump3 be an animation instead of based on y-speed?
             jump2 = {frames = {12}, speed = 1},
             jump3 = {frames = {5}, speed = 1},
-            dive1 = {frames = {9}, speed = 1},  -- down+x pose
-            dive2 = {frames = {13}, speed = 1}, -- down+x pose *when large shockwave will trigger upon landing
+            dive1 = {frames = {9}, speed = 1},   -- down+x pose
+            dive2 = {frames = {13}, speed = 1},  -- down+x pose *when large shockwave will trigger upon landing
             crouch = {frames = {6}, speed = 1},
             up = {frames = {7}, speed = 1},
-            -- [to-do]:: maaaybe add alternate/random conk poses? could reuse the roll sprites...
+            -- TODO:: maaaybe add alternate/random conk poses? could reuse the roll sprites...
             conk = {frames = {8}, speed = 1},  -- disoriented pose used after down+x collides with ground to trigger large shockwave
-            -- [to-do]:: add fill color to sprites for sadface/tears/sroundelie during hitstun
+            -- TODO:: add fill color to sprites for sadface/tears/sroundelie during hitstun?
             -- pain = {...
         }
         this.idle_poses = { "idle1", "idle2", "idle3", "idle4" }
@@ -141,10 +155,183 @@ roundelie = {
                 end
             end
         end
+        
+        -- (( honestly this was a whole lot of work for a not-very-interesting effect LOL ))
+        -- (( was a fun learning experience for working with particles but I won't be sad if it's replaced ~ ))
+        this.draw_teleport_vfx = function(this)
+            
+            local prev_x, prev_y = this.teleport_info.prev_x, this.teleport_info.prev_y
+            
+            -- (1) poof out / start-point
+            if this.teleport_info.horizontal then
+                local d = 3--5  -- base distance to draw smoke from the center of the circle
+                local n = 2--3  -- split circle into `n` partitions
+                local r = 2 * math.pi / n  -- radians
+                
+                for i = 1, n do
+                    local angle = (i * r)  + (2 * math.pi * math.random()) * 0.3
+                    game.init_smoke(prev_x + math.sin(angle) * d, prev_y + math.cos(angle) * d + 1)
+                end
+            
+                -- after-image formed in smoke
+                table.insert(
+                    particles_fg, {
+                        x = prev_x,
+                        y = prev_y,
+                        cx = this.hurtbox.x + (this.hurtbox.w / 2),
+                        facing = this.facing,
+                        timer = 0,
+                        duration = 15,
+                        
+                        update = function(p)
+                            p.timer = p.timer + 1
+                            return p.timer >= p.duration
+                        end,
+                        
+                        draw = function(p)
+                            local frame = math.floor(p.timer / p.duration * 3 - 0.4) + 1
+                            if frame < 1 then frame = 1 end
+                            if frame > 3 then frame = 3 end
+                            love.graphics.setColor(1, 1, 1)
+                            -- TODO: might be able to use a stencil to prevent the standard smoke from covering the after-image on the first two frames?
+                            sprites.draw(sprites.roundelie_teleport_afterimage[frame], p.x + p.cx, p.y, 0, p.facing, 1, p.cx, 0)
+                        end
+                    })
+            end
+            
+            -- (2) pop in / end-point
+            local cx = this.hurtbox.x + (this.hurtbox.w / 2)
+            local cy = this.hurtbox.y + (this.hurtbox.h / 2) - 1
+            
+            local n = 3  -- split circle into `n` partitions
+            local r = 2 * math.pi / n -- radians
+            
+            -- groups of randomly distributed "spark" particles
+            for i = 1, n do
+                -- each group has a base angle within equal partitions of a circle centered on the teleport hitbox
+                for i = 1, 7 do
+                    local angle = (i * r) + (2 * math.pi * math.random() * 0.5)  -- angle is further randomized for each particle
+                    -- (( ty @meep @lazydevs on youtube for the refs, lol ))
+                    table.insert(
+                        particles_fg, {
+                            x = (this.teleport_info.horizontal and this.teleport_info.x or this.x) + cx,
+                            y = (this.teleport_info.horizontal and this.teleport_info.y or this.y) + cy,
+                            vx = math.sin(angle),
+                            vy = math.cos(angle),
+                            speed = 4 + math.random(8,14) * 0.10,  -- magnitude for movement vector
+                            drag = 0.5,  -- i.e. deceleration applied on each tick
+                            
+                            timer = 0,
+                            duration = 7 + math.random(0, 3),
+                            
+                            tp_info = this.teleport_info,
+                            on_hit_flag = this.teleport_info.on_hit,
+                            
+                            update = function(p)
+                                if (not p.on_hit_flag) and p.tp_info.on_hit then
+                                    p.on_hit_flag = true
+                                    p.speed = p.speed * 1.35  -- <~ increase to make on-hit effect bigger
+                                    p.drag  = p.drag * 1.35   --
+                                end
+                                p.x = p.x + p.vx * p.speed
+                                p.y = p.y + p.vy * p.speed
+                                p.vx = p.vx * p.drag
+                                p.vy = p.vy * p.drag
+                                
+                                p.timer = p.timer + 1
+                                return p.timer >= p.duration
+                            end,
+                            
+                            draw = function(p)
+                                local fade = 1 - (p.timer / (p.duration + (p.duration/2)))
+                                local scalar = 1.95
+                                love.graphics.setColor(1, 1, 1, 1)
+                                
+                                if p.timer <= 2 then  -- meant to match up with initial "burst" (white circle drawn over the hitbox for 1f)
+                                    love.graphics.setColor(1, 1, 1, 1)
+                                else
+                                    -- TODO: messy, and I don't think the "scalar" is doing what I think it's' doing...
+                                    if p.tp_info and p.tp_info.on_hit then
+                                        love.graphics.setColor((255*fade*scalar)/255, (156*fade*scalar)/255, (39*fade*scalar)/255, 1)
+                                    else
+                                        love.graphics.setColor((229*fade*scalar)/255, (229*fade*scalar)/255, (229*fade*scalar)/255, fade)
+                                    end
+                                end
+                                love.graphics.rectangle("fill", math.floor(p.x), math.floor(p.y), 1, 1)
+                                if p.tp_info and p.tp_info.on_hit then
+                                    love.graphics.setColor((255*fade*scalar)/255, (116*fade*scalar)/255, (39*fade*scalar)/255, 1)
+                                else
+                                    love.graphics.setColor((215*fade*scalar)/255, (215*fade*scalar)/255, (215*fade*scalar)/255, fade)
+                                end
+                                if p.timer >= 1 and (p.x - p.vx * p.speed >= 1.5) then
+                                    love.graphics.rectangle("fill", math.floor(p.x - p.vx * p.speed), math.floor(p.y - p.vy * p.speed), 1, 1)
+                                    if (p.x - p.vx * p.speed >= 3.5) then
+                                        love.graphics.rectangle("fill", math.floor(p.x - p.vx * p.speed - ((p.vx / p.drag) * p.speed)), math.floor(p.y - p.vy * p.speed - ((p.vy/p.drag) * p.speed)), 1, 1)
+                                    end
+                                end
+                                love.graphics.setColor(1, 1, 1, 1)
+                            end
+                        })
+                end
+            end
+            
+            -- smoke and initial burst frame(s)
+            table.insert(
+                particles_fg, {
+                    x = this.x,
+                    y = this.y,
+                    cx = this.hurtbox.x + (this.hurtbox.w / 2),
+                    cy = this.hurtbox.y + (this.hurtbox.h / 2),
+                    timer = 0,
+                    duration = 3,
+                    draw_smoke = true,
+                    
+                    update = function(p)
+                        p.timer = p.timer + 1
+                        return p.timer >= p.duration
+                    end,
+                    
+                    draw = function(p)
+                        -- smoke
+                        if p.draw_smoke and p.timer >= 2 then -- slight delay before drawing smoke so that the smoke at the startpoint dissipates first
+                            -- TODO: probably shouldn't have particles creating other particles?
+                            local d = 2  -- base distance to draw smoke from the center of the circle
+                            local n = 2  -- split circle into `n` partitions
+                            local r = 2 * math.pi / n  -- radians
+                            
+                            for i = 1, n do
+                                local angle = (i * r)  + (2 * math.pi * math.random()) * 0.3
+                                game.init_smoke(p.x + math.sin(angle) * d, p.y + math.cos(angle) * d + 1)
+                            end
+                            p.draw_smoke = false
+                        end
+                        
+                        -- initial burst
+                        if p.timer <= 2 then
+                            love.graphics.setColor(1, 1, 1)
+                            -- hitbox is size 10x10 and centered on roundelie => 12-diameter circle fits well enough
+                            love.graphics.circle("fill", p.x + p.cx, p.y + p.cy, 6)
+                        end
+                    end
+                })
+            --
+            this.teleport_info.init = false
+            this.teleport_info.horizontal = false
+            this.teleport_info.on_hit = false
+        end
     end,
     
     update = function(this)
         local id = this.connectionID
+        
+        if this.freeze > 0 then
+            this.freeze = this.freeze - 1
+            if this.freeze == 0 then
+                this:move(this.vx, this.vy)
+                this:check_snowballs()
+            end
+            return
+        end
         
         -- bonk timer
         if this.conk > 0 then
@@ -181,6 +368,8 @@ roundelie = {
                 this.invincible_timer = 60
                 this.dash_cooldown = 0
                 this.bump_cooldown = 0
+                
+                if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
             end
             return
         end
@@ -193,6 +382,8 @@ roundelie = {
             this.hitstun = this.hitstun - 1
             this.vy = util.appr(this.vy, 3, 0.15)
             this.vx = util.appr(this.vx, 0, 0.143)
+            
+            if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
         else
             
             local jump_btn = inputSource.getKeyDown(id, "b1")
@@ -275,15 +466,19 @@ roundelie = {
             end
             
             if this.dash_time > 0 then
-                this.dash_time = this.dash_time - 1
-                -- teleporting hitbox
-                if this.dash_time == 0 then
-                    hitbox.create(this.connectionID, (this.x  - 1), (this.y  - 1), 10, 10, 3, 5 * this.facing, 0, 2)
+                if this.dash_time == 2 then  -- TODO: messy
+                    this.freeze = 3  -- half of the value applied on-hit
+                    this.teleport_hb = hitbox.create(this.connectionID, (this.x  - 1), (this.y  - 1), 10, 10, 3, 5 * this.facing, 0, 2)
+                    this.teleport_hb.telefrag = true
+                    this.teleport_hb.hit_sfx = "zap"  -- generic "crit" sfx used for big hits, e.g. Lani's tipper and body slam
+                    this.vx = 0
                 end
-                game.init_smoke(this.x, this.y)
-                
-                if this.dash_time > 0 then
-                    this.vx = 0 -- "dash" is just teleporting for roundelie
+                this.dash_time = this.dash_time - 1
+                this.vx = 0
+            else
+                if this.teleport_hb then
+                    this.teleport_hb.active = false
+                    this.teleport_hb = nil
                 end
             end
             local maxrun = 2 -- different from ra2, but the speed building doesn't fit well with the character and is overcomplicated
@@ -345,23 +540,33 @@ roundelie = {
                     this.dash_time = 2
                     this.dash_cooldown = 61
                     this.invincible_timer = 2
-                    this.vx = 30 * h_input
+                    this.vx = 32 * h_input
+                    this.teleport_info.init = true
+                    this.teleport_info.horizontal = h_input ~= 0
+                    this.teleport_info.on_hit = false
                 end
                 
                 love.audio.play("maddy_dash", "static")
-                game.init_smoke(this.x, this.y)
             end
             this.was_on_ground = on_ground
             this.was_vy = this.vy -- part of the hacky semisolid fix
         end
         
+        -- teleport vfx are drawn after movement/collision is calculated => need to keep track of original position
+        this.teleport_info.prev_x = this.x
+        this.teleport_info.prev_y = this.y
+        
         this:move(this.vx, this.vy)
         this:check_snowballs()
+        
+        if this.teleport_info.init then
+            this:draw_teleport_vfx()
+        end
         
         -- sprite stuff
         local anim_on_ground = this.vy >= 0 and this:is_solid(0, 1)
         local next_anim = "idle1"
-        -- [to-do]:: bit messy?
+        -- TODO: bit messy?
         if this.current_anim == "idle2" or this.current_anim == "idle3" or this.current_anim == "idle4" then
             next_anim = this.current_anim
         elseif this.current_anim == "roll" then
@@ -375,10 +580,8 @@ roundelie = {
             else
                 next_anim = "jump2"
             end
-        --elseif anim_on_ground and not this.was_on_ground then
-        --    next_anim = "crouch"
         
-        -- [to-do]:: magic numbers
+        -- TODO: magic numbers
         elseif not anim_on_ground then
             if this.down_attack and this.vy == 5 then
                 next_anim = "dive2"
@@ -391,13 +594,13 @@ roundelie = {
             else
                 next_anim = "jump2"
             end
-        elseif this.dash_time > 0 and this.vx == 0 then --whar
-            next_anim = "crouch"
+        --elseif this.dash_time > 0 and this.vx == 0 then --whar
+        --    next_anim = "crouch"
         elseif v_input == -1 then
             next_anim = "up"
         elseif v_input == 1 then
             next_anim = "crouch"
-        -- [to-do]:: magic numbers
+        -- TODO: magic numbers
         elseif (this.current_anim == roll and math.abs(this.vx) >= 1.2) or (this.current_anim ~= roll and math.abs(this.vx) > 0.1) then
             next_anim = "roll"
         end
@@ -411,7 +614,7 @@ roundelie = {
         local anim = this.animations[this.current_anim]
         this.anim_timer = this.anim_timer + 1
         
-        -- [to-do]:: add special logic for roll animations here ~
+        -- TODO: add special logic for roll animations here ~
 
         if this.anim_timer >= anim.speed then
             this.anim_timer = 0
@@ -420,7 +623,6 @@ roundelie = {
                 this.anim_frame = 1
             end
         end
-        
         
         -- blast zones and stocks (maybe move elsewhere?)
         if this:oob(0, 0) then
@@ -443,6 +645,8 @@ roundelie = {
             this.rem.x = 0
             this.rem.y = 0
             
+            if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
+            
             if this.stocks > 0 then
                 this.x = -1000
                 this.y = -1000
@@ -458,6 +662,32 @@ roundelie = {
     on_hit_confirm = function(this, target, hb)
         -- stuff to do on hit confirm (e.g., pogoing?)
         camera.shake(1.5, 1.5, 2)
+        
+        if hb.telefrag then
+            this.teleport_info.on_hit = true
+            
+            table.insert(particles_fg, {
+                x = target:hmid(), y = target:vmid(),
+                timer = 0,
+                duration = 8,
+                update = function(p)
+                    p.timer = p.timer + 1
+                    return p.timer >= p.duration
+                end,
+                draw = function(p)
+                    local fade = 1 - (p.timer / p.duration)
+                    local len = p.timer * 4
+                    love.graphics.setColor(1, 1, 1, fade)
+                    love.graphics.rectangle("fill", math.floor(p.x - len / 2), math.floor(p.y - 1), len, 2)
+                    love.graphics.rectangle("fill", math.floor(p.x - 1), math.floor(p.y - len), 2, len * 2)
+                    love.graphics.setColor(1, 1, 1, 1)
+                end
+            })
+            
+            this.freeze = 6
+            target.freeze = 6
+            camera.shake(3, 3, 5)
+        end
     end,
     
     draw = function(this)
@@ -507,4 +737,5 @@ roundelie = {
         love.graphics.setShader()
         love.graphics.setColor(1, 1, 1)
     end
+    
 }
