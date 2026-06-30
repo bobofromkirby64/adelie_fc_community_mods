@@ -9,6 +9,8 @@
 -- X + Down causes roundelie to accelerate downward quickly while held
 --   Has a top speed higher than the regular terminal velocity
 --   Has a hitbox that pushes opponents downward, which may "trap" them as they fall
+--     - There's a 1f delay before the hitbox comes out, and an initial burst of speed is applied after the delay
+--     - The hitbox remains active as long as the input is held, or until roundelie collides a wall or with the ground
 --   If X + Down is held when roundelie hits a wall, roundelie bounces back and upward off the wall
 --   (ie in the direction opposite roundelie's facing direction, not necessarily away from the wall)
 --   If X + Down is held when roundelie hits ground, roundelie bounces back and upward off the ground and sends out a shockwave
@@ -26,6 +28,19 @@
 --   There's a 3f delay before roundelie can act out of a teleport, e.g. buffering a grace-jump
 -- Jump + Down lets roundelie fall through any semisolids it interacts with
 --   Falling through semisolids which roundelie is standing on requires pressing jump, like other characters
+
+
+-- TODO: misc visual stuff ((?) => "maybe")
+--  - for the statue/gold skin, idle1 sprite looks strange after ending a roll => use the upright roll sprite instead of idle1 out of a roll
+--  - puff probably shouldn't activate e.g. out of knockback or from the bounce after down+x
+--      - could try adding an alternate jump1 pose (with same position but without the inflation) and then only use the puff pose for jumps and bjumps?
+--      - I do kinda like the idea of "puffing up" in danger so maybe keep it for knockback actually? but it def looks strange after bouncing
+--  - (?) add a "tumble" anim after a long enough fall
+--      - mainly because the "falling" jump pose looks strange when it's been out for too long
+--      - could try reusing the roll but a transition pose might be needed? but could also maybe reuse a different sprite for that, like of the jump sprites and just rotate it, maybe?
+--  - (?) experiment with adding alternate/random conk poses (could reuse the roll sprites...)
+--  - (?) experiment with adding fill color to sprites for sadface/tears/sroundelie during hitstun
+--  - ...
 
 roundelie = {
     name="roundelie",
@@ -69,35 +84,24 @@ roundelie = {
             horizontal = false, -- true if teleport has an input direction (i.e. not a neutral input)
             on_hit = false      -- true if teleport has hit the opponent
         }
-        -- TODO:: probably want to add on-hit effects for the other attacks also
-        --      - dive starts sort of abruptly and definitely could use an impact effect
-        --      - big shockwave needs a suitably big impact effect
-        this.teleport_hb  = nil
+        this.teleport_hb  = nil  -- created by left/right+x and neutral+x attack
+        this.shockwave_hb = nil  -- hitbox created by diving (down+x attack) into the ground
         
         this.animations = {
             -- TODO:: messy?
-            -- TODO:: for statue/gold skin, idle1 sprite looks strange after ending a roll => use the upright roll sprite instead of idle1 out of a roll
             idle1 = {frames = {1},  speed = 1},  -- upright
-            idle2 = {frames = {14}, speed = 1},  -- flop right (CW 90 degrees)
+            idle2 = {frames = {14}, speed = 1},  -- right (CW 90 degrees)
             idle3 = {frames = {15}, speed = 1},  -- upside-down
-            idle4 = {frames = {16}, speed = 1},  -- flop left (CW 270 degrees)
+            idle4 = {frames = {16}, speed = 1},  -- left (CW 270 degrees)
             roll = {frames = {10, 2, 3, 4}, speed = 3}, -- up -> right -> down -> left ...
-            -- TODO::
-            --  - puff probably shouldn't activate e.g. out of knockback or from the bounce after down+x
-            --  - maaaybe only use puff for bjumps and have different pose for grounded jumps/moving up in the air?
-            --  - also maybe should tie animation speed to xspeed? but idk how this would work with the current system
-            jump1 = {frames = {11}, speed = 1}, -- inflate
-            -- TODO:: maybe change jump2 => jump3 be an animation instead of based on y-speed?
-            jump2 = {frames = {12}, speed = 1},
-            jump3 = {frames = {5}, speed = 1},
+            jump1 = {frames = {11}, speed = 1},  -- inflate
+            jump2 = {frames = {12}, speed = 1},  --
+            jump3 = {frames = {5}, speed = 1},   --
             dive1 = {frames = {9}, speed = 1},   -- down+x pose
-            dive2 = {frames = {13}, speed = 1},  -- down+x pose *when large shockwave will trigger upon landing
+            dive2 = {frames = {13}, speed = 1},  -- down+x pose *when large shockwave will be created upon landing
             crouch = {frames = {6}, speed = 1},
             up = {frames = {7}, speed = 1},
-            -- TODO:: maaaybe add alternate/random conk poses? could reuse the roll sprites...
-            conk = {frames = {8}, speed = 1},  -- disoriented pose used after down+x collides with ground to trigger large shockwave
-            -- TODO:: add fill color to sprites for sadface/tears/sroundelie during hitstun?
-            -- pain = {...
+            conk = {frames = {8}, speed = 1},  -- disoriented used for after down+x collides with ground and creates a large shockwave
         }
         this.idle_poses = { "idle1", "idle2", "idle3", "idle4" }
         this.idle_poses_idx = 1
@@ -112,7 +116,7 @@ roundelie = {
         this.freeze = 0
         this.conk = 0
         this.conkdir = 0
-        this.prev_facing = 1  -- used in roll animation logic
+        this.prev_facing = 1  -- for roll animation logic
         
         this.check_snowballs = function(this)
             if this.hitstun > 0 then return end
@@ -373,6 +377,7 @@ roundelie = {
                 this.bump_cooldown = 0
                 
                 if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
+                if this.shockwave_hb then this.shockwave_hb.active = false; this.shockwave_hb = nil end
             end
             return
         end
@@ -390,6 +395,7 @@ roundelie = {
             this.vx = util.appr(this.vx, 0, 0.143)
             
             if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
+            if this.shockwave_hb then this.shockwave_hb.active = false; this.shockwave_hb = nil end
         else
             
             local jump_btn = inputSource.getKeyDown(id, "b1")
@@ -442,13 +448,16 @@ roundelie = {
                     this.down_attack = false
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     -- shockwaves
+                    -- TODO: still need sfx for the shockwave (probably don't want on-hit sfx)
                     if this.was_vy == 5 then
-                        hitbox.create(this.connectionID, (this.x - 25) + (-5 * this.conkdir), this.y + 4, 60, 4, 3, -2 * this.conkdir, -4, 2)
+                        this.shockwave_hb = hitbox.create(this.connectionID, (this.x - 25) + (-5 * this.conkdir), this.y + 4, 60, 4, 3, -2 * this.conkdir, -4, 2)
+                        this.shockwave_hb.shockwave_large = true
                         for i = -25,20,10 do
                             game.init_smoke(this.x + i + (-5 * this.conkdir), this.y + 8)  --could be better
                         end
                     else
-                        hitbox.create(this.connectionID, (this.x - 15) + (-5 * this.conkdir), this.y + 4, 40, 4, 2, -2 * this.conkdir, -3, 2)
+                        this.shockwave_hb = hitbox.create(this.connectionID, (this.x - 15) + (-5 * this.conkdir), this.y + 4, 40, 4, 2, -2 * this.conkdir, -3, 2)
+                        this.shockwave_hb.shockwave_small = true
                         for i = -15,10,10 do
                             game.init_smoke(this.x + i + (-5 * this.conkdir), this.y + 8)  --could be better
                         end
@@ -518,15 +527,24 @@ roundelie = {
             local hb_x = cx - (hb_w / 2)
             local hb_y = cy - (hb_h / 2)
             if v_input == 1 and dash_btn and not on_ground and this.conk < 1 then
+                if not this.down_attack then 
+                    -- dive has a 1f delay before the hitbox comes out, with an initial burst of speed applied after the delay
+                    this.freeze = 1
+                    this.vy = util.appr(this.vy, 5, 1.50)
+                else
+                    -- the dive hitbox remains active as long as the input (down+x) is held
+                    hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx), 4.5, 2)
+                    this.vy = util.appr(this.vy, 5, 0.75)
+                end
+
                 this.down_attack = true
                 this.was_big_conk = false
-                this.vy = util.appr(this.vy, 5, 0.75)
+                
                 if (this:is_solid(-3,0) or this:is_solid(3,0)) then
                     this.conk = 15
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     this.vy = -2
                 end
-                hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx), 4.5, 2)
             else
                 this.down_attack = false
             end
@@ -575,7 +593,6 @@ roundelie = {
         -- sprite stuff
         local anim_on_ground = this.vy >= 0 and this:is_solid(0, 1)
         local next_anim = this.idle_poses[this.idle_poses_idx]
-        
         
         -- TODO: I have a feeling putting this here is making it messier but I need to look into it a bit more
         if this.current_anim == "roll" then
@@ -671,6 +688,7 @@ roundelie = {
             this.rem.y = 0
             
             if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
+            if this.shockwave_hb then this.shockwave_hb.active = false; this.shockwave_hb = nil end
             
             if this.stocks > 0 then
                 this.x = -1000
@@ -685,10 +703,18 @@ roundelie = {
     end,
     
     on_hit_confirm = function(this, target, hb)
-        -- stuff to do on hit confirm (e.g., pogoing?)
-        camera.shake(1.5, 1.5, 2)
+        -- the large shockwave already applies camera shake
+        if not hb.shockwave_large then camera.shake(1.5, 1.5, 2) end
         
-        if hb.telefrag then
+        if hb.shockwave_large then
+            -- TODO: add on-hit vfx for both shockwaves
+            --   I'm picturing something like, picking colors from the stage fg underneath the opponent (or roundelie?) and sending debris particles in the direction of the knockback?
+            --   https://love2d.org/wiki/ImageData:getPixel
+            
+            --target.freeze = 2
+        elseif hb.shockwave_small then
+            --target.freeze = 1
+        elseif hb.telefrag then
             this.teleport_info.on_hit = true
             
             table.insert(particles_fg, {
