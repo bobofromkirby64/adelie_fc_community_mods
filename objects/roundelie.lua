@@ -34,7 +34,7 @@ roundelie = {
         local player_skins = {
             {sprites["characters/roundelie_1"], {1,1,1,1}}, -- roundelie (default)
             {sprites["characters/roundelie_2"], {1,1,1,1}}, -- delaughter (purple/red)
-            {sprites["characters/roundelie_3"], {1,1,1,1}}, -- statue (golden) ... is wip, so in the meantime ~> nintendo-style palette (light blue)
+            {sprites["characters/roundelie_3"], {1,1,1,1}}, -- statue (golden)
             {sprites["characters/roundelie_4"], {1,1,1,1}}, -- ancient monument (from rosetta)
         }
         
@@ -59,6 +59,7 @@ roundelie = {
         this.p_dash = false
         this.was_on_ground = false
         this.was_big_conk = false
+        this.is_crouching = false
         
         this.teleport_info = {
             init = false,       -- true if teleport has started (=> flag used to trigger vfx)
@@ -195,7 +196,7 @@ roundelie = {
                             if frame > 3 then frame = 3 end
                             love.graphics.setColor(1, 1, 1)
                             -- TODO: might be able to use a stencil to prevent the standard smoke from covering the after-image on the first two frames?
-                            sprites.draw(sprites.roundelie_teleport_afterimage[frame], p.x + p.cx, p.y, 0, p.facing, 1, p.cx, 0)
+                            sprites.draw(sprites["characters/roundelie_teleport_afterimage"][frame], p.x + p.cx, p.y, 0, p.facing, 1, p.cx, 0)
                         end
                     })
             end
@@ -564,6 +565,9 @@ roundelie = {
             this:draw_teleport_vfx()
         end
         
+        --
+        this.is_crouching = false
+        
         -- sprite stuff
         local anim_on_ground = this.vy >= 0 and this:is_solid(0, 1)
         local next_anim = "idle1"
@@ -601,6 +605,7 @@ roundelie = {
             next_anim = "up"
         elseif v_input == 1 then
             next_anim = "crouch"
+            this.is_crouching = true
         -- TODO: magic numbers
         elseif (this.current_anim == roll and math.abs(this.vx) >= 1.2) or (this.current_anim ~= roll and math.abs(this.vx) > 0.1) then
             next_anim = "roll"
@@ -714,18 +719,28 @@ roundelie = {
             love.graphics.setShader(whiteShader)
             love.graphics.setColor(1, 1, 1)
         elseif this.dash_cooldown > 0 then
-            if this.skin == 3 or this.skin == 4 then
-                love.graphics.setShader(paletteSwapShader)
+            love.graphics.setShader(paletteSwapShader)
+            if this.skin == 3 then
+                -- eyes swap from default (gold) -> "deactivated" (dark blue)
+                paletteSwapShader:send("color_find", {203/255, 136/255, 4/255, 1.0})
+                paletteSwapShader:send("color_replace", {29/255, 43/255, 83/255, 1.0})    
+            elseif this.skin == 4 then
+                -- ...
                 paletteSwapShader:send("color_find", {171/255, 82/255, 54/255, 1.0})
                 paletteSwapShader:send("color_replace", {255/255, 119/255, 168/255, 1.0})
             else
-                love.graphics.setShader(paletteSwapShader)
+                -- TODO: swap out placeholder effect
                 paletteSwapShader:send("color_find", {255/255, 163/255, 0/255, 1.0})
                 paletteSwapShader:send("color_replace", {95/255, 87/255, 79/255, 1.0})
             end
             
         end
         
+        if this.skin == 3 then
+            -- roundelie's face and belly for the statue (gold) skin are drawn on top of a "base" sprite that does not flip
+            local base_spr = sprites[ this.is_crouching and "characters/roundelie_3_base_crouch" or "characters/roundelie_3_base_default" ]
+            sprites.draw(base_spr, this.x + cx, this.y, 0, 1, 1, cx, 0)
+        end
         sprites.draw(this.spr, this.x + cx, this.y, 0, this.facing, 1, cx, 0)
         
         if this.connectionID == connectionID then
