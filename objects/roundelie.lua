@@ -116,6 +116,8 @@ roundelie = {
         this.freeze = 0
         this.conk = 0
         this.conkdir = 0
+        this.dive_timer = 0
+        this.dive_smoketrail = 0
         this.prev_facing = 1  -- for roll animation logic
         
         this.check_snowballs = function(this)
@@ -226,7 +228,7 @@ roundelie = {
                             y = (this.teleport_info.horizontal and this.teleport_info.y or this.y) + cy,
                             vx = math.sin(angle),
                             vy = math.cos(angle),
-                            speed = 4 + math.random(8,14) * 0.10,  -- magnitude for movement vector
+                            speed = 3.5 + math.random(8,14) * 0.095,  -- magnitude for movement vector
                             drag = 0.5,  -- i.e. deceleration applied on each tick
                             
                             timer = 0,
@@ -343,7 +345,19 @@ roundelie = {
         
         -- bonk timer
         if this.conk > 0 then
+            -- TODO: this gets decremented twice on each tick;
+            --  => should refactor so it instead corresponds to the # of frames before roundelie is actionable after bouncing
             this.conk = this.conk - 1
+        end
+        
+        -- tracks time between dives (down+x)
+        if this.dive_timer > 0 then
+            this.dive_timer = this.dive_timer - 1
+        end
+        
+        -- dive vfx
+        if this.dive_smoketrail > 0 then
+            this.dive_smoketrail = this.dive_smoketrail - 1
         end
         
         -- iframes
@@ -414,7 +428,8 @@ roundelie = {
             local on_ground = ground_hit ~= false
             local on_semisolid = ground_hit and (ground_hit.type == "semisolid" or ground_hit.semisolid)
             
-            if on_ground and not this.was_on_ground then
+            if on_ground and not this.was_on_ground and not down_attack then
+                -- down_attack (dive) already creates a shockwave when it lands; no need to draw extra smoke
                 game.init_smoke(this.x, this.y + 4)
             end
             
@@ -448,7 +463,8 @@ roundelie = {
             if on_ground then
                 -- dive -> bounce off of the ground
                 if this.down_attack then
-                    this.conk = 16
+                    this.conk = 16  -- => 8f
+                    this.dive_smoketrail = 0
                     this.down_attack = false
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     -- shockwaves
@@ -469,7 +485,7 @@ roundelie = {
                         end
                     end
                     if this.was_vy == 5 then
-                        this.conk = 19 --this.conk + 4  -- test test test
+                        this.conk = 19  -- => 10f --19 --this.conk + 4  -- test test test
                         this.was_big_conk = true
                         this.vy = -3.75
                         camera.shake(2, 2, 5)
@@ -538,13 +554,22 @@ roundelie = {
                 if not this.down_attack then 
                     -- dive has a 1f delay before the hitbox comes out, with an initial burst of speed applied after the delay
                     this.freeze = 1
-                    this.vy = util.appr(this.vy, 5, 2.40)--2.55) --2.0) --1.50)
-                    -- TODO: smoke here is fine as a placeholder but there needs to be a timer between dive+x uses, e.g. to avoid creating a mess during the dribble
-                    --game.init_smoke(this.x, this.y + 4)
+                    this.vy = util.appr(this.vy, 5, 2.40)
+                    if this.dive_timer == 0 then
+                        this.dive_smoketrail = 2
+                        game.init_smoke(this.x, this.y - 4)
+                        love.audio.play("maddy_downdash", "static")  -- TODO: placeholder
+                    end
+                    -- ~* m a g i c *~
+                    -- conk is currently 16 => 8f + [# frames to reach ground from top of bounce]... and that's <= 14f, apparently
+                    -- => timer prevents a mess of smoke during dribble/wall-jump because it *always* prevents smoke from being drawn when diving immediately after a small bounce
+                    -- => TODO: come up with a better solution than a magic timer
+                    this.dive_timer = 14
                 else
                     -- the dive hitbox remains active as long as the input (down+x) is held
                     hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx), 4.5, 2)
-                    this.vy = util.appr(this.vy, 5, 0.70) --0.75)
+                    this.vy = util.appr(this.vy, 5, 0.70)
+                    if this.dive_smoketrail > 0 then game.init_smoke(this.x, this.y) end
                 end
 
                 this.down_attack = true
@@ -552,8 +577,9 @@ roundelie = {
                 
                 -- dive -> bounce off of a wall
                 if (this:is_solid(-3,0) or this:is_solid(3,0)) then
-                    this.conk = 16  -- TODO: messy; conk is applied in three different places; can probably refactor so that the different bounces (ground/wall) are closer together
+                    this.conk = 16  -- => 8f
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
+                    this.dive_smoketrail = 0
                     this.vy = -2
                     game.init_smoke(this.x - this.conkdir * 6, this.y)  -- same as maddy wall-jump
                 end
@@ -561,6 +587,8 @@ roundelie = {
                 this.down_attack = false
             end
             if this.conk > 0 then
+                -- TODO: this gets decremented twice on each tick; once here and once with all the other timers
+                --  => should refactor so it instead corresponds to the # of frames before roundelie is actionable after bouncing
                 this.conk = this.conk - 1
                 this.vx = .1 * this.conk * this.conkdir
             elseif v_input == -1 and bump and this.bjump > 0 then
@@ -634,8 +662,8 @@ roundelie = {
             elseif (this.is_start_of_jump or this.current_anim == "jump1") and this.vy <= -0.7 then
                 -- "inflate" sprite is only drawn after a jump or bjump (up+x)
                 next_anim = "jump1"
-            elseif this.current_anim == "roll" then
-                -- roll continues in midair after rolling off the edge
+            -- roll continues in midair, but stops if roundelie isn't moving quickly enough in the same direction
+            elseif this.current_anim == "roll" and ((this.prev_facing == 1 and this.vx >= 1.0) or (this.prev_facing == -1 and this.vx <= -1.0)) then
                 -- TODO: buffer/first-frame jump => roll animation plays instead of inflate for the jump; is this good y/n
                 next_anim = "roll"
             elseif this.vy >= 0.3 then
