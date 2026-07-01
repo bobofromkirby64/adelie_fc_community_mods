@@ -32,14 +32,13 @@
 
 -- TODO: misc visual stuff ((?) => "maybe")
 --  - for the statue/gold skin, idle1 sprite looks strange after ending a roll => use the upright roll sprite instead of idle1 out of a roll
---  - puff probably shouldn't activate e.g. out of knockback or from the bounce after down+x
---      - could try adding an alternate jump1 pose (with same position but without the inflation) and then only use the puff pose for jumps and bjumps?
---      - I do kinda like the idea of "puffing up" in danger so maybe keep it for knockback actually? but it def looks strange after bouncing
 --  - (?) add a "tumble" anim after a long enough fall
 --      - mainly because the "falling" jump pose looks strange when it's been out for too long
 --      - could try reusing the roll but a transition pose might be needed? but could also maybe reuse a different sprite for that, like of the jump sprites and just rotate it, maybe?
+--      - NOTE: roll looks strange, for this; can revisit later
 --  - (?) experiment with adding alternate/random conk poses (could reuse the roll sprites...)
 --  - (?) experiment with adding fill color to sprites for sadface/tears/sroundelie during hitstun
+--  - (?) add skid/turn-around particle for dash
 --  - ...
 
 roundelie = {
@@ -75,6 +74,7 @@ roundelie = {
         this.p_dash = false
         this.was_on_ground = false
         this.was_big_conk = false
+        this.is_start_of_jump = false  -- => is roundelie starting a jump or bjump (up+x)
         this.is_crouching = false
         
         this.teleport_info = {
@@ -101,7 +101,7 @@ roundelie = {
             dive2 = {frames = {13}, speed = 1},  -- down+x pose *when large shockwave will be created upon landing
             crouch = {frames = {6}, speed = 1},
             up = {frames = {7}, speed = 1},
-            conk = {frames = {8}, speed = 1},  -- disoriented used for after down+x collides with ground and creates a large shockwave
+            conk = {frames = {8}, speed = 1},    -- disoriented used for after down+x collides with ground and creates a large shockwave
         }
         this.idle_poses = { "idle1", "idle2", "idle3", "idle4" }
         this.idle_poses_idx = 1
@@ -165,6 +165,7 @@ roundelie = {
         
         -- (( honestly this was a whole lot of work for a not-very-interesting effect LOL ))
         -- (( was a fun learning experience for working with particles but I won't be sad if it's replaced ~ ))
+        -- TODO: experiment with a new effect using sprites for the particles (similar to how smoke is drawn)
         this.draw_teleport_vfx = function(this)
             
             local prev_x, prev_y = this.teleport_info.prev_x, this.teleport_info.prev_y
@@ -407,6 +408,8 @@ roundelie = {
             this.p_jump = jump_btn
             this.p_dash = dash_btn
             
+            this.is_start_of_jump = jump or bump
+            
             local ground_hit = this:is_solid(0, 1)
             local on_ground = ground_hit ~= false
             local on_semisolid = ground_hit and (ground_hit.type == "semisolid" or ground_hit.semisolid)
@@ -536,6 +539,8 @@ roundelie = {
                     -- dive has a 1f delay before the hitbox comes out, with an initial burst of speed applied after the delay
                     this.freeze = 1
                     this.vy = util.appr(this.vy, 5, 2.40)--2.55) --2.0) --1.50)
+                    -- TODO: smoke here is fine as a placeholder but there needs to be a timer between dive+x uses, e.g. to avoid creating a mess during the dribble
+                    --game.init_smoke(this.x, this.y + 4)
                 else
                     -- the dive hitbox remains active as long as the input (down+x) is held
                     hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx), 4.5, 2)
@@ -550,6 +555,7 @@ roundelie = {
                     this.conk = 16  -- TODO: messy; conk is applied in three different places; can probably refactor so that the different bounces (ground/wall) are closer together
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     this.vy = -2
+                    game.init_smoke(this.x - this.conkdir * 6, this.y)  -- same as maddy wall-jump
                 end
             else
                 this.down_attack = false
@@ -616,18 +622,27 @@ roundelie = {
             if this.idle_poses_idx == 2 then this.idle_poses_idx = 4 elseif this.idle_poses_idx == 4 then this.idle_poses_idx = 2 end   -- TODO: messy
         end
         
-        if this.conk > 0 then
+        if this.hitstun > 0 then
+            -- animations are paused during hitstun
+            next_anim = this.current_anim
+        elseif this.conk > 0 then
             if this.was_big_conk then next_anim = "conk" else next_anim = "jump2" end
         -- TODO: magic numbers
         elseif not anim_on_ground then
             if this.down_attack then 
                 next_anim = (this.vy == 5 and "dive2" or "dive1")
-            elseif this.vy <= -0.7 then
+            elseif (this.is_start_of_jump or this.current_anim == "jump1") and this.vy <= -0.7 then
+                -- "inflate" sprite is only drawn after a jump or bjump (up+x)
                 next_anim = "jump1"
+            elseif this.current_anim == "roll" then
+                -- roll continues in midair after rolling off the edge
+                -- TODO: buffer/first-frame jump => roll animation plays instead of inflate for the jump; is this good y/n
+                next_anim = "roll"
             elseif this.vy >= 0.3 then
                 next_anim = "jump3"
             else
-                next_anim = "jump2"
+                -- bit hacky? point is to avoid getting knocked into the air and have sprites quickly change from jump3->jump2->jump3 after hitstun ends
+                next_anim = this.current_anim ~= "jump3" and "jump2" or "jump3"
             end
         elseif v_input == -1 then
             next_anim = "up"
@@ -660,7 +675,8 @@ roundelie = {
         end
 
         local anim = this.animations[this.current_anim]
-        this.anim_timer = this.anim_timer + 1
+        -- animations are paused during hitstun
+        if this.hitstun == 0 then this.anim_timer = this.anim_timer + 1 end
         
         if this.anim_timer >= anim.speed then
             this.anim_timer = 0
