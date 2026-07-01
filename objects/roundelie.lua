@@ -443,12 +443,15 @@ roundelie = {
             if jump then this.jbuffer = 4 elseif this.jbuffer > 0 then this.jbuffer = this.jbuffer - 1 end
             
             if on_ground then
+                -- dive -> bounce off of the ground
                 if this.down_attack then
-                    this.conk = 15
+                    this.conk = 16
                     this.down_attack = false
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     -- shockwaves
                     -- TODO: still need sfx for the shockwave (probably don't want on-hit sfx)
+                    -- TODO: shockwave visuals (smoke/dust clouds) don't always line up with shockwave hitbox
+                    -- TODO: probably should experiment with making the shockwave smaller, and also not extend as far into the air e.g. when you bounce near the edge of a platform
                     if this.was_vy == 5 then
                         this.shockwave_hb = hitbox.create(this.connectionID, (this.x - 25) + (-5 * this.conkdir), this.y + 4, 60, 4, 3, -2 * this.conkdir, -4, 2)
                         this.shockwave_hb.shockwave_large = true
@@ -463,6 +466,7 @@ roundelie = {
                         end
                     end
                     if this.was_vy == 5 then
+                        this.conk = 19 --this.conk + 4  -- test test test
                         this.was_big_conk = true
                         this.vy = -3.75
                         camera.shake(2, 2, 5)
@@ -518,6 +522,7 @@ roundelie = {
                     game.init_smoke(this.x, this.y + 4)
                 end
             end
+            
             -- might be overcomplicated; left over from maddy code
             local hb_w, hb_h = 10, 10
             local targetX = this.x + this.vx
@@ -530,18 +535,19 @@ roundelie = {
                 if not this.down_attack then 
                     -- dive has a 1f delay before the hitbox comes out, with an initial burst of speed applied after the delay
                     this.freeze = 1
-                    this.vy = util.appr(this.vy, 5, 1.50)
+                    this.vy = util.appr(this.vy, 5, 2.40)--2.55) --2.0) --1.50)
                 else
                     -- the dive hitbox remains active as long as the input (down+x) is held
                     hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx), 4.5, 2)
-                    this.vy = util.appr(this.vy, 5, 0.75)
+                    this.vy = util.appr(this.vy, 5, 0.70) --0.75)
                 end
 
                 this.down_attack = true
                 this.was_big_conk = false
                 
+                -- dive -> bounce off of a wall
                 if (this:is_solid(-3,0) or this:is_solid(3,0)) then
-                    this.conk = 15
+                    this.conk = 16  -- TODO: messy; conk is applied in three different places; can probably refactor so that the different bounces (ground/wall) are closer together
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     this.vy = -2
                 end
@@ -602,7 +608,6 @@ roundelie = {
                 -- i.e. [up->right->down->left] becomes [up->left->down->right]
                 if this.anim_frame == 2 then this.anim_frame = 4 elseif this.anim_frame == 4 then this.anim_frame = 2 end  -- TODO: messy
             end
-            
             this.idle_poses_idx = this.anim_frame
             next_anim = this.idle_poses[this.idle_poses_idx]
             
@@ -613,7 +618,6 @@ roundelie = {
         
         if this.conk > 0 then
             if this.was_big_conk then next_anim = "conk" else next_anim = "jump2" end
-        
         -- TODO: magic numbers
         elseif not anim_on_ground then
             if this.down_attack then 
