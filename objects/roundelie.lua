@@ -1,5 +1,5 @@
 -- objects/roundelie.lua
--- v0.5.1
+-- v0.5.2
 
 -- Movement Documentation:
 -- Z to jump, left and right arrow keys to move
@@ -21,6 +21,7 @@
 --   Has a 2 second cooldown before roundelie can teleport again
 --   This is indicated by the color of roundelie's beak, which changes when the teleport is unavailable
 --   Has a hitbox that sends opponents in the direction held 1f after the teleport (not necessarily the teleport direction)
+--      TODO: ^ I don't think this is actually true? I never switch input during or immediately after teleport but I regularly send opponent flying in the opposite direction
 --   Roundelie is invulnerable for the first two frames of the teleport, and the hitbox is also active for those first two frames
 --   There's a 3f delay before roundelie can act out of a teleport, e.g. buffering a grace-jump
 -- Jump + Down lets roundelie fall through any semisolids it interacts with
@@ -34,7 +35,7 @@ roundelie = {
         local player_skins = {
             {sprites["characters/roundelie_1"], {1,1,1,1}}, -- roundelie (default)
             {sprites["characters/roundelie_2"], {1,1,1,1}}, -- delaughter (purple/red)
-            {sprites["characters/roundelie_3"], {1,1,1,1}}, -- statue (golden) ... is wip, so in the meantime ~> nintendo-style palette (light blue)
+            {sprites["characters/roundelie_3"], {1,1,1,1}}, -- statue (golden)
             {sprites["characters/roundelie_4"], {1,1,1,1}}, -- ancient monument (from rosetta)
         }
         
@@ -59,6 +60,7 @@ roundelie = {
         this.p_dash = false
         this.was_on_ground = false
         this.was_big_conk = false
+        this.is_crouching = false
         
         this.teleport_info = {
             init = false,       -- true if teleport has started (=> flag used to trigger vfx)
@@ -74,13 +76,11 @@ roundelie = {
         
         this.animations = {
             -- TODO:: messy?
-            idle1 = {frames = {1},  speed = 1},  -- up
-            idle2 = {frames = {14}, speed = 1},  -- right
-            idle3 = {frames = {15}, speed = 1},  -- down
-            idle4 = {frames = {16}, speed = 1},  -- left
-            -- TODO::
-            --  - roll doesn't handle direction changes properly (sprite shouldn't flip, and instead it should decrement anim_frame)
-            --  - the different idle poses should start animation from corresponding roll frames (rather than the roll always starting from the top position)
+            -- TODO:: for statue/gold skin, idle1 sprite looks strange after ending a roll => use the upright roll sprite instead of idle1 out of a roll
+            idle1 = {frames = {1},  speed = 1},  -- upright
+            idle2 = {frames = {14}, speed = 1},  -- flop right (CW 90 degrees)
+            idle3 = {frames = {15}, speed = 1},  -- upside-down
+            idle4 = {frames = {16}, speed = 1},  -- flop left (CW 270 degrees)
             roll = {frames = {10, 2, 3, 4}, speed = 3}, -- up -> right -> down -> left ...
             -- TODO::
             --  - puff probably shouldn't activate e.g. out of knockback or from the bounce after down+x
@@ -100,6 +100,7 @@ roundelie = {
             -- pain = {...
         }
         this.idle_poses = { "idle1", "idle2", "idle3", "idle4" }
+        this.idle_poses_idx = 1
         this.current_anim = "idle1"
         this.anim_frame = 1
         this.anim_timer = 0
@@ -111,6 +112,7 @@ roundelie = {
         this.freeze = 0
         this.conk = 0
         this.conkdir = 0
+        this.prev_facing = 1  -- used in roll animation logic
         
         this.check_snowballs = function(this)
             if this.hitstun > 0 then return end
@@ -195,7 +197,7 @@ roundelie = {
                             if frame > 3 then frame = 3 end
                             love.graphics.setColor(1, 1, 1)
                             -- TODO: might be able to use a stencil to prevent the standard smoke from covering the after-image on the first two frames?
-                            sprites.draw(sprites.roundelie_teleport_afterimage[frame], p.x + p.cx, p.y, 0, p.facing, 1, p.cx, 0)
+                            sprites.draw(sprites["characters/roundelie_teleport_afterimage"][frame], p.x + p.cx, p.y, 0, p.facing, 1, p.cx, 0)
                         end
                     })
             end
@@ -374,6 +376,9 @@ roundelie = {
             end
             return
         end
+        
+        --
+        this.prev_facing = this.facing
         
         local h_input = (inputSource.getKeyDown(id, "right") and 1 or 0) - (inputSource.getKeyDown(id, "left") and 1 or 0)
         local v_input = (inputSource.getKeyDown(id, "down") and 1 or 0) - (inputSource.getKeyDown(id, "up") and 1 or 0)
@@ -564,30 +569,38 @@ roundelie = {
             this:draw_teleport_vfx()
         end
         
+        --
+        this.is_crouching = false
+        
         -- sprite stuff
         local anim_on_ground = this.vy >= 0 and this:is_solid(0, 1)
-        local next_anim = "idle1"
-        -- TODO: bit messy?
-        if this.current_anim == "idle2" or this.current_anim == "idle3" or this.current_anim == "idle4" then
-            next_anim = this.current_anim
-        elseif this.current_anim == "roll" then
-            next_anim = this.idle_poses[this.anim_frame]
+        local next_anim = this.idle_poses[this.idle_poses_idx]
+        
+        
+        -- TODO: I have a feeling putting this here is making it messier but I need to look into it a bit more
+        if this.current_anim == "roll" then
+           
+            if this.prev_facing ~= this.facing then
+                -- when roundelie's direction changes mid-roll, the flipped sprite makes the "right" rolling pose becomes "left", and vice versa
+                -- i.e. [up->right->down->left] becomes [up->left->down->right]
+                if this.anim_frame == 2 then this.anim_frame = 4 elseif this.anim_frame == 4 then this.anim_frame = 2 end  -- TODO: messy
+            end
+            
+            this.idle_poses_idx = this.anim_frame
+            next_anim = this.idle_poses[this.idle_poses_idx]
+            
+        elseif this.prev_facing ~= this.facing and (this.current_anim == "idle2" or this.current_anim == "idle4") then
+            -- also need to account for current pose being idle for the roll orientation issue (related `TODO` at the start of this conditional block)
+            if this.idle_poses_idx == 2 then this.idle_poses_idx = 4 elseif this.idle_poses_idx == 4 then this.idle_poses_idx = 2 end   -- TODO: messy
         end
         
         if this.conk > 0 then
-            -- a different sprite is drawn after the big bounce
-            if this.was_big_conk then
-                next_anim = "conk"
-            else
-                next_anim = "jump2"
-            end
+            if this.was_big_conk then next_anim = "conk" else next_anim = "jump2" end
         
         -- TODO: magic numbers
         elseif not anim_on_ground then
-            if this.down_attack and this.vy == 5 then
-                next_anim = "dive2"
-            elseif this.down_attack then
-                next_anim = "dive1"
+            if this.down_attack then 
+                next_anim = (this.vy == 5 and "dive2" or "dive1")
             elseif this.vy <= -0.7 then
                 next_anim = "jump1"
             elseif this.vy >= 0.3 then
@@ -595,28 +608,39 @@ roundelie = {
             else
                 next_anim = "jump2"
             end
-        --elseif this.dash_time > 0 and this.vx == 0 then --whar
-        --    next_anim = "crouch"
         elseif v_input == -1 then
             next_anim = "up"
         elseif v_input == 1 then
             next_anim = "crouch"
+            this.is_crouching = true
         -- TODO: magic numbers
         elseif (this.current_anim == roll and math.abs(this.vx) >= 1.2) or (this.current_anim ~= roll and math.abs(this.vx) > 0.1) then
             next_anim = "roll"
         end
 
         if next_anim ~= this.current_anim then
+            if next_anim ~= "roll" and next_anim ~= "idle2" and next_anim ~= "idle3" and next_anim ~= "idle4" then  -- TODO: messy
+                -- `idle_poses_idx` is used to keep track of roundelie's orientation
+                -- but whenever a sprite that is NOT an idle or rolling pose is drawn, then the current orientation resets to the default (upright) position
+                this.idle_poses_idx = 1
+                
+            end
+            
             this.current_anim = next_anim
-            this.anim_frame = 1
-            this.anim_timer = 0
+            
+            if next_anim == "roll" then
+                this.anim_frame = this.idle_poses_idx  -- starting frame of the roll anim is determined by roundelie's orientation
+                -- speeding up the animation immediately after direction changes helps the roll appear more natural
+                this.anim_timer = (this.prev_facing ~= this.facing) and math.floor(this.animations[next_anim].speed / 2) or 0
+            else
+                this.anim_frame = 1
+                this.anim_timer = 0
+            end
         end
 
         local anim = this.animations[this.current_anim]
         this.anim_timer = this.anim_timer + 1
         
-        -- TODO: add special logic for roll animations here ~
-
         if this.anim_timer >= anim.speed then
             this.anim_timer = 0
             this.anim_frame = this.anim_frame + 1
@@ -714,18 +738,28 @@ roundelie = {
             love.graphics.setShader(whiteShader)
             love.graphics.setColor(1, 1, 1)
         elseif this.dash_cooldown > 0 then
-            if this.skin == 3 or this.skin == 4 then
-                love.graphics.setShader(paletteSwapShader)
+            love.graphics.setShader(paletteSwapShader)
+            if this.skin == 3 then
+                -- eyes swap from default (gold) -> "deactivated" (dark blue)
+                paletteSwapShader:send("color_find", {203/255, 136/255, 4/255, 1.0})
+                paletteSwapShader:send("color_replace", {29/255, 43/255, 83/255, 1.0})    
+            elseif this.skin == 4 then
+                -- ...
                 paletteSwapShader:send("color_find", {171/255, 82/255, 54/255, 1.0})
                 paletteSwapShader:send("color_replace", {255/255, 119/255, 168/255, 1.0})
             else
-                love.graphics.setShader(paletteSwapShader)
+                -- TODO: swap out placeholder effect
                 paletteSwapShader:send("color_find", {255/255, 163/255, 0/255, 1.0})
                 paletteSwapShader:send("color_replace", {95/255, 87/255, 79/255, 1.0})
             end
             
         end
         
+        if this.skin == 3 then
+            -- roundelie's face and belly for the statue (gold) skin are drawn on top of a "base" sprite that does not flip
+            local base_spr = sprites[ this.is_crouching and "characters/roundelie_3_base_crouch" or "characters/roundelie_3_base_default" ]
+            sprites.draw(base_spr, this.x + cx, this.y, 0, 1, 1, cx, 0)
+        end
         sprites.draw(this.spr, this.x + cx, this.y, 0, this.facing, 1, cx, 0)
         
         if this.connectionID == connectionID then
