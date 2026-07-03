@@ -594,8 +594,7 @@ roundelie = {
                 this.down_attack = false
             end
             if this.conk > 0 then
-                --
-                this.vx = .2 * this.conk * this.conkdir
+                this.vx = 0.15 * this.conk * this.conkdir
             elseif v_input == -1 and bump and this.bjump > 0 then
                 this.bump_cooldown = 0 --TODO: different from main branch, update documentation and code neatness if you want to keep
                 this.vy = -3
