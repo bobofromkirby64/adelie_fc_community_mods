@@ -839,7 +839,7 @@ roundelie = {
         
         if this.skin == 3 then
             -- roundelie's face and belly for the statue (gold) skin are drawn on top of a "base" sprite that does not flip
-            local base_spr = sprites[ this.is_crouching and "characters/roundelie_3_base_crouch" or "characters/roundelie_3_base_default" ]
+            local base_spr = sprites[ this.current_anim == "crouch" and "characters/roundelie_3_base_crouch" or "characters/roundelie_3_base_default" ]
             sprites.draw(base_spr, this.x + cx, this.y, 0, 1, 1, cx, 0)
         end
         sprites.draw(this.spr, this.x + cx, this.y, 0, this.facing, 1, cx, 0)
