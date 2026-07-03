@@ -351,10 +351,9 @@ roundelie = {
             return
         end
         
-        -- bonk timer
+        -- # of ticks until roundelie is able to act after bouncing
+        -- TODO: can we change this to bonk? lol
         if this.conk > 0 then
-            -- TODO: this gets decremented twice on each tick;
-            --  => could refactor so it instead corresponds to the # of frames before roundelie is actionable after bouncing?
             this.conk = this.conk - 1
         end
         
@@ -471,7 +470,7 @@ roundelie = {
             if on_ground then
                 -- dive -> bounce off of the ground
                 if this.down_attack then
-                    this.conk = 18  -- => 9f (?)
+                    this.conk = 9
                     this.dive_smoketrail = 0
                     this.down_attack = false
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
@@ -493,7 +492,7 @@ roundelie = {
                         end
                     end
                     if this.was_vy == 4.5 then
-                        this.conk = 20  -- => 10f (?)
+                        this.conk = 10
                         this.was_big_conk = true
                         this.vy = -3.75
                         camera.shake(2, 2, 4)
@@ -585,7 +584,7 @@ roundelie = {
                 
                 -- dive -> bounce off of a wall
                 if (this:is_solid(-3,0) or this:is_solid(3,0)) then
-                    this.conk = 16  -- => 8f (?)
+                    this.conk = 8
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     this.dive_smoketrail = 0
                     this.vy = -2
@@ -595,10 +594,8 @@ roundelie = {
                 this.down_attack = false
             end
             if this.conk > 0 then
-                -- TODO: this gets decremented twice on each tick; once here and once with all the other timers
-                --  => could refactor so it instead corresponds to the # of frames before roundelie is actionable after bouncing?
-                this.conk = this.conk - 1
-                this.vx = .1 * this.conk * this.conkdir
+                --
+                this.vx = .2 * this.conk * this.conkdir
             elseif v_input == -1 and bump and this.bjump > 0 then
                 this.bump_cooldown = 0 --TODO: different from main branch, update documentation and code neatness if you want to keep
                 this.vy = -3
