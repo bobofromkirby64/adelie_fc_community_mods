@@ -118,8 +118,7 @@ roundelie = {
         this.freeze = 0
         this.conk = 0
         this.conkdir = 0
-        this.dive_timer1 = 0 -- TODO: messy but temporary; planning to replace this timer with a more exhaustive check
-        this.dive_timer2 = 0 -- 
+        this.dive_startup = 0
         this.dive_smoketrail = 0
         this.prev_facing = 1  -- for roll animation logic
         
@@ -358,14 +357,9 @@ roundelie = {
             this.conk = this.conk - 1
         end
         
-        -- tracks time between dives (down+x)
-        if this.dive_timer1 > 0 then
-            this.dive_timer1 = this.dive_timer1 - 1
-        end
-        
         -- # of ticks after starting a dive before roundelie is able to perform a big bounce
-        if this.dive_timer2 > 0 then
-            this.dive_timer2 = this.dive_timer2 - 1
+        if this.dive_startup > 0 then
+            this.dive_startup = this.dive_startup - 1
         end
         
         -- dive vfx
@@ -483,7 +477,7 @@ roundelie = {
                     -- TODO: still need sfx for the shockwave (probably don't want on-hit sfx)
                     -- TODO: shockwave visuals (smoke/dust clouds) don't always line up with shockwave hitbox
                     -- TODO: probably should experiment with making the shockwave smaller, and also not extend as far into the air e.g. when you bounce near the edge of a platform
-                    if this.was_vy == 4.5 and this.dive_timer2 == 0 then
+                    if this.was_vy == 4.5 and this.dive_startup == 0 then
                         this.shockwave_hb = hitbox.create(this.connectionID, (this.x - 25) + (-5 * this.conkdir), this.y + 4, 60, 4, 3, -2 * this.conkdir, -4, 2)
                         this.shockwave_hb.shockwave_large = true
                         for i = -25,20,10 do
@@ -565,17 +559,15 @@ roundelie = {
                     -- dive has a 1f delay before the hitbox comes out and an initial burst of speed after the delay
                     this.freeze = 1
                     this.vy = util.appr(this.vy, 4.5, 1.95)
-                    if this.dive_timer1 == 0 then
+                    
+                    -- a bit hacky, but this helps prevent the smoke-trail effect from being drawn when roundelie starts diving right before bouncing (e.g., while dribbling or wall-climbing)
+                    if (not this:is_solid(this.vx, this.vy)) and ((this.p_jump and (not this:is_solid(0, this.vy + 4, true))) or (not this:is_solid(0, this.vy + 4))) then
                         this.dive_smoketrail = 3
                         game.init_smoke(this.x, this.y - 4)
                         love.audio.play("maddy_downdash", "static")  -- TODO: placeholder
                     end
-                    -- ~* m a g i c *~
-                    -- conk for a small bounce is currently 9f, + [# frames to reach the ground again after a small bounce] => around 14f, apparently
-                    -- => timer prevents a mess of smoke during dribble/wall-jump because it *always* prevents smoke from being drawn when diving immediately after a small bounce
-                    -- => TODO: come up with a better solution than a magic timer
-                    this.dive_timer1 = 14
-                    this.dive_timer2 = 3 -- atm this is the same duration as the dive smoketrail, to line up with the effect
+                    
+                    this.dive_startup = 3 -- atm this is the same duration as the dive smoketrail, to line up with the effect
                 else
                     -- the dive hitbox remains active as long as the input (down+x) is held
                     hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx), 4.5, 2)
