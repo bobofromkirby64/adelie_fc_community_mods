@@ -1,5 +1,5 @@
 -- objects/roundelie.lua
--- v0.6.0
+-- v0.6.1
 
 -- Movement Documentation:
 -- Z to jump, left and right arrow keys to move
@@ -74,15 +74,13 @@ roundelie = {
         
         this.p_jump = false
         this.p_dash = false
+        this.is_start_of_jump = false  -- => is roundelie starting a jump or bjump (up+x)
         this.was_on_ground = false
         this.was_big_conk = false
-        this.is_start_of_jump = false  -- => is roundelie starting a jump or bjump (up+x)
-        this.is_crouching = false
+        this.draw_dive_smoketrail = false  -- test test test
         
         this.teleport_info = {
             init = false,       -- true if teleport has started (=> flag used to trigger vfx)
-            prev_x = 0,         -- pos (x) at teleport start-point
-            prev_y = 0,         -- pos (y) at teleport start-point
             horizontal = false, -- true if teleport has an input direction (i.e. not a neutral input)
             on_hit = false      -- true if teleport has hit the opponent
         }
@@ -90,7 +88,6 @@ roundelie = {
         this.shockwave_hb = nil  -- hitbox created by diving (down+x attack) into the ground
         
         this.animations = {
-            -- TODO:: messy?
             idle1 = {frames = {1},  speed = 1},  -- upright
             idle2 = {frames = {14}, speed = 1},  -- right (CW 90 degrees)
             idle3 = {frames = {15}, speed = 1},  -- upside-down
@@ -120,13 +117,25 @@ roundelie = {
         this.conkdir = 0
         this.dive_startup = 0
         this.dive_smoketrail = 0
-        this.prev_facing = 1  -- for roll animation logic
+        
+        this.prev_x = 0
+        this.prev_y = 0
+        this.prev_vx = 0
+        this.prev_vy = 0
+        this.prev_facing = 1
         
         this.check_snowballs = function(this)
             if this.hitstun > 0 then return end
             for _, o in ipairs(objects) do
-                if o.type and o.type.name == "snowball" and not o.destroyed and o.throwerID ~= this.connectionID and not o.held then
-                    if this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= o:top() and this:top() <= o:bottom() then
+                if o.type and o.type.name == "snowball" and not o.destroyed and not o.held then
+                    -- check for collision with a snowball in path of dive to determine whether to draw the smoke-trail effect
+                    local cx = 2 * (this.prev_vx + 4)
+                    local cy = 2 * (this.prev_vy + 4)
+                    this.draw_dive_smoketrail = this.draw_dive_smoketrail and
+                        (not (this:bottom() + cy <= o:top() + 4 and this:bottom() + cy >= o:top() and this:left() - cx <= o:right() and this:right() + cx >= o:left()))
+                    
+                    -- snowball interactions
+                    if o.throwerID ~= this.connectionID  and this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= o:top() and this:top() <= o:bottom() then
                         local function snap()
                             this:move(0, o.y-8-this.y)
                             if this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= o:top() and this:top() <= o:bottom() then
@@ -136,12 +145,9 @@ roundelie = {
                         
                         if this.dash_time > 0 then
                             -- teleport into snowball
-                            o.vx = 5.25 * this.facing  -- teleport is stronger => should knock snowball away much farther than maddy dash
+                            o.vx = 5.0 * this.facing  -- teleport is strong => should launch snowball with more force than maddy dash
+                            o.vy = -1.5
                             o.stop = false
-                            o.vy = -1.25  -- TODO: not sure about current snowball trajectory
-                            
-                            this.vx = this.facing * -4
-                            
                             o.throwerID = this.connectionID
                             o.thrown_timer = 10
                             love.audio.play("hit", "static")
@@ -152,15 +158,13 @@ roundelie = {
                             
                             -- dive into snowball
                             if this.down_attack then
-                                -- TODO: open question of whether or not bouncing on a snowball should also create ground-slam hitbox,
-                                --       also whether roundelie should even be able to big bounce off of a snowball (=> I'm leaning towards YES for big bounce, NO for ground-slam)
                                 -- TODO: probably a bit messy to have code repeated here when it's basically just copy-pasted from the update function
-                                if (this.was_vy == 4.5 and this.dive_startup == 0) then
+                                if (this.prev_vy == 4.5 and this.dive_startup == 0) then
                                     -- big bounce
-                                    this.vy = -3.75 - 1.5  -- snowball is bouncy => dive bounce should rebound higher than it would off the ground
+                                    this.vy = -3.75 - 1.25  -- snowball is bouncy => dive bounce should rebound higher than it would off the ground
                                     this.was_big_conk = true
                                     this.conk = 10
-                                    o.vy = -2.75
+                                    o.vy = -2.5
                                 else
                                     -- small bounce
                                     this.vy = -2.0 - 1.0
@@ -176,9 +180,9 @@ roundelie = {
                                 o.thrown_timer = 10
                                 love.audio.play("maddy_jump", "static")
                                 
-                            -- bounce on top of the snowball
+                            -- bounce on top of snowball
                             else
-                                if this.p_jump or inputSource.getKeyDown(this.connectionID, "b1") then
+                                if this.p_jump then-- or inputSource.getKeyDown(this.connectionID, "b1") then
                                     this.vy = -3.36
                                     love.audio.play("maddy_jump", "static")
                                 else
@@ -197,7 +201,7 @@ roundelie = {
         -- TODO: experiment with a new effect using sprites for the particles (similar to how smoke is drawn)
         this.draw_teleport_vfx = function(this)
             
-            local prev_x, prev_y = this.teleport_info.prev_x, this.teleport_info.prev_y
+            local prev_x, prev_y = this.prev_x, this.prev_y
             
             -- (1) poof out / start-point
             if this.teleport_info.horizontal then
@@ -377,7 +381,6 @@ roundelie = {
         end
         
         -- # of ticks until roundelie is able to act after bouncing
-        -- TODO: can we change this to bonk? lol
         if this.conk > 0 then
             this.conk = this.conk - 1
         end
@@ -453,7 +456,6 @@ roundelie = {
             local bump = dash_btn and (not this.p_dash) and this.bump_cooldown == 0
             this.p_jump = jump_btn
             this.p_dash = dash_btn
-            
             this.is_start_of_jump = jump or bump
             
             local ground_hit = this:is_solid(0, 1)
@@ -472,7 +474,7 @@ roundelie = {
                     on_ground = false
                     jump = false
                     this.jbuffer = 0
-                    this.vy = this.was_vy
+                    this.vy = this.prev_vy
                 end
             end
             
@@ -502,7 +504,7 @@ roundelie = {
                     -- TODO: still need sfx for the shockwave (probably don't want on-hit sfx)
                     -- TODO: shockwave visuals (smoke/dust clouds) don't always line up with shockwave hitbox
                     -- TODO: probably should experiment with making the shockwave smaller, and also not extend as far into the air e.g. when you bounce near the edge of a platform
-                    if this.was_vy == 4.5 and this.dive_startup == 0 then
+                    if this.prev_vy == 4.5 and this.dive_startup == 0 then
                         this.shockwave_hb = hitbox.create(this.connectionID, (this.x - 25) + (-5 * this.conkdir), this.y + 4, 60, 4, 3, -2 * this.conkdir, -4, 2)
                         this.shockwave_hb.shockwave_large = true
                         for i = -25,20,10 do
@@ -584,17 +586,10 @@ roundelie = {
                     -- dive has a 1f delay before the hitbox comes out and an initial burst of speed after the delay
                     this.freeze = 1
                     this.vy = util.appr(this.vy, 4.5, 1.95)
-                    
                     -- a bit hacky, but this helps prevent the smoke-trail effect from being drawn when roundelie starts diving right before bouncing (e.g., while dribbling or wall-climbing)
-                    if (not this:is_solid(this.vx, this.vy)) and ((this.p_jump and (not this:is_solid(0, this.vy + 4, true))) or (not this:is_solid(0, this.vy + 4))) then
-                        -- TODO: dash smoke-trail is drawn in the update function, but since dive can *also* bounce off of snowballs, the logic around drawing the smoke-trail needs
-                        --       to happen after the check snowball call to avoid looping through all of the objects (to check for snowball collision) twice
-                        this.dive_smoketrail = 3
-                        game.init_smoke(this.x, this.y - 4)
-                        love.audio.play("maddy_downdash", "static")  -- TODO: placeholder
-                    end
-                    
-                    this.dive_startup = 3 -- atm this is the same duration as the dive smoketrail, to line up with the effect
+                    -- TODO: can probably perform a more robust check by comparing prev x/y and vx/y with pos after movement/collision is calculated
+                    this.draw_dive_smoketrail = (not this:is_solid(this.vx, this.vy)) and ((this.p_jump and (not this:is_solid(0, this.vy + 4, true))) or (not this:is_solid(0, this.vy + 4)))
+                    this.dive_startup = 3 -- atm this is the same duration as the dive smoke-trail, to line up with the effect
                 else
                     -- the dive hitbox remains active as long as the input (down+x) is held
                     hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx), 4.5, 2)
@@ -640,12 +635,11 @@ roundelie = {
                 love.audio.play("maddy_dash", "static")
             end
             this.was_on_ground = on_ground
-            this.was_vy = this.vy -- part of the hacky semisolid fix
+            this.prev_x = this.x  -- need to keep track of original position for some visual effects drawn after movement/collision is calculated
+            this.prev_y = this.y  --
+            this.prev_vx = this.vx
+            this.prev_vy = this.vy -- part of the hacky semisolid fix
         end
-        
-        -- teleport vfx are drawn after movement/collision is calculated => need to keep track of original position
-        this.teleport_info.prev_x = this.x
-        this.teleport_info.prev_y = this.y
         
         this:move(this.vx, this.vy)
         this:check_snowballs()
@@ -654,8 +648,12 @@ roundelie = {
             this:draw_teleport_vfx()
         end
         
-        --
-        this.is_crouching = false
+        if this.draw_dive_smoketrail then
+            this.dive_smoketrail = 3
+            game.init_smoke(this.prev_x, this.prev_y - 4)
+            love.audio.play("maddy_downdash", "static")  -- TODO: placeholder
+            this.draw_dive_smoketrail = false
+        end
         
         -- sprite stuff
         local anim_on_ground = this.vy >= 0 and this:is_solid(0, 1)
@@ -682,7 +680,6 @@ roundelie = {
             next_anim = this.current_anim
         elseif this.conk > 0 then
             if this.was_big_conk then next_anim = "conk" else next_anim = "jump2" end
-        -- TODO: magic numbers
         elseif not anim_on_ground then
             if this.down_attack then 
                 next_anim = (this.vy == 4.5 and "dive2" or "dive1")
@@ -691,7 +688,8 @@ roundelie = {
                 next_anim = "jump1"
             -- roll continues in midair, but stops if roundelie isn't moving quickly enough in the same direction
             elseif this.current_anim == "roll" and ((this.prev_facing == 1 and this.vx >= 1.0) or (this.prev_facing == -1 and this.vx <= -1.0)) then
-                -- TODO: buffer/first-frame jump => roll animation plays instead of inflate for the jump; is this good y/n
+                -- TODO: buffer/first-frame jump => roll animation plays instead of inflate for the jump
+                --       need to implement this explicitly rather than have it exist as a side-effect of the current midair roll logic
                 next_anim = "roll"
             elseif this.vy >= 0.3 then
                 next_anim = "jump3"
@@ -703,8 +701,6 @@ roundelie = {
             next_anim = "up"
         elseif v_input == 1 then
             next_anim = "crouch"
-            this.is_crouching = true
-        -- TODO: magic numbers
         elseif (this.current_anim == roll and math.abs(this.vx) >= 1.2) or (this.current_anim ~= roll and math.abs(this.vx) > 0.1) then
             next_anim = "roll"
         end
@@ -873,5 +869,4 @@ roundelie = {
         love.graphics.setShader()
         love.graphics.setColor(1, 1, 1)
     end
-    
 }
