@@ -135,32 +135,57 @@ roundelie = {
                         end
                         
                         if this.dash_time > 0 then
-                            -- dash redirect
-                            o.vx = 3 * this.facing
-                            o.stop = false --TODO: probably not?
-                            this.vy = -1
-                            o.vy = -3
+                            -- teleport into snowball
+                            o.vx = 5.25 * this.facing  -- teleport is stronger => should knock snowball away much farther than maddy dash
+                            o.stop = false
+                            o.vy = -1.25  -- TODO: not sure about current snowball trajectory
                             
                             this.vx = this.facing * -4
-                            this.dash_cooldown = 4
-                            this.dash_time = 0
                             
                             o.throwerID = this.connectionID
                             o.thrown_timer = 10
                             love.audio.play("hit", "static")
                             
-                        elseif this.vy > 0 and this:bottom() <= o:top() + 4 then
-                            -- bounce on top
+                        elseif ((this.down_attack and this.conk == 0) or this.vy > 0) and this:bottom() <= o:top() + 4 then
                             snap()
                             this.bjump = 3
-                            if this.p_jump or inputSource.getKeyDown(this.connectionID, "b1") or this.down_attack then
-                                this.vy = -3.36
-                                love.audio.play("maddy_jump", "static")
-                            else
-                                this.vy = -1.5
-                            end
                             
-                            o.vy = o:is_solid(0, 1) and -1 or -0.5
+                            -- dive into snowball
+                            if this.down_attack then
+                                -- TODO: open question of whether or not bouncing on a snowball should also create ground-slam hitbox,
+                                --       also whether roundelie should even be able to big bounce off of a snowball (=> I'm leaning towards YES for big bounce, NO for ground-slam)
+                                -- TODO: probably a bit messy to have code repeated here when it's basically just copy-pasted from the update function
+                                if (this.was_vy == 4.5 and this.dive_startup == 0) then
+                                    -- big bounce
+                                    this.vy = -3.75 - 1.5  -- snowball is bouncy => dive bounce should rebound higher than it would off the ground
+                                    this.was_big_conk = true
+                                    this.conk = 10
+                                    o.vy = -2.75
+                                else
+                                    -- small bounce
+                                    this.vy = -2.0 - 1.0
+                                    this.conk = 8
+                                    o.vy = -2.0
+                                end
+                                
+                                this.dive_smoketrail = 0
+                                this.down_attack = false
+                                this.vx = 0.15 * this.conk * this.conkdir
+                                
+                                o.throwerID = this.connectionID
+                                o.thrown_timer = 10
+                                love.audio.play("maddy_jump", "static")
+                                
+                            -- bounce on top of the snowball
+                            else
+                                if this.p_jump or inputSource.getKeyDown(this.connectionID, "b1") then
+                                    this.vy = -3.36
+                                    love.audio.play("maddy_jump", "static")
+                                else
+                                    this.vy = -1.5
+                                end
+                                o.vy = o:is_solid(0, 1) and -1 or -0.5
+                            end
                         end
                     end
                 end
@@ -248,7 +273,7 @@ roundelie = {
                             update = function(p)
                                 if (not p.on_hit_flag) and p.tp_info.on_hit then
                                     p.on_hit_flag = true
-                                    p.speed = p.speed * 1.35  -- <~ increase to make on-hit effect bigger
+                                    p.speed = p.speed * 1.35  --
                                     p.drag  = p.drag * 1.35   --
                                 end
                                 p.x = p.x + p.vx * p.speed
@@ -494,7 +519,7 @@ roundelie = {
                             game.init_smoke(this.x + i + (-5 * this.conkdir), this.y + 8)  --could be better
                         end
                         this.conk = 9
-                        this.vy = -2
+                        this.vy = -2.0
                     end
                 end
                 if this.vy < 0 then
@@ -562,6 +587,8 @@ roundelie = {
                     
                     -- a bit hacky, but this helps prevent the smoke-trail effect from being drawn when roundelie starts diving right before bouncing (e.g., while dribbling or wall-climbing)
                     if (not this:is_solid(this.vx, this.vy)) and ((this.p_jump and (not this:is_solid(0, this.vy + 4, true))) or (not this:is_solid(0, this.vy + 4))) then
+                        -- TODO: dash smoke-trail is drawn in the update function, but since dive can *also* bounce off of snowballs, the logic around drawing the smoke-trail needs
+                        --       to happen after the check snowball call to avoid looping through all of the objects (to check for snowball collision) twice
                         this.dive_smoketrail = 3
                         game.init_smoke(this.x, this.y - 4)
                         love.audio.play("maddy_downdash", "static")  -- TODO: placeholder
@@ -577,13 +604,13 @@ roundelie = {
 
                 this.down_attack = true
                 this.was_big_conk = false
+                this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1  -- needs to be kept updated for snowball logic
                 
                 -- dive -> bounce off of a wall
                 if (this:is_solid(-3,0) or this:is_solid(3,0)) then
                     this.conk = 8
-                    this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     this.dive_smoketrail = 0
-                    this.vy = -2
+                    this.vy = -2.0
                     game.init_smoke(this.x - this.conkdir * 6, this.y)  -- same as maddy wall-jump
                 end
             else
@@ -593,7 +620,7 @@ roundelie = {
                 this.vx = 0.15 * this.conk * this.conkdir
             elseif v_input == -1 and bump and this.bjump > 0 then
                 this.bump_cooldown = 0 --TODO: different from main branch, update documentation and code neatness if you want to keep
-                this.vy = -3
+                this.vy = -3.0
                 love.audio.play("maddy_nodash", "static")
                 if this.bjump >= 1 then
                     game.init_smoke(this.x, this.y)
