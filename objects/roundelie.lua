@@ -29,12 +29,13 @@
 -- Jump + Down lets roundelie fall through any semisolids it interacts with
 --   Falling through semisolids which roundelie is standing on requires pressing jump, like other characters
 
-
 -- TODO: misc visual stuff ((?) => "maybe")
+--  - redraw portraits for the other skins in the new style
+--  - redraw rosetta skin in the style of the new sprites (and probably also experiment with the "square" idea)
 --  - add skid/turn-around effect for roll
 --  - for the statue/gold skin, idle1 sprite looks strange after ending a roll => use the upright roll sprite instead of idle1 out of a roll
+--  - sprite adjustments (mainly the idle poses, the "look up" pose, and the middle/transitional jump pose have been bugging me)
 --  - clean up spritesheets
---  - (?) adjust sprites for default idle pose + "look up" pose
 --  - (?) add a "tumble" anim after a long enough fall
 --      - mainly because the "falling" jump pose looks strange when it's been out for too long
 --      - could try reusing the roll but a transition pose might be needed? but could also maybe reuse a different sprite for that, like of the jump sprites and just rotate it, maybe?
@@ -77,7 +78,7 @@ roundelie = {
         this.is_start_of_jump = false  -- => is roundelie starting a jump or bjump (up+x)
         this.was_on_ground = false
         this.was_big_conk = false
-        this.draw_dive_smoketrail = false  -- test test test
+        this.should_draw_dive_vfx = false
         
         this.teleport_info = {
             init = false,       -- true if teleport has started (=> flag used to trigger vfx)
@@ -128,11 +129,33 @@ roundelie = {
             if this.hitstun > 0 then return end
             for _, o in ipairs(objects) do
                 if o.type and o.type.name == "snowball" and not o.destroyed and not o.held then
-                    -- check for collision with a snowball in path of dive to determine whether to draw the smoke-trail effect
-                    local cx = 2 * (this.prev_vx + 4)
-                    local cy = 2 * (this.prev_vy + 4)
-                    this.draw_dive_smoketrail = this.draw_dive_smoketrail and
-                        (not (this:bottom() + cy <= o:top() + 4 and this:bottom() + cy >= o:top() and this:left() - cx <= o:right() and this:right() + cx >= o:left()))
+                    -- check for collision with a snowball in the dive's path to determine whether to draw the smoke-trail effect
+                    if (this.dive_startup == 3) then -- TODO: messy
+                        -- notes:
+                        --  we're checking for collision between roundelie's hurtbox and the snowball hitbox, 
+                        --      but with the pos of roundelie's hurtbox being "where it will be on the next TWO frames (ignoring collision) if roundelie's vx/y does not change"
+                        --      => roundelie's position is temporarily updated in order to make use of the existing `bottom`, `right`, etc. functions for these checks
+                        local temp_x = this.x
+                        local temp_y = this.y
+                        -- these checks are meant to correspond to the checks in the update function for `should_draw_dive_vfx`, but checking for collision with a snowball instead of `is_solid`
+                        this.x = temp_x + this.vx
+                        this.y = temp_y + this.vy
+                        local snowball_collision_check_a = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
+                        this.x = temp_x + this.vx
+                        this.y = temp_y + this.vy + 4
+                        local snowball_collision_check_b = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
+                        this.x = temp_x + 2 * this.vx
+                        this.y = temp_y + 2 * this.vy
+                        local snowball_collision_check_c = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
+                        this.x = temp_x + 2 * this.vx
+                        this.y = temp_y + 2 * (this.vy + 4)
+                        local snowball_collision_check_d = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
+                        -- reset position
+                        this.x = temp_x
+                        this.y = temp_y
+                        --
+                        this.should_draw_dive_vfx = this.should_draw_dive_vfx and (not (snowball_collision_check_a or snowball_collision_check_b or snowball_collision_check_c or snowball_collision_check_d))
+                    end
                     
                     -- snowball interactions
                     if o.throwerID ~= this.connectionID  and this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= o:top() and this:top() <= o:bottom() then
@@ -146,11 +169,12 @@ roundelie = {
                         if this.dash_time > 0 then
                             -- teleport into snowball
                             o.vx = 5.0 * this.facing  -- teleport is strong => should launch snowball with more force than maddy dash
-                            o.vy = -1.5
+                            o.vy = -2.0
                             o.stop = false
                             o.throwerID = this.connectionID
                             o.thrown_timer = 10
-                            love.audio.play("hit", "static")
+                            love.audio.play("zap", "static")
+                            this.teleport_info.on_hit = true
                             
                         elseif ((this.down_attack and this.conk == 0) or this.vy > 0) and this:bottom() <= o:top() + 4 then
                             snap()
@@ -202,6 +226,7 @@ roundelie = {
         this.draw_teleport_vfx = function(this)
             
             local prev_x, prev_y = this.prev_x, this.prev_y
+            this.teleport_info.init = false
             
             -- (1) poof out / start-point
             if this.teleport_info.horizontal then
@@ -261,8 +286,8 @@ roundelie = {
                     -- (( ty @meep @lazydevs on youtube for the refs, lol ))
                     table.insert(
                         particles_fg, {
-                            x = (this.teleport_info.horizontal and this.teleport_info.x or this.x) + cx,
-                            y = (this.teleport_info.horizontal and this.teleport_info.y or this.y) + cy,
+                            x = this.x + cx,
+                            y = this.y + cy,
                             vx = math.sin(angle),
                             vy = math.cos(angle),
                             speed = 3.5 + math.random(8,14) * 0.095,  -- magnitude for movement vector
@@ -272,10 +297,10 @@ roundelie = {
                             duration = 7 + math.random(0, 3),
                             
                             tp_info = this.teleport_info,
-                            on_hit_flag = this.teleport_info.on_hit,
+                            on_hit_flag = false,
                             
                             update = function(p)
-                                if (not p.on_hit_flag) and p.tp_info.on_hit then
+                                if p.timer > 0 and (not p.on_hit_flag) and p.tp_info.on_hit then
                                     p.on_hit_flag = true
                                     p.speed = p.speed * 1.35  --
                                     p.drag  = p.drag * 1.35   --
@@ -298,14 +323,14 @@ roundelie = {
                                     love.graphics.setColor(1, 1, 1, 1)
                                 else
                                     -- TODO: messy, and I don't think the "scalar" is doing what I think it's' doing...
-                                    if p.tp_info and p.tp_info.on_hit then
+                                    if p.on_hit_flag then
                                         love.graphics.setColor((255*fade*scalar)/255, (156*fade*scalar)/255, (39*fade*scalar)/255, 1)
                                     else
                                         love.graphics.setColor((229*fade*scalar)/255, (229*fade*scalar)/255, (229*fade*scalar)/255, fade)
                                     end
                                 end
                                 love.graphics.rectangle("fill", math.floor(p.x), math.floor(p.y), 1, 1)
-                                if p.tp_info and p.tp_info.on_hit then
+                                if p.on_hit_flag then
                                     love.graphics.setColor((255*fade*scalar)/255, (116*fade*scalar)/255, (39*fade*scalar)/255, 1)
                                 else
                                     love.graphics.setColor((215*fade*scalar)/255, (215*fade*scalar)/255, (215*fade*scalar)/255, fade)
@@ -361,10 +386,6 @@ roundelie = {
                         end
                     end
                 })
-            --
-            this.teleport_info.init = false
-            this.teleport_info.horizontal = false
-            this.teleport_info.on_hit = false
         end
     end,
     
@@ -588,7 +609,7 @@ roundelie = {
                     this.vy = util.appr(this.vy, 4.5, 1.95)
                     -- a bit hacky, but this helps prevent the smoke-trail effect from being drawn when roundelie starts diving right before bouncing (e.g., while dribbling or wall-climbing)
                     -- TODO: can probably perform a more robust check by comparing prev x/y and vx/y with pos after movement/collision is calculated
-                    this.draw_dive_smoketrail = (not this:is_solid(this.vx, this.vy)) and ((this.p_jump and (not this:is_solid(0, this.vy + 4, true))) or (not this:is_solid(0, this.vy + 4)))
+                    this.should_draw_dive_vfx = (not this:is_solid(this.vx, this.vy)) and ((this.p_jump and (not this:is_solid(0, this.vy + 4, true))) or (not this:is_solid(0, this.vy + 4)))
                     this.dive_startup = 3 -- atm this is the same duration as the dive smoke-trail, to line up with the effect
                 else
                     -- the dive hitbox remains active as long as the input (down+x) is held
@@ -648,11 +669,11 @@ roundelie = {
             this:draw_teleport_vfx()
         end
         
-        if this.draw_dive_smoketrail then
+        if this.should_draw_dive_vfx then
             this.dive_smoketrail = 3
             game.init_smoke(this.prev_x, this.prev_y - 4)
             love.audio.play("maddy_downdash", "static")  -- TODO: placeholder
-            this.draw_dive_smoketrail = false
+            this.should_draw_dive_vfx = false
         end
         
         -- sprite stuff
@@ -684,7 +705,7 @@ roundelie = {
             if this.down_attack then 
                 next_anim = (this.vy == 4.5 and "dive2" or "dive1")
             elseif (this.is_start_of_jump or this.current_anim == "jump1") and this.vy <= -0.7 then
-                -- "inflate" sprite is only drawn after a jump or bjump (up+x)
+                -- "inflate" pose is only drawn after a jump or bjump (up+x)
                 next_anim = "jump1"
             -- roll continues in midair, but stops if roundelie isn't moving quickly enough in the same direction
             elseif this.current_anim == "roll" and ((this.prev_facing == 1 and this.vx >= 1.0) or (this.prev_facing == -1 and this.vx <= -1.0)) then
