@@ -157,8 +157,6 @@ roundelie = {
                         this.should_draw_dive_vfx = this.should_draw_dive_vfx and (not (snowball_collision_check_a or snowball_collision_check_b or snowball_collision_check_c or snowball_collision_check_d))
                     end
                     
-                    
-                    -- snowball interactions
                     if (this.shockwave_hb and this.shockwave_hb.active and
                         this.shockwave_hb.x < o:right() and o:left() < this.shockwave_hb.x + this.shockwave_hb.w and
                         this.shockwave_hb.y < o:bottom() and o:top() < this.shockwave_hb.y + this.shockwave_hb.h) then
@@ -167,7 +165,7 @@ roundelie = {
                         o.throwerID = this.connectionID
                         o.thrown_timer = 10
                         
-                    elseif o.throwerID ~= this.connectionID  and this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= o:top() and this:top() <= o:bottom() then
+                    elseif o.throwerID ~= this.connectionID and this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= o:top() and this:top() <= o:bottom() then
                         local function snap()
                             this:move(0, o.y-8-this.y)
                             if this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= o:top() and this:top() <= o:bottom() then
@@ -494,7 +492,7 @@ roundelie = {
             local on_semisolid = ground_hit and (ground_hit.type == "semisolid" or ground_hit.semisolid)
             
             if on_ground and not this.was_on_ground and not this.down_attack then
-                -- down_attack (dive) already creates a shockwave when it lands, so no need for extra smoke
+                -- down_attack (dive) already creates smoke when it lands, so no need to draw extra
                 game.init_smoke(this.x, this.y + 4)
             end
             
@@ -538,9 +536,6 @@ roundelie = {
                     if this.prev_vy == 4.5 and this.dive_startup == 0 then
                         this.shockwave_hb = hitbox.create(this.connectionID, (this.x - 25) + (-5 * this.conkdir), this.y + 4, 60, 4, 3, -2 * this.conkdir, -4, 2)
                         this.shockwave_hb.shockwave_large = true
-                        for i = -25,20,10 do
-                            game.init_smoke(this.x + i + (-5 * this.conkdir), this.y + 8)  --could be better
-                        end
                         this.conk = 10
                         this.was_big_conk = true
                         this.vy = -3.75
@@ -548,11 +543,12 @@ roundelie = {
                     else
                         this.shockwave_hb = hitbox.create(this.connectionID, (this.x - 15) + (-5 * this.conkdir), this.y + 4, 40, 4, 2, -2 * this.conkdir, -3, 2)
                         this.shockwave_hb.shockwave_small = true
-                        for i = -15,10,10 do
-                            game.init_smoke(this.x + i + (-5 * this.conkdir), this.y + 8)  --could be better
-                        end
                         this.conk = 9
                         this.vy = -2.0
+                    end
+                    --
+                    for i = 5, this.shockwave_hb.w - 5, 10 do
+                        game.init_smoke(this.shockwave_hb.x + i, this.shockwave_hb.y + 4)  --could be better
                     end
                 end
                 if this.vy < 0 then
@@ -808,7 +804,7 @@ roundelie = {
     
     on_hit_confirm = function(this, target, hb)
         -- the large shockwave already applies camera shake
-        if not hb.shockwave_large then camera.shake(1.5, 1.5, 2) end
+        if (not hb.shockwave_large) then camera.shake(1.5, 1.5, 2) end
         
         if hb.shockwave_large then
             -- TODO: add on-hit vfx for both shockwaves
