@@ -28,6 +28,11 @@
 --   There's a 3f delay before roundelie can act out of a teleport, e.g. buffering a grace-jump
 -- Jump + Down lets roundelie fall through any semisolids it interacts with
 --   Falling through semisolids which roundelie is standing on requires pressing jump, like other characters
+-- Snowball interactions:
+--   Roundelie can dive into a snowball to bounce off of it, and the resulting bounce is higher than a bounce off of the ground
+--   Roundelie can teleport into a snowball to launch it in the direction that it's facing
+--   Roundelie can knock a snowball into the air with the ground-slam/shockwave attack
+--   Roundelie can stop a snowball from rolling either by diving into it or by knocking it into the air with the ground-slam
 
 -- TODO: misc visual stuff ((?) => "maybe")
 --  - redraw portraits for the other skins in the new style
@@ -138,23 +143,23 @@ roundelie = {
                         local temp_x = this.x
                         local temp_y = this.y
                         -- these checks are meant to correspond to the checks in the update function for `should_draw_dive_vfx`, but checking for collision with a snowball instead of `is_solid`
-                        this.x = temp_x + this.vx
-                        this.y = temp_y + this.vy
-                        local snowball_collision_check_a = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
-                        this.x = temp_x + this.vx
-                        this.y = temp_y + this.vy + 4
-                        local snowball_collision_check_b = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
-                        this.x = temp_x + 2 * this.vx
-                        this.y = temp_y + 2 * this.vy
-                        local snowball_collision_check_c = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
+                        -- this.x = temp_x + this.vx
+                        -- this.y = temp_y + this.vy
+                        -- local snowball_collision_check_a = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
+                        -- this.x = temp_x + this.vx
+                        -- this.y = temp_y + this.vy + 4
+                        -- local snowball_collision_check_b = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
+                        -- this.x = temp_x + 2 * this.vx
+                        -- this.y = temp_y + 2 * this.vy
+                        -- local snowball_collision_check_c = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
                         this.x = temp_x + 2 * this.vx
                         this.y = temp_y + 2 * (this.vy + 4)
-                        local snowball_collision_check_d = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
+                        local snowball_collision_check = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
                         -- reset position
                         this.x = temp_x
                         this.y = temp_y
                         --
-                        this.should_draw_dive_vfx = this.should_draw_dive_vfx and (not (snowball_collision_check_a or snowball_collision_check_b or snowball_collision_check_c or snowball_collision_check_d))
+                        this.should_draw_dive_vfx = this.should_draw_dive_vfx and (not (snowball_collision_check))
                     end
                     
                     if (this.shockwave_hb and this.shockwave_hb.active and
@@ -164,6 +169,7 @@ roundelie = {
                         o.vy = this.shockwave_hb.shockwave_large and -2.75 or -2.0
                         o.throwerID = this.connectionID
                         o.thrown_timer = 10
+                        o.stop = true
                         
                     elseif o.throwerID ~= this.connectionID and this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= o:top() and this:top() <= o:bottom() then
                         local function snap()
@@ -196,20 +202,23 @@ roundelie = {
                                     this.was_big_conk = true
                                     this.conk = 10
                                     o.vy = -2.25
+                                    o.vx = o.vx * 0.5
                                 else
                                     -- small bounce
                                     this.vy = -2.0 - 0.75
                                     this.conk = 8
                                     o.vy = -1.75
+                                    o.vx = o.vx * 0.75
                                 end
                                 
                                 this.dive_smoketrail = 0
                                 this.down_attack = false
                                 this.vx = 0.15 * this.conk * this.conkdir
+                                love.audio.play("maddy_jump", "static")
                                 
+                                o.stop = true
                                 o.throwerID = this.connectionID
                                 o.thrown_timer = 10
-                                love.audio.play("maddy_jump", "static")
                                 
                             -- bounce on top of snowball
                             else
@@ -531,7 +540,6 @@ roundelie = {
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     -- shockwaves
                     -- TODO: still need sfx for the shockwave (probably don't want on-hit sfx)
-                    -- TODO: shockwave visuals (smoke/dust clouds) don't always line up with shockwave hitbox
                     -- TODO: probably should experiment with making the shockwave smaller, and also not extend as far into the air e.g. when you bounce near the edge of a platform
                     if this.prev_vy == 4.5 and this.dive_startup == 0 then
                         this.shockwave_hb = hitbox.create(this.connectionID, (this.x - 25) + (-5 * this.conkdir), this.y + 4, 60, 4, 3, -2 * this.conkdir, -4, 2)
@@ -608,6 +616,7 @@ roundelie = {
             local cy = targetY + this.hurtbox.y + (this.hurtbox.h / 2)
             local hb_x = cx - (hb_w / 2)
             local hb_y = cy - (hb_h / 2)
+            
             if v_input == 1 and dash_btn and not on_ground and this.conk < 1 then
                 if not this.down_attack then 
                     -- dive has a 1f delay before the hitbox comes out and an initial burst of speed after the delay
