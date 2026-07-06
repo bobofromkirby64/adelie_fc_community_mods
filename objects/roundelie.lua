@@ -168,8 +168,8 @@ roundelie = {
                         
                         if this.dash_time > 0 then
                             -- teleport into snowball
-                            o.vx = 5.0 * this.facing  -- teleport is strong => should launch snowball with more force than maddy dash
-                            o.vy = -2.0
+                            o.vx = 5.15 * this.facing  -- teleport is stronger than maddy dash => should launch snowball with higher speed
+                            o.vy = -1.75
                             o.stop = false
                             o.throwerID = this.connectionID
                             o.thrown_timer = 10
@@ -185,15 +185,15 @@ roundelie = {
                                 -- TODO: probably a bit messy to have code repeated here when it's basically just copy-pasted from the update function
                                 if (this.prev_vy == 4.5 and this.dive_startup == 0) then
                                     -- big bounce
-                                    this.vy = -3.75 - 1.25  -- snowball is bouncy => dive bounce should rebound higher than it would off the ground
+                                    this.vy = -3.75 - 0.75  -- snowball is bouncy => dive bounce should rebound higher than it would off the ground
                                     this.was_big_conk = true
                                     this.conk = 10
-                                    o.vy = -2.5
+                                    o.vy = -2.25
                                 else
                                     -- small bounce
-                                    this.vy = -2.0 - 1.0
+                                    this.vy = -2.0 - 0.75
                                     this.conk = 8
-                                    o.vy = -2.0
+                                    o.vy = -1.75
                                 end
                                 
                                 this.dive_smoketrail = 0
@@ -206,9 +206,10 @@ roundelie = {
                                 
                             -- bounce on top of snowball
                             else
-                                if this.p_jump then-- or inputSource.getKeyDown(this.connectionID, "b1") then
+                                if this.p_jump or inputSource.getKeyDown(this.connectionID, "b1") then
                                     this.vy = -3.36
                                     love.audio.play("maddy_jump", "static")
+                                    --this.current_anim = "roll"  -- hacky
                                 else
                                     this.vy = -1.5
                                 end
@@ -483,7 +484,7 @@ roundelie = {
             local on_ground = ground_hit ~= false
             local on_semisolid = ground_hit and (ground_hit.type == "semisolid" or ground_hit.semisolid)
             
-            if on_ground and not this.was_on_ground and not down_attack then
+            if on_ground and not this.was_on_ground and not this.down_attack then
                 -- down_attack (dive) already creates a shockwave when it lands, so no need for extra smoke
                 game.init_smoke(this.x, this.y + 4)
             end
@@ -665,10 +666,12 @@ roundelie = {
         this:move(this.vx, this.vy)
         this:check_snowballs()
         
+        -- teleport vfx
         if this.teleport_info.init then
             this:draw_teleport_vfx()
         end
         
+        -- dive vfx
         if this.should_draw_dive_vfx then
             this.dive_smoketrail = 3
             game.init_smoke(this.prev_x, this.prev_y - 4)
