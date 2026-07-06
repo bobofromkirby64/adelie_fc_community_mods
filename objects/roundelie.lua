@@ -157,8 +157,17 @@ roundelie = {
                         this.should_draw_dive_vfx = this.should_draw_dive_vfx and (not (snowball_collision_check_a or snowball_collision_check_b or snowball_collision_check_c or snowball_collision_check_d))
                     end
                     
+                    
                     -- snowball interactions
-                    if o.throwerID ~= this.connectionID  and this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= o:top() and this:top() <= o:bottom() then
+                    if (this.shockwave_hb and this.shockwave_hb.active and
+                        this.shockwave_hb.x < o:right() and o:left() < this.shockwave_hb.x + this.shockwave_hb.w and
+                        this.shockwave_hb.y < o:bottom() and o:top() < this.shockwave_hb.y + this.shockwave_hb.h) then
+                        -- shockwave launches snowball
+                        o.vy = this.shockwave_hb.shockwave_large and -2.75 or -2.0
+                        o.throwerID = this.connectionID
+                        o.thrown_timer = 10
+                        
+                    elseif o.throwerID ~= this.connectionID  and this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= o:top() and this:top() <= o:bottom() then
                         local function snap()
                             this:move(0, o.y-8-this.y)
                             if this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= o:top() and this:top() <= o:bottom() then
