@@ -34,20 +34,44 @@
 --   Roundelie can knock a snowball into the air with the ground-slam/shockwave attack
 --   Roundelie can stop a snowball from rolling either by diving into it or by knocking it into the air with the ground-slam
 
--- TODO: misc visual stuff ((?) => "maybe")
---  - redraw portraits for the other skins in the new style
---  - redraw rosetta skin in the style of the new sprites (and probably also experiment with the "square" idea)
---  - add skid/turn-around effect for roll
---  - for the statue/gold skin, idle1 sprite looks strange after ending a roll => use the upright roll sprite instead of idle1 out of a roll
---  - sprite adjustments (mainly the idle poses, the "look up" pose, and the middle/transitional jump pose have been bugging me)
---  - clean up spritesheets
---  - (?) add a "tumble" anim after a long enough fall
---      - mainly because the "falling" jump pose looks strange when it's been out for too long
---      - could try reusing the roll but a transition pose might be needed? but could also maybe reuse a different sprite for that, like of the jump sprites and just rotate it, maybe?
---      - NOTE: roll looks strange, for this; can revisit later
---  - (?) experiment with adding alternate/random conk poses (could reuse the roll sprites...)
---  - (?) experiment with adding fill color to sprites for sadface/tears/sroundelie during hitstun
---  - ...
+--[[
+TODO: ((?) => "maybe")
+
+(core/moveset)
+    - shockwave/ground-slam rework
+        - current range is too large for an attack that is immediately active, and it also extends past the edge of platforms in an unintuitive way
+        - roundelie desperately wants a way to threaten space in front of it, and would also really benefit from another way to knock opponents horizontally that isn't the teleport
+    - the combination of being able to cancel jump momentum with dive and being able to grace jump after cancelling out of jump with dive makes for some very silly movement; maybe experiment with having roundelie unable to interrupt a dive for the first few frames after input? or if we like the silly movement, we should at least make it so it's less of a mess of smoke when you press the dive button over and over
+    - (?) extend dive hitbox (? maybe at a certain speed threshhold) so that e.g. it can trade with maddy dive rather than losing to it outright
+    - (?) experiment with teleport knockback (imo current knockback doesn't really fit with the concept of a teleport, it should be a bit more chaotic or at least have variance relative to roundelie's position?)
+    - (?) let roundelie influence horizontal speed slightly (but still not dive, teleport, or bjump) during conk state
+    - ...
+ 
+(visual)
+    - redraw portraits for the other skins in the new style
+    - experiment with alternative "teleport is on cooldown" effects
+    - take another pass at the rosetta skin but more in the style of the gold skin (=> ball of stone that doesn't change shape) (and also experiment with the "square" idea)
+    - sprite adjustments (mainly the idle poses, the "look up" pose, and the middle/transitional jump pose have been bugging me)
+    - implement the first-frame roll anim for jump explicitly (atm it's just a side-effect of the current midair roll anim logic)
+    - add skid/turn-around effect for roll
+    - use inflate pose when grace jumping out of a dive bounce
+    - (?) for the statue/gold skin, idle1 sprite looks strange after ending a roll => use the upright roll sprite instead of idle1 out of a roll, or have idle poses for diff orientations that aren't just the roll poses
+    - (?) take another pass at the teleport vfx (mainly want to experiment with replacing the bulk of the "single-pixel" particles with sprites)
+    - (?) clean up spritesheets
+    - (?) add a "tumble" anim after a long enough fall
+        - mainly because the "falling" jump pose looks strange when it's been out for too long
+        - could try reusing the roll but a transition pose might be needed? but could also maybe reuse a different sprite for that, like of the jump sprites and just rotate it, maybe?
+        - NOTE: roll looks strange, for this; can revisit later
+    - (?) experiment with adding alternate/random conk poses (could reuse the roll sprites...)
+    - (?) experiment with adding fill color to sprites for sadface/tears/sroundelie during hitstun
+    - (?) upside-down crouch :3
+    - (?) sweat drops for empty bjump (out of uses)
+    - ...
+
+(other)
+    - sfx pass (shockwave/ground-slam, teleport, unique sounds for roundelie in general)
+    - ...
+]]--
 
 roundelie = {
     name="roundelie",
@@ -123,6 +147,7 @@ roundelie = {
         this.conkdir = 0
         this.dive_startup = 0
         this.dive_smoketrail = 0
+        this.dribble_window = 0
         
         this.prev_x = 0
         this.prev_y = 0
@@ -159,7 +184,7 @@ roundelie = {
                         this.x = temp_x
                         this.y = temp_y
                         --
-                        this.should_draw_dive_vfx = this.should_draw_dive_vfx and (not (snowball_collision_check))
+                        this.should_draw_dive_vfx = this.should_draw_dive_vfx and (this.dribble_window == 0 or (not (snowball_collision_check)))
                     end
                     
                     if (this.shockwave_hb and this.shockwave_hb.active and
@@ -418,6 +443,12 @@ roundelie = {
             return
         end
         
+        --
+        if this.dribble_window > 0 then
+            this.dribble_window = this.dribble_window - 1
+        end
+        if this.conk > 1 then this.dribble_window = 0; elseif this.conk == 1 then this.dribble_window = 8; end  -- messy?
+        
         -- # of ticks until roundelie is able to act after bouncing
         if this.conk > 0 then
             this.conk = this.conk - 1
@@ -556,7 +587,7 @@ roundelie = {
                     end
                     --
                     for i = 5, this.shockwave_hb.w - 5, 10 do
-                        game.init_smoke(this.shockwave_hb.x + i, this.shockwave_hb.y + 4)  --could be better
+                        game.init_smoke(this.shockwave_hb.x + i, this.shockwave_hb.y + 2)  --could be better
                     end
                 end
                 if this.vy < 0 then
@@ -624,7 +655,7 @@ roundelie = {
                     this.vy = util.appr(this.vy, 4.5, 1.95)
                     -- a bit hacky, but this helps prevent the smoke-trail effect from being drawn when roundelie starts diving right before bouncing (e.g., while dribbling or wall-climbing)
                     -- TODO: can probably perform a more robust check by comparing prev x/y and vx/y with pos after movement/collision is calculated
-                    this.should_draw_dive_vfx = (not this:is_solid(this.vx, this.vy)) and ((this.p_jump and (not this:is_solid(0, this.vy + 4, true))) or (not this:is_solid(0, this.vy + 4)))
+                    this.should_draw_dive_vfx = this.dribble_window == 0 or ((not this:is_solid(this.vx, this.vy)) and ((this.p_jump and (not this:is_solid(0, this.vy + 4, true))) or (not this:is_solid(0, this.vy + 4))))
                     this.dive_startup = 3 -- atm this is the same duration as the dive smoke-trail, to line up with the effect
                 else
                     -- the dive hitbox remains active as long as the input (down+x) is held
