@@ -558,22 +558,31 @@ roundelie = {
                     -- shockwaves
                     -- TODO: still need sfx for the shockwave (probably don't want on-hit sfx)
                     -- TODO: probably should experiment with making the shockwave smaller, and also not extend as far into the air e.g. when you bounce near the edge of a platform
+                    local hb_x, hb_w = 0, 0
+                    
                     if this.prev_vy == 4.5 and this.dive_start == 0 then
-                        this.shockwave_hb = hitbox.create(this.connectionID, (this.x - 25) + (-5 * this.conkdir), this.y + 4, 60, 4, 3, -2 * this.conkdir, -4, 2)
+                        -- ground-slam hitbox is constrained to the size of the platform roundelie is diving into, + 1/2 the width of a tile
+                        -- TODO: need to account for ground composed of multiple platforms, e.g. bridge between platforms on amazonia
+                        --      => need to loop through and find left-most and right-most platforms within the hb range, and use those for the calculations
+                        hb_x = math.max((this.x - 25) + (-5 * this.conkdir), ground_hit.x - 4)
+                        hb_w = math.min(60, (ground_hit.x + ground_hit.w + 4) - hb_x)
+                        this.shockwave_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 2)
                         this.shockwave_hb.shockwave_large = true
                         this.conk = 10
                         this.was_big_conk = true
                         this.vy = -3.75
                         camera.shake(2, 2, 4)
                     else
-                        this.shockwave_hb = hitbox.create(this.connectionID, (this.x - 15) + (-5 * this.conkdir), this.y + 4, 40, 4, 2, -2 * this.conkdir, -3, 2)
+                        hb_x = math.max((this.x - 15) + (-5 * this.conkdir), ground_hit.x - 4)
+                        hb_w = math.min(40, (ground_hit.x + ground_hit.w + 4) - hb_x)
+                        this.shockwave_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 2)
                         this.shockwave_hb.shockwave_small = true
                         this.conk = 9
                         this.vy = -2.0
                     end
                     --
                     for i = 5, this.shockwave_hb.w - 5, 10 do
-                        game.init_smoke(this.shockwave_hb.x + i, this.shockwave_hb.y + 2)  --could be better
+                        --game.init_smoke(this.shockwave_hb.x + i, this.shockwave_hb.y + 2)  --could be better
                     end
                 end
                 if this.vy < 0 then
