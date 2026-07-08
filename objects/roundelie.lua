@@ -583,16 +583,16 @@ roundelie = {
                     
                     -- dive-bomb ground-slam attack and follow-up shockwave ...
                     local check_is_big_slam = this.prev_vy == 4.5 and this.dive_start == 0
+                    local cx = this.hurtbox.x + (this.hurtbox.w / 2)
                     local hb_x, hb_w
-
                     if check_is_big_slam then
-                        hb_x, hb_w = (this.x - 14) + (-4 * this.conkdir), 36
+                        hb_x, hb_w = (this.x + cx - 18) + (-1.0 * this.conkdir) + (3.0 * h_input), 36
                         this.conk = 10
                         this.was_big_conk = true
                         this.vy = -3.75
                         camera.shake(2, 2, 4)
                     else
-                        hb_x, hb_w = (this.x - 9) + (-3 * this.conkdir), 24
+                        hb_x, hb_w = (this.x  + cx - 12) + (-0.75 * this.conkdir) + (1.75 * h_input), 24
                         this.conk = 9
                         this.vy = -2.0
                     end
