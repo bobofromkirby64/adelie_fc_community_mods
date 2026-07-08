@@ -556,7 +556,7 @@ roundelie = {
                     this.down_attack = false
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     
-                    -- ground-slam / shockwave
+                    -- ground-slam / shockwave :::
                     local hb_x, hb_w
                     if this.prev_vy == 4.5 and this.dive_start == 0 then
                         -- big bounce
@@ -587,8 +587,9 @@ roundelie = {
                     end
                     
                     -- the ground-slam hitbox is constrained to the size of the ground roundelie is diving into, + 1/2 the width of a tile
-                    local hb_x = math.max(hb_x, platform_left.x - 4)
-                    local hb_w = math.min(hb_w, (platform_right.x + platform_right.w + 4) - hb_x)
+                    local prev_hb_x = hb_x
+                    hb_x = math.max(hb_x, platform_left.x - 4)
+                    hb_w = math.min((prev_hb_x + hb_w - hb_x), (platform_right.x + platform_right.w + 4) - hb_x)
                     
                     if this.prev_vy == 4.5 and this.dive_start == 0 then  -- TODO: a bit messy
                         this.shockwave_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 2)
@@ -598,9 +599,9 @@ roundelie = {
                         this.shockwave_hb.shockwave_small = true
                     end
                     
-                    for i = 5, this.shockwave_hb.w - 5, 10 do
-                        --game.init_smoke(this.shockwave_hb.x + i, this.shockwave_hb.y + 2)  --could be better
-                    end
+                    -- for i = 5, this.shockwave_hb.w - 5, 10 do
+                        -- game.init_smoke(this.shockwave_hb.x + i, this.shockwave_hb.y + 2)  --could be better
+                    -- end
                 end
                 if this.vy < 0 then
                     this.bump_cooldown = 0;
