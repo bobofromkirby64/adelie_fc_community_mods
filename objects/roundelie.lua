@@ -581,18 +581,18 @@ roundelie = {
                     this.down_attack = false
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     
-                    -- dive-bomb quake and shockwave :::
-                    local check_is_big_bounce = this.prev_vy == 4.5 and this.dive_start == 0
+                    -- dive-bomb ground-slam attack and follow-up shockwave ...
+                    local check_is_big_slam = this.prev_vy == 4.5 and this.dive_start == 0
                     local hb_x, hb_w
 
-                    if check_is_big_bounce then
-                        hb_x, hb_w = (this.x - 25) + (-5 * this.conkdir), 60
+                    if check_is_big_slam then
+                        hb_x, hb_w = (this.x - 14) + (-4 * this.conkdir), 36
                         this.conk = 10
                         this.was_big_conk = true
                         this.vy = -3.75
                         camera.shake(2, 2, 4)
                     else
-                        hb_x, hb_w = (this.x - 15) + (-5 * this.conkdir), 40
+                        hb_x, hb_w = (this.x - 9) + (-3 * this.conkdir), 24
                         this.conk = 9
                         this.vy = -2.0
                     end
@@ -616,7 +616,7 @@ roundelie = {
                     hb_x = math.max(hb_x, platform_left.x - 4)
                     hb_w = math.min((prev_hb_x + hb_w - hb_x), (platform_right.x + platform_right.w + 4) - hb_x)
                     
-                    if check_is_big_bounce then
+                    if check_is_big_slam then
                         this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 5)
                         this.divebomb_slam_hb.big_dive_slam = true
                     else
