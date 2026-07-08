@@ -114,8 +114,10 @@ roundelie = {
             horizontal = false, -- true if teleport has an input direction (i.e. not a neutral input)
             on_hit = false      -- true if teleport has hit the opponent
         }
-        this.teleport_hb  = nil  -- created by left/right+x and neutral+x attack
-        this.shockwave_hb = nil  -- hitbox created by diving (down+x attack) into the ground
+        this.teleport_hb  = nil  -- hitbox created by left/right+x and neutral+x attacks
+        -- hitboxes created by diving (down+x) into the ground
+        this.divebomb_slam_hb  = nil
+        this.divebomb_shockwave_hb = nil
         
         this.animations = {
             idle1 = {frames = {1},  speed = 1},  -- upright
@@ -174,11 +176,11 @@ roundelie = {
                         this.y = temp_y
                     end
                     
-                    if (this.shockwave_hb and this.shockwave_hb.active and
-                        this.shockwave_hb.x < o:right() and o:left() < this.shockwave_hb.x + this.shockwave_hb.w and
-                        this.shockwave_hb.y < o:bottom() and o:top() < this.shockwave_hb.y + this.shockwave_hb.h) then
-                        -- shockwave launches snowball
-                        o.vy = this.shockwave_hb.shockwave_large and -2.75 or -2.0
+                    if (this.divebomb_slam_hb and this.divebomb_slam_hb.active and
+                        this.divebomb_slam_hb.x < o:right() and o:left() < this.divebomb_slam_hb.x + this.divebomb_slam_hb.w and
+                        this.divebomb_slam_hb.y < o:bottom() and o:top() < this.divebomb_slam_hb.y + this.divebomb_slam_hb.h) then
+                        -- dive-bomb quake launches snowball
+                        o.vy = this.divebomb_slam_hb.big_dive_slam and -2.75 or -2.0
                         o.throwerID = this.connectionID
                         o.thrown_timer = 10
                         o.stop = true
@@ -482,9 +484,31 @@ roundelie = {
                 this.bump_cooldown = 0
                 
                 if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
-                if this.shockwave_hb then this.shockwave_hb.active = false; this.shockwave_hb = nil end
+                if this.divebomb_slam_hb then this.divebomb_slam_hb.active = false; this.divebomb_slam_hb = nil end
+                if this.divebomb_shockwave_hb then this.divebomb_shockwave_hb.active = false; this.divebomb_shockwave_hb = nil end
             end
             return
+        end
+        
+        -- update hitboxes
+        local hb = this.divebomb_slam_hb
+        -- divebomb slam is active near the ground for the first 2 frames, then pieces of the ground shoot out for the next 3 frames
+        --  and the hitbox travels upward with the ground pieces
+        if hb and hb.active and hb.duration <= 3 then
+            if hb.duration == 3 then
+                hb.y = hb.y - 5  -- hitbox suddenly grows to the height of a full tile on tick 3
+                hb.h = hb.h + 4
+            elseif hb.duration == 2 then
+                hb.y = hb.y - 3
+                hb.h = hb.h - 4
+                hb.kx = hb.kx / 2  -- knockback is significantly weaker on ticks 4 and 5
+                hb.kx = hb.ky / 2
+            elseif hb.duration == 1 then
+                hb.y = hb.y - 2
+                hb.h = hb.h - 3
+                hb.kx = hb.kx / 2
+                hb.kx = hb.ky / 2
+            end
         end
         
         --
@@ -500,7 +524,8 @@ roundelie = {
             this.vx = util.appr(this.vx, 0, 0.143)
             
             if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
-            if this.shockwave_hb then this.shockwave_hb.active = false; this.shockwave_hb = nil end
+            if this.divebomb_slam_hb then this.divebomb_slam_hb.active = false; this.divebomb_slam_hb = nil end
+            if this.divebomb_shockwave_hb then this.divebomb_shockwave_hb.active = false; this.divebomb_shockwave_hb = nil end
         else
             
             local jump_btn = inputSource.getKeyDown(id, "b1")
@@ -556,17 +581,17 @@ roundelie = {
                     this.down_attack = false
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     
-                    -- ground-slam / shockwave :::
+                    -- dive-bomb quake and shockwave :::
+                    local check_is_big_bounce = this.prev_vy == 4.5 and this.dive_start == 0
                     local hb_x, hb_w
-                    if this.prev_vy == 4.5 and this.dive_start == 0 then
-                        -- big bounce
+
+                    if check_is_big_bounce then
                         hb_x, hb_w = (this.x - 25) + (-5 * this.conkdir), 60
                         this.conk = 10
                         this.was_big_conk = true
                         this.vy = -3.75
                         camera.shake(2, 2, 4)
                     else
-                        -- small bounce
                         hb_x, hb_w = (this.x - 15) + (-5 * this.conkdir), 40
                         this.conk = 9
                         this.vy = -2.0
@@ -591,17 +616,17 @@ roundelie = {
                     hb_x = math.max(hb_x, platform_left.x - 4)
                     hb_w = math.min((prev_hb_x + hb_w - hb_x), (platform_right.x + platform_right.w + 4) - hb_x)
                     
-                    if this.prev_vy == 4.5 and this.dive_start == 0 then  -- TODO: a bit messy
-                        this.shockwave_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 2)
-                        this.shockwave_hb.shockwave_large = true
+                    if check_is_big_bounce then
+                        this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 5)
+                        this.divebomb_slam_hb.big_dive_slam = true
                     else
-                        this.shockwave_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 2)
-                        this.shockwave_hb.shockwave_small = true
+                        this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 2)
+                        this.divebomb_slam_hb.small_dive_slam = true
                     end
                     
                     -- draw smoke over ground-slam hitbox
-                    game.init_smoke(hb_x - 1, this.shockwave_hb.y + 1)
-                    game.init_smoke(hb_x + hb_w - 6, this.shockwave_hb.y + 1)
+                    game.init_smoke(hb_x - 1, this.divebomb_slam_hb.y + 1)
+                    game.init_smoke(hb_x + hb_w - 6, this.divebomb_slam_hb.y + 1)
                     
                     local step_count = math.floor((hb_w - 4) / 8)
                     local base_amt = math.floor((hb_w - 4) / step_count)
@@ -610,7 +635,7 @@ roundelie = {
                     local curr_x = (hb_x - 1)
                     for i = 1, step_count - 1 do
                         curr_x = curr_x + base_amt + (i <= leftover and 1 or 0)
-                        game.init_smoke(curr_x, this.shockwave_hb.y + 1)
+                        game.init_smoke(curr_x, this.divebomb_slam_hb.y + 1)
                     end
                 end
                 if this.vy < 0 then
@@ -854,7 +879,8 @@ roundelie = {
             this.rem.y = 0
             
             if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
-            if this.shockwave_hb then this.shockwave_hb.active = false; this.shockwave_hb = nil end
+            if this.divebomb_slam_hb then this.divebomb_slam_hb.active = false; this.divebomb_slam_hb = nil end
+            if this.divebomb_shockwave_hb then this.divebomb_shockwave_hb.active = false; this.divebomb_shockwave_hb = nil end
             
             if this.stocks > 0 then
                 this.x = -1000
@@ -870,15 +896,15 @@ roundelie = {
     
     on_hit_confirm = function(this, target, hb)
         -- the large shockwave already applies camera shake
-        if (not hb.shockwave_large) then camera.shake(1.5, 1.5, 2) end
+        if (not hb.big_dive_slam) then camera.shake(1.5, 1.5, 2) end
         
-        if hb.shockwave_large then
+        if hb.big_dive_slam then
             -- TODO: add on-hit vfx for both shockwaves
             --   I'm picturing something like, picking colors from the stage fg underneath the opponent (or roundelie?) and sending debris particles in the direction of the knockback?
             --   https://love2d.org/wiki/ImageData:getPixel
             
             --target.freeze = 2
-        elseif hb.shockwave_small then
+        elseif hb.small_dive_slam then
             --target.freeze = 1
         elseif hb.telefrag then
             this.teleport_info.on_hit = true
