@@ -624,6 +624,24 @@ roundelie = {
                         this.divebomb_slam_hb.small_dive_slam = true
                     end
                     
+                    -- draw placeholder visual over hitbox
+                    -- TODO: actual vfx will be pieces shooting out from the ground with colors picked from the stage fg
+                    --  (see https://love2d.org/wiki/ImageData:getPixel)
+                    table.insert(
+                        particles_fg, {
+                            hb = this.divebomb_slam_hb,  -- ref to table -> particle has access to updated values
+                            
+                            update = function(p)
+                                return (not (p.hb and p.hb.active))
+                            end,
+                            
+                            draw = function(p)
+                                love.graphics.setColor(1, 0, 0, 0.5)
+                                love.graphics.rectangle("fill", p.hb.x, p.hb.y, p.hb.w, p.hb.h)
+                                love.graphics.setColor(1, 1, 1, 1)
+                            end
+                        })
+                    
                     -- draw smoke over ground-slam hitbox
                     game.init_smoke(hb_x - 1, this.divebomb_slam_hb.y + 1)
                     game.init_smoke(hb_x + hb_w - 6, this.divebomb_slam_hb.y + 1)
@@ -899,10 +917,6 @@ roundelie = {
         if (not hb.big_dive_slam) then camera.shake(1.5, 1.5, 2) end
         
         if hb.big_dive_slam then
-            -- TODO: add on-hit vfx for both shockwaves
-            --   I'm picturing something like, picking colors from the stage fg underneath the opponent (or roundelie?) and sending debris particles in the direction of the knockback?
-            --   https://love2d.org/wiki/ImageData:getPixel
-            
             --target.freeze = 2
         elseif hb.small_dive_slam then
             --target.freeze = 1
