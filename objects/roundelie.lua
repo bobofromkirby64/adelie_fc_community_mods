@@ -599,9 +599,19 @@ roundelie = {
                         this.shockwave_hb.shockwave_small = true
                     end
                     
-                    -- for i = 5, this.shockwave_hb.w - 5, 10 do
-                        -- game.init_smoke(this.shockwave_hb.x + i, this.shockwave_hb.y + 2)  --could be better
-                    -- end
+                    -- draw smoke over ground-slam hitbox
+                    game.init_smoke(hb_x - 1, this.shockwave_hb.y + 1)
+                    game.init_smoke(hb_x + hb_w - 6, this.shockwave_hb.y + 1)
+                    
+                    local step_count = math.floor((hb_w - 4) / 8)
+                    local base_amt = math.floor((hb_w - 4) / step_count)
+                    local leftover = (hb_w - 4) % step_count
+                    
+                    local curr_x = (hb_x - 1)
+                    for i = 1, step_count - 1 do
+                        curr_x = curr_x + base_amt + (i <= leftover and 1 or 0)
+                        game.init_smoke(curr_x, this.shockwave_hb.y + 1)
+                    end
                 end
                 if this.vy < 0 then
                     this.bump_cooldown = 0;
