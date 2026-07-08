@@ -1,5 +1,5 @@
 -- objects/roundelie.lua
--- v0.5.2
+-- v0.5.3
 
 -- Movement Documentation:
 -- Z to jump, left and right arrow keys to move
@@ -53,7 +53,7 @@ roundelie = {
         
         this.grace = 0
         this.jbuffer = 0
-        this.bjump = 3
+        this.bjump = 2
         this.dash_time = 0
         
         this.p_jump = false
@@ -144,7 +144,7 @@ roundelie = {
                         elseif this.vy > 0 and this:bottom() <= o:top() + 4 then
                             -- bounce on top
                             snap()
-                            this.bjump = 3
+                            this.bjump = 2
                             if this.p_jump or inputSource.getKeyDown(this.connectionID, "b1") or this.down_attack then
                                 this.vy = -3.36
                                 love.audio.play("maddy_jump", "static")
@@ -366,7 +366,7 @@ roundelie = {
                 this.y = 20
                 this.vx = 0
                 this.vy = 0
-                this.bjump = 3
+                this.bjump = 2
                 this.hitstun = 0
                 this.invincible_timer = 60
                 this.dash_cooldown = 0
@@ -466,7 +466,7 @@ roundelie = {
                     love.audio.play("maddy_clip", "static")
                 end
                 this.grace = 6
-                this.bjump = 3
+                this.bjump = 2
             elseif this.grace > 0 then
                 this.grace = this.grace - 1
             end
@@ -544,7 +544,7 @@ roundelie = {
             elseif dash then
                 if v_input == 0 then
                     this.dash_time = 2
-                    this.dash_cooldown = 61
+                    this.dash_cooldown = 31
                     this.invincible_timer = 2
                     this.vx = 32 * h_input
                     this.teleport_info.init = true
