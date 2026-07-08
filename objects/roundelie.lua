@@ -145,7 +145,7 @@ roundelie = {
         this.freeze = 0
         this.conk = 0
         this.conkdir = 0
-        this.dive_startup = 0
+        this.dive_start = 0
         this.dive_smoketrail = 0
         this.dribble_window = 0
         
@@ -159,32 +159,19 @@ roundelie = {
             if this.hitstun > 0 then return end
             for _, o in ipairs(objects) do
                 if o.type and o.type.name == "snowball" and not o.destroyed and not o.held then
-                    -- check for collision with a snowball in the dive's path to determine whether to draw the smoke-trail effect
-                    if (this.dive_startup == 3) then -- TODO: messy
-                        -- notes:
-                        --  we're checking for collision between roundelie's hurtbox and the snowball hitbox, 
-                        --      but with the pos of roundelie's hurtbox being "where it will be on the next TWO frames (ignoring collision) if roundelie's vx/y does not change"
-                        --      => roundelie's position is temporarily updated in order to make use of the existing `bottom`, `right`, etc. functions for these checks
+                    -- check for collision with the snowball in the path of the dive to determine whether to draw the dive's smoke-trail effect
+                    if (this.should_draw_dive_vfx and this.dive_start == 3 and this.dribble_window > 0) then -- TODO: "dive_start == 3" is a messy check
+                        local h_input = (inputSource.getKeyDown(this.connectionID, "right") and 1 or 0) - (inputSource.getKeyDown(this.connectionID, "left") and 1 or 0)
                         local temp_x = this.x
                         local temp_y = this.y
-                        -- these checks are meant to correspond to the checks in the update function for `should_draw_dive_vfx`, but checking for collision with a snowball instead of `is_solid`
-                        -- this.x = temp_x + this.vx
-                        -- this.y = temp_y + this.vy
-                        -- local snowball_collision_check_a = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
-                        -- this.x = temp_x + this.vx
-                        -- this.y = temp_y + this.vy + 4
-                        -- local snowball_collision_check_b = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
-                        -- this.x = temp_x + 2 * this.vx
-                        -- this.y = temp_y + 2 * this.vy
-                        -- local snowball_collision_check_c = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
-                        this.x = temp_x + 2 * this.vx
-                        this.y = temp_y + 2 * (this.vy + 4)
-                        local snowball_collision_check = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
+                        -- roundelie's position is temporarily updated in order to make use of the existing `bottom`, `right`, etc. functions
+                        this.x = this.x + 2 * this.vx + (3 * h_input)  -- bit hacky, but works well enough to determine whether roundelie is going to bounce on top of a snowball
+                        this.y = this.y + 2 * this.vy + 8              -- ^
+                        snowball_collision_check = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
+                        this.should_draw_dive_vfx = this.should_draw_dive_vfx and (not (snowball_collision_check))
                         -- reset position
                         this.x = temp_x
                         this.y = temp_y
-                        --
-                        this.should_draw_dive_vfx = this.should_draw_dive_vfx and (this.dribble_window == 0 or (not (snowball_collision_check)))
                     end
                     
                     if (this.shockwave_hb and this.shockwave_hb.active and
@@ -220,8 +207,8 @@ roundelie = {
                             
                             -- dive into snowball
                             if this.down_attack then
-                                -- TODO: probably a bit messy to have code repeated here when it's basically just copy-pasted from the update function
-                                if (this.prev_vy == 4.5 and this.dive_startup == 0) then
+                                -- TODO: probably a bit messy to have code repeated here when it's basically just copy-pasted from the update function...
+                                if (this.prev_vy == 4.5 and this.dive_start == 0) then
                                     -- big bounce
                                     this.vy = -3.75 - 0.75  -- snowball is bouncy => dive bounce should rebound higher than it would off the ground
                                     this.was_big_conk = true
@@ -250,7 +237,6 @@ roundelie = {
                                 if this.p_jump or inputSource.getKeyDown(this.connectionID, "b1") then
                                     this.vy = -3.36
                                     love.audio.play("maddy_jump", "static")
-                                    --this.current_anim = "roll"  -- hacky
                                 else
                                     this.vy = -1.5
                                 end
@@ -274,7 +260,7 @@ roundelie = {
             if this.teleport_info.horizontal then
                 -- (( commented out the entire effect for now since it's a bit of a mess ))
                 -- TODO: either rework the afterimage sprites to behave more like the existing smoke, OR
-                --       experiment with "stencil" to have the afterimage smoke effect and existing smoke combine a bit more neatly
+                --  experiment with "stencil" to have the afterimage smoke effect and existing smoke combine a bit more neatly
                 game.init_smoke(prev_x, prev_y)
             end
             -- if this.teleport_info.horizontal then
@@ -455,8 +441,8 @@ roundelie = {
         end
         
         -- # of ticks after starting a dive before roundelie is able to perform a big bounce
-        if this.dive_startup > 0 then
-            this.dive_startup = this.dive_startup - 1
+        if this.dive_start > 0 then
+            this.dive_start = this.dive_start - 1
         end
         
         -- dive vfx
@@ -572,7 +558,7 @@ roundelie = {
                     -- shockwaves
                     -- TODO: still need sfx for the shockwave (probably don't want on-hit sfx)
                     -- TODO: probably should experiment with making the shockwave smaller, and also not extend as far into the air e.g. when you bounce near the edge of a platform
-                    if this.prev_vy == 4.5 and this.dive_startup == 0 then
+                    if this.prev_vy == 4.5 and this.dive_start == 0 then
                         this.shockwave_hb = hitbox.create(this.connectionID, (this.x - 25) + (-5 * this.conkdir), this.y + 4, 60, 4, 3, -2 * this.conkdir, -4, 2)
                         this.shockwave_hb.shockwave_large = true
                         this.conk = 10
@@ -653,10 +639,13 @@ roundelie = {
                     -- dive has a 1f delay before the hitbox comes out and an initial burst of speed after the delay
                     this.freeze = 1
                     this.vy = util.appr(this.vy, 4.5, 1.95)
+                    
                     -- a bit hacky, but this helps prevent the smoke-trail effect from being drawn when roundelie starts diving right before bouncing (e.g., while dribbling or wall-climbing)
-                    -- TODO: can probably perform a more robust check by comparing prev x/y and vx/y with pos after movement/collision is calculated
-                    this.should_draw_dive_vfx = this.dribble_window == 0 or ((not this:is_solid(this.vx, this.vy)) and ((this.p_jump and (not this:is_solid(0, this.vy + 4, true))) or (not this:is_solid(0, this.vy + 4))))
-                    this.dive_startup = 3 -- atm this is the same duration as the dive smoke-trail, to line up with the effect
+                    this.should_draw_dive_vfx = this.dribble_window == 0 or
+                                                (not ((this:is_solid(this.vx + (h_input * 3), this.vy)) or
+                                                      (this.p_jump and (not this:is_solid(this.vx, this.vy + 4, true))) or
+                                                      (this:is_solid(this.vx, this.vy + 4))))
+                    this.dive_start = 3  -- currently set to line up with the dive smoke-trail effect
                 else
                     -- the dive hitbox remains active as long as the input (down+x) is held
                     hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx), 4.5, 2)
