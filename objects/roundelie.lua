@@ -639,13 +639,20 @@ roundelie = {
                         this.divebomb_slam_hb.big_dive_slam = true
                         -- shockwaves
                         -- id, x, y, w, h, dmg, kbx, kby, duration
-                        this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID,     this.x, this.y + 7, 3, 1, 1, -2.0, -0.8, 12)
+                        this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, this.x, this.y + 7, 3, 1, 1, -2.0, -1.5, 12)
                         this.divebomb_shockwave_l_hb.vx = 3.5
-                        this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, this.x + 3, this.y + 7, 3, 1, 1,  2.0, -0.8, 12)
+                        this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, this.x + 3, this.y + 7, 3, 1, 1,  2.0, -1.5, 12)
                         this.divebomb_shockwave_r_hb.vx = 3.5
                     else
                         this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 2)
                         this.divebomb_slam_hb.small_dive_slam = true
+                        if h_input == -1 then
+                            this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, this.x, this.y + 7, 3, 1, 1, -2.0, -1.5, 12)
+                            this.divebomb_shockwave_l_hb.vx = 2.5
+                        elseif h_input == 1 then
+                            this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, this.x + 3, this.y + 7, 3, 1, 1,  2.0, -1.5, 12)
+                            this.divebomb_shockwave_r_hb.vx = 2.5
+                        end
                     end
                     
                     -- draw placeholder visual over hitbox
@@ -677,10 +684,10 @@ roundelie = {
                             
                             draw = function(p)
                                 love.graphics.setColor(1, 1, 0, 0.6)
-                                if p.hb_l.active then
+                                if p.hb_l and p.hb_l.active then
                                     love.graphics.rectangle("fill", p.hb_l.x, p.hb_l.y, p.hb_l.w, p.hb_l.h)
                                 end
-                                if p.hb_r.active then
+                                if p.hb_r and p.hb_r.active then
                                     love.graphics.rectangle("fill", p.hb_r.x, p.hb_r.y, p.hb_r.w, p.hb_r.h)
                                 end
                                 love.graphics.setColor(1, 1, 1, 1)
