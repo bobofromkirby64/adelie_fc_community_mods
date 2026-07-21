@@ -514,18 +514,17 @@ roundelie = {
         end
         hb = this.divebomb_shockwave_l_hb
         if hb and hb.active then
-            hb.vx = util.appr(hb.vx, 1.0, 0.3)
-            util.appr(this.vy, 3, 0.15)
-            hb.x = hb.x - hb.vx -- - 2.5
-            hb.y = hb.h == 8 and hb.y or hb.y - 0.8
-            hb.h = util.appr(hb.h, 8, 0.8)
+            hb.vx = util.appr(hb.vx, 1.0, 0.45)
+            hb.x = hb.x - hb.vx
+            hb.y = hb.h == 8 and hb.y or hb.y - 1.0
+            hb.h = util.appr(hb.h, 8, 1.0)
         end
         hb = this.divebomb_shockwave_r_hb
         if hb and hb.active then
-            hb.vx = util.appr(hb.vx, 1.0, 0.3)
-            hb.x = hb.x + hb.vx -- + 2.5
-            hb.y = hb.h == 8 and hb.y or hb.y - 0.8
-            hb.h = util.appr(hb.h, 8, 0.8)
+            hb.vx = util.appr(hb.vx, 1.0, 0.45)
+            hb.x = hb.x + hb.vx
+            hb.y = hb.h == 8 and hb.y or hb.y - 1.0
+            hb.h = util.appr(hb.h, 8, 1.0)
         end
         
         --
@@ -639,19 +638,19 @@ roundelie = {
                         this.divebomb_slam_hb.big_dive_slam = true
                         -- shockwaves
                         -- id, x, y, w, h, dmg, kbx, kby, duration
-                        this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, this.x, this.y + 7, 3, 1, 1, -2.0, -1.5, 12)
-                        this.divebomb_shockwave_l_hb.vx = 3.5
-                        this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, this.x + 3, this.y + 7, 3, 1, 1,  2.0, -1.5, 12)
-                        this.divebomb_shockwave_r_hb.vx = 3.5
+                        this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, this.x, this.y + 7, 3, 1, 1, -2.0, -1.5, 10)
+                        this.divebomb_shockwave_l_hb.vx = 4
+                        this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, this.x + 3, this.y + 7, 3, 1, 1,  2.0, -1.5, 10)
+                        this.divebomb_shockwave_r_hb.vx = 4
                     else
                         this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 2)
                         this.divebomb_slam_hb.small_dive_slam = true
                         if h_input == -1 then
-                            this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, this.x, this.y + 7, 3, 1, 1, -2.0, -1.5, 12)
-                            this.divebomb_shockwave_l_hb.vx = 2.5
+                            this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, this.x, this.y + 7, 3, 1, 1, -2.0, -1.5, 10)
+                            this.divebomb_shockwave_l_hb.vx = 3.2
                         elseif h_input == 1 then
-                            this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, this.x + 3, this.y + 7, 3, 1, 1,  2.0, -1.5, 12)
-                            this.divebomb_shockwave_r_hb.vx = 2.5
+                            this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, this.x + 3, this.y + 7, 3, 1, 1,  2.0, -1.5, 10)
+                            this.divebomb_shockwave_r_hb.vx = 3.2
                         end
                     end
                     
@@ -695,8 +694,10 @@ roundelie = {
                         })
                     
                     -- draw smoke over ground-slam hitbox
-                    game.init_smoke(hb_x - 1, this.divebomb_slam_hb.y + 1)
-                    game.init_smoke(hb_x + hb_w - 6, this.divebomb_slam_hb.y + 1)
+                    -- TODO: probably want to replace this with something that 1) covers a smaller area and 2) doesn't linger for as long
+                    --      e.g. "dust" more constrained to the surface of the platform, or a "reduced" smoke effect
+                    game.init_smoke(hb_x - 1, this.divebomb_slam_hb.y + 2) -- + 1)
+                    game.init_smoke(hb_x + hb_w - 6, this.divebomb_slam_hb.y + 2) -- + 1)
                     
                     local step_count = math.floor((hb_w - 4) / 8)
                     local base_amt = math.floor((hb_w - 4) / step_count)
@@ -705,7 +706,7 @@ roundelie = {
                     local curr_x = (hb_x - 1)
                     for i = 1, step_count - 1 do
                         curr_x = curr_x + base_amt + (i <= leftover and 1 or 0)
-                        game.init_smoke(curr_x, this.divebomb_slam_hb.y + 1)
+                        --game.init_smoke(curr_x, this.divebomb_slam_hb.y + 1)  -- turning this off temporarily...
                     end
                 end
                 if this.vy < 0 then
