@@ -117,7 +117,8 @@ roundelie = {
         this.teleport_hb  = nil  -- hitbox created by left/right+x and neutral+x attacks
         -- hitboxes created by diving (down+x) into the ground
         this.divebomb_slam_hb  = nil
-        this.divebomb_shockwave_hb = nil
+        this.divebomb_shockwave_l_hb = nil
+        this.divebomb_shockwave_r_hb = nil
         
         this.animations = {
             idle1 = {frames = {1},  speed = 1},  -- upright
@@ -485,12 +486,13 @@ roundelie = {
                 
                 if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
                 if this.divebomb_slam_hb then this.divebomb_slam_hb.active = false; this.divebomb_slam_hb = nil end
-                if this.divebomb_shockwave_hb then this.divebomb_shockwave_hb.active = false; this.divebomb_shockwave_hb = nil end
+                if this.divebomb_shockwave_l_hb then this.divebomb_shockwave_l_hb.active = false; this.divebomb_shockwave_l_hb = nil end
+                if this.divebomb_shockwave_r_hb then this.divebomb_shockwave_r_hb.active = false; this.divebomb_shockwave_r_hb = nil end
             end
             return
         end
         
-        -- update hitboxes
+        -- update dynamic hitboxes
         local hb = this.divebomb_slam_hb
         -- divebomb slam is active near the ground for the first 2 frames, then pieces of the ground shoot out for the next 3 frames
         --  and the hitbox travels upward with the ground pieces
@@ -510,6 +512,21 @@ roundelie = {
                 hb.kx = hb.ky / 2
             end
         end
+        hb = this.divebomb_shockwave_l_hb
+        if hb and hb.active then
+            hb.vx = util.appr(hb.vx, 1.0, 0.3)
+            util.appr(this.vy, 3, 0.15)
+            hb.x = hb.x - hb.vx -- - 2.5
+            hb.y = hb.h == 8 and hb.y or hb.y - 0.8
+            hb.h = util.appr(hb.h, 8, 0.8)
+        end
+        hb = this.divebomb_shockwave_r_hb
+        if hb and hb.active then
+            hb.vx = util.appr(hb.vx, 1.0, 0.3)
+            hb.x = hb.x + hb.vx -- + 2.5
+            hb.y = hb.h == 8 and hb.y or hb.y - 0.8
+            hb.h = util.appr(hb.h, 8, 0.8)
+        end
         
         --
         this.prev_facing = this.facing
@@ -525,7 +542,8 @@ roundelie = {
             
             if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
             if this.divebomb_slam_hb then this.divebomb_slam_hb.active = false; this.divebomb_slam_hb = nil end
-            if this.divebomb_shockwave_hb then this.divebomb_shockwave_hb.active = false; this.divebomb_shockwave_hb = nil end
+            if this.divebomb_shockwave_l_hb then this.divebomb_shockwave_l_hb.active = false; this.divebomb_shockwave_l_hb = nil end
+            if this.divebomb_shockwave_r_hb then this.divebomb_shockwave_r_hb.active = false; this.divebomb_shockwave_r_hb = nil end
         else
             
             local jump_btn = inputSource.getKeyDown(id, "b1")
@@ -619,6 +637,12 @@ roundelie = {
                     if check_is_big_slam then
                         this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 5)
                         this.divebomb_slam_hb.big_dive_slam = true
+                        -- shockwaves
+                        -- id, x, y, w, h, dmg, kbx, kby, duration
+                        this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID,     this.x, this.y + 7, 3, 1, 1, -2.0, -0.8, 12)
+                        this.divebomb_shockwave_l_hb.vx = 3.5
+                        this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, this.x + 3, this.y + 7, 3, 1, 1,  2.0, -0.8, 12)
+                        this.divebomb_shockwave_r_hb.vx = 3.5
                     else
                         this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 2)
                         this.divebomb_slam_hb.small_dive_slam = true
@@ -638,6 +662,27 @@ roundelie = {
                             draw = function(p)
                                 love.graphics.setColor(1, 0, 0, 0.5)
                                 love.graphics.rectangle("fill", p.hb.x, p.hb.y, p.hb.w, p.hb.h)
+                                love.graphics.setColor(1, 1, 1, 1)
+                            end
+                        })
+                    -- temp
+                    table.insert(
+                        particles_fg, {
+                            hb_l = this.divebomb_shockwave_l_hb,  -- ref to table -> particle has access to updated values\
+                            hb_r = this.divebomb_shockwave_r_hb,  -- ^
+                            
+                            update = function(p)
+                                return (not (p.hb_l and p.hb_l.active)) and (not (p.hb_r and p.hb_r.active))
+                            end,
+                            
+                            draw = function(p)
+                                love.graphics.setColor(1, 1, 0, 0.6)
+                                if p.hb_l.active then
+                                    love.graphics.rectangle("fill", p.hb_l.x, p.hb_l.y, p.hb_l.w, p.hb_l.h)
+                                end
+                                if p.hb_r.active then
+                                    love.graphics.rectangle("fill", p.hb_r.x, p.hb_r.y, p.hb_r.w, p.hb_r.h)
+                                end
                                 love.graphics.setColor(1, 1, 1, 1)
                             end
                         })
@@ -898,7 +943,8 @@ roundelie = {
             
             if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
             if this.divebomb_slam_hb then this.divebomb_slam_hb.active = false; this.divebomb_slam_hb = nil end
-            if this.divebomb_shockwave_hb then this.divebomb_shockwave_hb.active = false; this.divebomb_shockwave_hb = nil end
+            if this.divebomb_shockwave_l_hb then this.divebomb_shockwave_l_hb.active = false; this.divebomb_shockwave_l_hb = nil end
+            if this.divebomb_shockwave_r_hb then this.divebomb_shockwave_r_hb.active = false; this.divebomb_shockwave_r_hb = nil end
             
             if this.stocks > 0 then
                 this.x = -1000
