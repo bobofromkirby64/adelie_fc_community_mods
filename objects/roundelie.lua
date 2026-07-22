@@ -514,17 +514,17 @@ roundelie = {
         end
         hb = this.divebomb_shockwave_l_hb
         if hb and hb.active then
-            hb.vx = util.appr(hb.vx, 1.0, 0.45)
+            hb.vx = util.appr(hb.vx, 0.5, 0.6)
             hb.x = hb.x - hb.vx
             hb.y = hb.h == 8 and hb.y or hb.y - 1.0
-            hb.h = util.appr(hb.h, 8, 1.0)
+            hb.h = util.appr(hb.h, 8, 1.2)
         end
         hb = this.divebomb_shockwave_r_hb
         if hb and hb.active then
-            hb.vx = util.appr(hb.vx, 1.0, 0.45)
+            hb.vx = util.appr(hb.vx, 0.5, 0.6)
             hb.x = hb.x + hb.vx
             hb.y = hb.h == 8 and hb.y or hb.y - 1.0
-            hb.h = util.appr(hb.h, 8, 1.0)
+            hb.h = util.appr(hb.h, 8, 1.2)
         end
         
         --
@@ -604,7 +604,7 @@ roundelie = {
                     local hb_x, hb_w, hb_offset
                     if check_is_big_slam then
                         hb_offset = (-1.0 * this.conkdir) + (3.0 * h_input)
-                        hb_x, hb_w = (this.x + cx - 13) + hb_offset, 26  -- 3.25 tiles
+                        hb_x, hb_w = (this.x + cx - 14) + hb_offset, 28  -- 3.5 tiles
                         this.conk = 10
                         this.was_big_conk = true
                         this.vy = -3.75
@@ -640,20 +640,20 @@ roundelie = {
                         this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 5)
                         this.divebomb_slam_hb.big_dive_slam = true
                         --
-                        this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1, -2.0, -1.5, 10)
-                        this.divebomb_shockwave_l_hb.vx = 4
-                        this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1,  2.0, -1.5, 10)
-                        this.divebomb_shockwave_r_hb.vx = 4
+                        this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1, -2.0, -1.75, 8)
+                        this.divebomb_shockwave_l_hb.vx = 5.0
+                        this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1,  2.0, -1.75, 8)
+                        this.divebomb_shockwave_r_hb.vx = 5.0
                     else
                         this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 2)
                         this.divebomb_slam_hb.small_dive_slam = true
                         --
                         if h_input == -1 then
-                            this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1, h_input * 2.0, -1.5, 10)
-                            this.divebomb_shockwave_l_hb.vx = 3.2
+                            this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1, h_input * 2.0, -1.75, 8)
+                            this.divebomb_shockwave_l_hb.vx = 3.75
                         elseif h_input == 1 then
-                            this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1,  2.0, -1.5, 10)
-                            this.divebomb_shockwave_r_hb.vx = 3.2
+                            this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1, h_input * 2.0, -1.75, 8)
+                            this.divebomb_shockwave_r_hb.vx = 3.75
                         end
                     end
                     
@@ -709,7 +709,7 @@ roundelie = {
                     local curr_x = (hb_x - 1)
                     for i = 1, step_count - 1 do
                         curr_x = curr_x + base_amt + (i <= leftover and 1 or 0)
-                        --game.init_smoke(curr_x, this.divebomb_slam_hb.y + 1)  -- turning this off temporarily...
+                        game.init_smoke(curr_x, this.divebomb_slam_hb.y + 4)
                     end
                 end
                 if this.vy < 0 then
