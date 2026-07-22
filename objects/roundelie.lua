@@ -602,14 +602,15 @@ roundelie = {
                     local check_is_big_slam = this.prev_vy == 4.5 and this.dive_start == 0
                     local cx = this.hurtbox.x + (this.hurtbox.w / 2)
                     local hb_x, hb_w
+                    local hb_offset = check_is_big_slam and (-1.0 * this.conkdir) + (3.0 * h_input) or (-0.75 * this.conkdir) + (1.75 * h_input)
                     if check_is_big_slam then
-                        hb_x, hb_w = (this.x + cx - 18) + (-1.0 * this.conkdir) + (3.0 * h_input), 36
+                        hb_x, hb_w = (this.x + cx - 18) + hb_offset, 36
                         this.conk = 10
                         this.was_big_conk = true
                         this.vy = -3.75
                         camera.shake(2, 2, 4)
                     else
-                        hb_x, hb_w = (this.x  + cx - 12) + (-0.75 * this.conkdir) + (1.75 * h_input), 24
+                        hb_x, hb_w = (this.x  + cx - 12) + hb_offset, 24
                         this.conk = 9
                         this.vy = -2.0
                     end
@@ -632,24 +633,25 @@ roundelie = {
                     local prev_hb_x = hb_x
                     hb_x = math.max(hb_x, platform_left.x - 4)
                     hb_w = math.min((prev_hb_x + hb_w - hb_x), (platform_right.x + platform_right.w + 4) - hb_x)
+                    local impact_x = (this.x + cx) + hb_offset
                     
                     if check_is_big_slam then
                         this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 5)
                         this.divebomb_slam_hb.big_dive_slam = true
-                        -- shockwaves
-                        -- id, x, y, w, h, dmg, kbx, kby, duration
-                        this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, this.x, this.y + 7, 3, 1, 1, -2.0, -1.5, 10)
+                        --
+                        this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1, -2.0, -1.5, 10)
                         this.divebomb_shockwave_l_hb.vx = 4
-                        this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, this.x + 3, this.y + 7, 3, 1, 1,  2.0, -1.5, 10)
+                        this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1,  2.0, -1.5, 10)
                         this.divebomb_shockwave_r_hb.vx = 4
                     else
                         this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 2)
                         this.divebomb_slam_hb.small_dive_slam = true
+                        --
                         if h_input == -1 then
-                            this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, this.x, this.y + 7, 3, 1, 1, -2.0, -1.5, 10)
+                            this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1, h_input * 2.0, -1.5, 10)
                             this.divebomb_shockwave_l_hb.vx = 3.2
                         elseif h_input == 1 then
-                            this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, this.x + 3, this.y + 7, 3, 1, 1,  2.0, -1.5, 10)
+                            this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1,  2.0, -1.5, 10)
                             this.divebomb_shockwave_r_hb.vx = 3.2
                         end
                     end
@@ -696,8 +698,8 @@ roundelie = {
                     -- draw smoke over ground-slam hitbox
                     -- TODO: probably want to replace this with something that 1) covers a smaller area and 2) doesn't linger for as long
                     --      e.g. "dust" more constrained to the surface of the platform, or a "reduced" smoke effect
-                    game.init_smoke(hb_x - 1, this.divebomb_slam_hb.y + 2) -- + 1)
-                    game.init_smoke(hb_x + hb_w - 6, this.divebomb_slam_hb.y + 2) -- + 1)
+                    game.init_smoke(hb_x - 1, this.divebomb_slam_hb.y + 4) -- + 1)
+                    game.init_smoke(hb_x + hb_w - 6, this.divebomb_slam_hb.y + 4) -- + 1)
                     
                     local step_count = math.floor((hb_w - 4) / 8)
                     local base_amt = math.floor((hb_w - 4) / step_count)
