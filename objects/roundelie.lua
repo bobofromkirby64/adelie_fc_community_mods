@@ -621,12 +621,12 @@ roundelie = {
                     local platform_left, platform_right = ground_hit, ground_hit
                     -- find left-most platform
                     while hb_x < platform_left.x do
-                        local new_platform = this:is_solid(platform_left.x - this.x - this.hurtbox.w - 1, 1)
+                        local new_platform = this:is_solid((platform_left.x - this.x - this.hurtbox.w - this.hurtbox.x), 1)
                         if new_platform then platform_left = new_platform; else break; end
                     end
                     -- find right-most platform
                     while (hb_x + hb_w) > (platform_right.x + platform_right.w) do
-                        local new_platform = this:is_solid(platform_right.x + platform_right.w - this.x + this.hurtbox.w + 1, 1)
+                        local new_platform = this:is_solid((platform_right.x + platform_right.w - this.x - this.hurtbox.x), 1)
                         if new_platform then platform_right = new_platform; else break; end
                     end
                     
