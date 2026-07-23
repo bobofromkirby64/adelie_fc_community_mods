@@ -109,16 +109,27 @@ roundelie = {
         this.was_big_conk = false
         this.should_draw_dive_vfx = false
         
+        this.teleport_hb  = nil  -- hitbox created by left/right+x and neutral+x attacks
         this.teleport_info = {
             init = false,       -- true if teleport has started (=> flag used to trigger vfx)
             horizontal = false, -- true if teleport has an input direction (i.e. not a neutral input)
             on_hit = false      -- true if teleport has hit the opponent
         }
-        this.teleport_hb  = nil  -- hitbox created by left/right+x and neutral+x attacks
         -- hitboxes created by diving (down+x) into the ground
         this.divebomb_slam_hb  = nil
-        this.divebomb_shockwave_l_hb = nil
-        this.divebomb_shockwave_r_hb = nil
+        this.shockwave_left_hb = nil
+        this.shockwave_right_hb = nil
+        this.shockwave_info = {
+            -- TODO: probably would be better to calculate init velocity based on the range of the ground-slam hitbox?
+            --       and then have adjustable param for "how far does shockwave extend past the ground-slam", or something similar?
+            vx = 0,         -- shockwave velocity (differs between big and small slam) 
+            x_init = 0,     -- x pos for the initial dive impact
+            y_init = 0,     -- y pos for the initial dive impact
+            cx = 0,         -- offset applied to initial x pos (shockwave hitbox is created after a delay)
+            left = false,   -- true if there's a shockwave moving to the left
+            right = false,  -- true if there's a shockwave moving to the right
+            create = false, -- true if shockwave(s) will be created when the delay timer == 0
+        }
         
         this.animations = {
             idle1 = {frames = {1},  speed = 1},  -- upright
@@ -151,6 +162,7 @@ roundelie = {
         this.dive_start = 0
         this.dive_smoketrail = 0
         this.dribble_window = 0
+        this.shockwave_delay = 0
         
         this.prev_x = 0
         this.prev_y = 0
@@ -432,6 +444,9 @@ roundelie = {
             return
         end
         
+        
+        -- update timers ::
+        
         --
         if this.dribble_window > 0 then
             this.dribble_window = this.dribble_window - 1
@@ -451,6 +466,11 @@ roundelie = {
         -- dive vfx
         if this.dive_smoketrail > 0 then
             this.dive_smoketrail = this.dive_smoketrail - 1
+        end
+        
+        -- initial delay before shockwave hitbox is created
+        if this.shockwave_delay > 0 then
+            this.shockwave_delay = this.shockwave_delay - 1
         end
         
         -- iframes
@@ -486,15 +506,17 @@ roundelie = {
                 
                 if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
                 if this.divebomb_slam_hb then this.divebomb_slam_hb.active = false; this.divebomb_slam_hb = nil end
-                if this.divebomb_shockwave_l_hb then this.divebomb_shockwave_l_hb.active = false; this.divebomb_shockwave_l_hb = nil end
-                if this.divebomb_shockwave_r_hb then this.divebomb_shockwave_r_hb.active = false; this.divebomb_shockwave_r_hb = nil end
+                if this.shockwave_left_hb then this.shockwave_left_hb.active = false; this.shockwave_left_hb = nil end
+                if this.shockwave_right_hb then this.shockwave_right_hb.active = false; this.shockwave_right_hb = nil end
             end
             return
         end
         
-        -- update dynamic hitboxes
+        
+        -- update dynamic hitboxes ::
+        
         local hb = this.divebomb_slam_hb
-        -- divebomb slam is active near the ground for the first 2 frames, then pieces of the ground shoot out for the next 3 frames
+        -- dive ground-slam hitbox is active near the ground for the first 2 frames, then pieces of the ground shoot out for the next 3 frames
         --  and the hitbox travels upward with the ground pieces
         if hb and hb.active and hb.duration <= 3 then
             if hb.duration == 3 then
@@ -512,22 +534,64 @@ roundelie = {
                 hb.kx = hb.ky / 2
             end
         end
-        hb = this.divebomb_shockwave_l_hb
-        if hb and hb.active then
-            hb.vx = util.appr(hb.vx, 0.5, 0.6)
-            hb.x = hb.x - hb.vx
-            hb.y = hb.h == 8 and hb.y or hb.y - 1.0
-            hb.h = util.appr(hb.h, 8, 1.2)
+        -- shockwave hitboxes travel out from the center of the ground-slam hitbox (=> the impact of the dive)
+        if (this.shockwave_left_hb and this.shockwave_left_hb.active) or (this.shockwave_right_hb and this.shockwave_right_hb.active) then
+            this.shockwave_info.vx = util.appr(this.shockwave_info.vx, 0.5, 0.6)
+            local hb
+            if this.shockwave_left_hb and this.shockwave_left_hb.active then
+                hb = this.shockwave_left_hb
+                hb.x = hb.x - this.shockwave_info.vx
+                hb.y = hb.h == 8 and hb.y or hb.y - 1
+                hb.h = util.appr(hb.h, 8, 1.2)
+            end
+            if this.shockwave_right_hb and this.shockwave_right_hb.active then
+                hb = this.shockwave_right_hb
+                hb.x = hb.x + this.shockwave_info.vx
+                hb.y = hb.h == 8 and hb.y or hb.y - 1
+                hb.h = util.appr(hb.h, 8, 1.2)
+            end
         end
-        hb = this.divebomb_shockwave_r_hb
-        if hb and hb.active then
-            hb.vx = util.appr(hb.vx, 0.5, 0.6)
-            hb.x = hb.x + hb.vx
-            hb.y = hb.h == 8 and hb.y or hb.y - 1.0
-            hb.h = util.appr(hb.h, 8, 1.2)
+        -- shockwave hitboxes are only created after an initial delay
+        if this.shockwave_info.create then
+            this.shockwave_info.cx = this.shockwave_info.cx + this.shockwave_info.vx
+            this.shockwave_info.vx = util.appr(this.shockwave_info.vx, 0.5, 0.6)
+            
+            if this.shockwave_delay == 0 then
+                this.shockwave_info.create = false
+                local x_init, y_init, cx, w, h, duration = this.shockwave_info.x_init, this.shockwave_info.y_init, this.shockwave_info.cx, 3, 4, 6
+                if this.shockwave_info.left then
+                    this.shockwave_left_hb = hitbox.create(this.connectionID, x_init - (w/2) - cx, y_init + (8 - h), w, h, 1, -2.0, -1.75, duration)
+                end
+                if this.shockwave_info.right then
+                    this.shockwave_right_hb = hitbox.create(this.connectionID, x_init - (w/2) + cx, y_init + (8 - h), w, h, 1,  2.0, -1.75, duration)
+                end
+            end
+            -- placeholder visual for shockwave(s)
+            table.insert(
+                particles_fg, {
+                    hb_l = this.shockwave_left_hb,   -- ref to table -> particle has access to updated values
+                    hb_r = this.shockwave_right_hb,  -- ^
+                    
+                    update = function(p)
+                        return (not (p.hb_l and p.hb_l.active)) and (not (p.hb_r and p.hb_r.active))
+                    end,
+                    
+                    draw = function(p)
+                        love.graphics.setColor(1, 1, 0, 0.6)
+                        if p.hb_l and p.hb_l.active then
+                            love.graphics.rectangle("fill", p.hb_l.x, p.hb_l.y, p.hb_l.w, p.hb_l.h)
+                        end
+                        if p.hb_r and p.hb_r.active then
+                            love.graphics.rectangle("fill", p.hb_r.x, p.hb_r.y, p.hb_r.w, p.hb_r.h)
+                        end
+                        love.graphics.setColor(1, 1, 1, 1)
+                    end
+                })
         end
         
-        --
+        
+        -- update roundelie ::
+        
         this.prev_facing = this.facing
         
         local h_input = (inputSource.getKeyDown(id, "right") and 1 or 0) - (inputSource.getKeyDown(id, "left") and 1 or 0)
@@ -541,8 +605,8 @@ roundelie = {
             
             if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
             if this.divebomb_slam_hb then this.divebomb_slam_hb.active = false; this.divebomb_slam_hb = nil end
-            if this.divebomb_shockwave_l_hb then this.divebomb_shockwave_l_hb.active = false; this.divebomb_shockwave_l_hb = nil end
-            if this.divebomb_shockwave_r_hb then this.divebomb_shockwave_r_hb.active = false; this.divebomb_shockwave_r_hb = nil end
+            if this.shockwave_left_hb then this.shockwave_left_hb.active = false; this.shockwave_left_hb = nil end
+            if this.shockwave_right_hb then this.shockwave_right_hb.active = false; this.shockwave_right_hb = nil end
         else
             
             local jump_btn = inputSource.getKeyDown(id, "b1")
@@ -640,21 +704,24 @@ roundelie = {
                         this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 5)
                         this.divebomb_slam_hb.big_dive_slam = true
                         --
-                        this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1, -2.0, -1.75, 8)
-                        this.divebomb_shockwave_l_hb.vx = 5.0
-                        this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1,  2.0, -1.75, 8)
-                        this.divebomb_shockwave_r_hb.vx = 5.0
+                        this.shockwave_info.vx = 5.0
+                        this.shockwave_info.left = true
+                        this.shockwave_info.right = true
                     else
                         this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 2)
                         this.divebomb_slam_hb.small_dive_slam = true
                         --
-                        if h_input == -1 then
-                            this.divebomb_shockwave_l_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1, h_input * 2.0, -1.75, 8)
-                            this.divebomb_shockwave_l_hb.vx = 3.75
-                        elseif h_input == 1 then
-                            this.divebomb_shockwave_r_hb = hitbox.create(this.connectionID, impact_x - 1.5, this.y + 7, 3, 1, 1, h_input * 2.0, -1.75, 8)
-                            this.divebomb_shockwave_r_hb.vx = 3.75
-                        end
+                        this.shockwave_info.vx = 3.75
+                        this.shockwave_info.left = (h_input == -1)
+                        this.shockwave_info.right = (h_input == 1)
+                    end
+                    
+                    if (this.shockwave_info.left or this.shockwave_info.right) and (not this.shockwave_info.create) then
+                        this.shockwave_info.x_init = impact_x
+                        this.shockwave_info.y_init = this.y
+                        this.shockwave_info.cx = 0
+                        this.shockwave_info.create = this.shockwave_info.left or this.shockwave_info.right
+                        this.shockwave_delay = 2
                     end
                     
                     -- draw placeholder visual over hitbox
@@ -671,27 +738,6 @@ roundelie = {
                             draw = function(p)
                                 love.graphics.setColor(1, 0, 0, 0.5)
                                 love.graphics.rectangle("fill", p.hb.x, p.hb.y, p.hb.w, p.hb.h)
-                                love.graphics.setColor(1, 1, 1, 1)
-                            end
-                        })
-                    -- temp
-                    table.insert(
-                        particles_fg, {
-                            hb_l = this.divebomb_shockwave_l_hb,  -- ref to table -> particle has access to updated values\
-                            hb_r = this.divebomb_shockwave_r_hb,  -- ^
-                            
-                            update = function(p)
-                                return (not (p.hb_l and p.hb_l.active)) and (not (p.hb_r and p.hb_r.active))
-                            end,
-                            
-                            draw = function(p)
-                                love.graphics.setColor(1, 1, 0, 0.6)
-                                if p.hb_l and p.hb_l.active then
-                                    love.graphics.rectangle("fill", p.hb_l.x, p.hb_l.y, p.hb_l.w, p.hb_l.h)
-                                end
-                                if p.hb_r and p.hb_r.active then
-                                    love.graphics.rectangle("fill", p.hb_r.x, p.hb_r.y, p.hb_r.w, p.hb_r.h)
-                                end
                                 love.graphics.setColor(1, 1, 1, 1)
                             end
                         })
@@ -833,8 +879,14 @@ roundelie = {
             this.prev_vy = this.vy -- part of the hacky semisolid fix
         end
         
+        
+        -- apply updates to roundelie ::
+        
         this:move(this.vx, this.vy)
         this:check_snowballs()
+        
+        
+        -- update visuals ::
         
         -- teleport vfx
         if this.teleport_info.init then
@@ -954,8 +1006,8 @@ roundelie = {
             
             if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
             if this.divebomb_slam_hb then this.divebomb_slam_hb.active = false; this.divebomb_slam_hb = nil end
-            if this.divebomb_shockwave_l_hb then this.divebomb_shockwave_l_hb.active = false; this.divebomb_shockwave_l_hb = nil end
-            if this.divebomb_shockwave_r_hb then this.divebomb_shockwave_r_hb.active = false; this.divebomb_shockwave_r_hb = nil end
+            if this.shockwave_left_hb then this.shockwave_left_hb.active = false; this.shockwave_left_hb = nil end
+            if this.shockwave_right_hb then this.shockwave_right_hb.active = false; this.shockwave_right_hb = nil end
             
             if this.stocks > 0 then
                 this.x = -1000
