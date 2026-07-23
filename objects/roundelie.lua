@@ -622,12 +622,12 @@ roundelie = {
                     -- find left-most platform
                     while hb_x < platform_left.x do
                         local new_platform = this:is_solid((platform_left.x - this.x - this.hurtbox.w - this.hurtbox.x), 1)
-                        if new_platform then platform_left = new_platform; else break; end
+                        if new_platform and new_platform.y == platform_left.y then platform_left = new_platform; else break; end
                     end
                     -- find right-most platform
                     while (hb_x + hb_w) > (platform_right.x + platform_right.w) do
                         local new_platform = this:is_solid((platform_right.x + platform_right.w - this.x - this.hurtbox.x), 1)
-                        if new_platform then platform_right = new_platform; else break; end
+                        if new_platform and new_platform.y == platform_right.y then platform_right = new_platform; else break; end
                     end
                     
                     -- the ground-slam hitbox is constrained to the size of the ground roundelie is diving into, + 1/2 the width of a tile
