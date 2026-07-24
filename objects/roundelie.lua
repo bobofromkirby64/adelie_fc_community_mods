@@ -604,7 +604,7 @@ roundelie = {
                         end
                     end
                     if (not is_wall) then
-                        this.shockwave_right_hb = hitbox.create(this.connectionID, hb.x, hb.y, hb.w, hb.h, 1, -2.0, -1.75, duration)
+                        this.shockwave_right_hb = hitbox.create(this.connectionID, hb.x, hb.y, hb.w, hb.h, 1, 2.0, -1.75, duration)
                     end
                 end
             end
@@ -722,6 +722,8 @@ roundelie = {
                         this.vy = -2.0
                     end
                     
+                    local impact_x, impact_y = (this.x + cx) + hb_offset, this.y
+                    
                     -- ground can be composed of multiple platforms
                     --   => we need to find the left-most and right-most platforms within the attack range
                     local platform_left, platform_right = ground_hit, ground_hit
@@ -740,7 +742,22 @@ roundelie = {
                     local prev_hb_x = hb_x
                     hb_x = math.max(hb_x, platform_left.x - 4)
                     hb_w = math.min((prev_hb_x + hb_w - hb_x), (platform_right.x + platform_right.w + 4) - hb_x)
-                    local impact_x = (this.x + cx) + hb_offset
+                    
+                    -- further constrain hitbox on collision with walls
+                    local hb_right = { x = impact_x, y = this.y + 4, w = (hb_x + hb_w) - impact_x, h = 4 }
+                    for _, p in ipairs(stage.platforms) do
+                        if p.type == "solid" and this.check_for_collision(hb_right, p, 0, 0) then
+                            hb_w = p.x - hb_x + 4
+                            break
+                        end
+                    end
+                    local hb_left =  { x = hb_x, y = this.y + 4, w = impact_x - hb_x, h = 4 }
+                    for _, p in ipairs(stage.platforms) do
+                        if p.type == "solid" and this.check_for_collision(hb_left, p, 0, 0) then
+                            hb_x = p.x + p.w - 4
+                            break
+                        end
+                    end
                     
                     if check_is_big_slam then
                         this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 5)
@@ -760,7 +777,7 @@ roundelie = {
                     
                     if (this.shockwave_info.left or this.shockwave_info.right) and (not this.shockwave_info.create) then
                         this.shockwave_info.x_init = impact_x
-                        this.shockwave_info.y_init = this.y
+                        this.shockwave_info.y_init = impact_y
                         this.shockwave_info.cx = 0
                         this.shockwave_info.create = this.shockwave_info.left or this.shockwave_info.right
                         this.shockwave_delay = 2
