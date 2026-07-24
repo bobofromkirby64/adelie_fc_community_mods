@@ -170,6 +170,12 @@ roundelie = {
         this.prev_vy = 0
         this.prev_facing = 1
         
+        -- assumes args a and b are both tables with values for x, y, w, and h
+        this.check_for_collision = function(a, b, x_offset, y_offset)
+            return a.x < b.x + b.w + (x_offset or 0) and a.x + a.w > b.x + (x_offset or 0) and
+                   a.y < b.y + b.h + (y_offset or 0) and a.y + a.h > b.y + (y_offset or 0)
+        end
+        
         this.check_snowballs = function(this)
             if this.hitstun > 0 then return end
             for _, o in ipairs(objects) do
@@ -537,18 +543,32 @@ roundelie = {
         -- shockwave hitboxes travel out from the center of the ground-slam hitbox (=> the impact of the dive)
         if (this.shockwave_left_hb and this.shockwave_left_hb.active) or (this.shockwave_right_hb and this.shockwave_right_hb.active) then
             this.shockwave_info.vx = util.appr(this.shockwave_info.vx, 0.5, 0.6)
-            local hb
+            
             if this.shockwave_left_hb and this.shockwave_left_hb.active then
-                hb = this.shockwave_left_hb
+                local hb = this.shockwave_left_hb
                 hb.x = hb.x - this.shockwave_info.vx
-                hb.y = hb.h == 8 and hb.y or hb.y - 1
+                hb.y = 8 - hb.h > 1.2 and hb.y - 1.2 or hb.y - (8 - hb.h)
                 hb.h = util.appr(hb.h, 8, 1.2)
+                -- check for collision with walls
+                for _, p in ipairs(stage.platforms) do
+                    if p.type == "solid" and this.check_for_collision(hb, p, -3, 0) then
+                        hb.duration = 1
+                        break
+                    end
+                end
             end
             if this.shockwave_right_hb and this.shockwave_right_hb.active then
-                hb = this.shockwave_right_hb
+                local hb = this.shockwave_right_hb
                 hb.x = hb.x + this.shockwave_info.vx
-                hb.y = hb.h == 8 and hb.y or hb.y - 1
+                hb.y = 8 - hb.h > 1.2 and hb.y - 1.2 or hb.y - (8 - hb.h)
                 hb.h = util.appr(hb.h, 8, 1.2)
+                -- check for collision with walls
+                for _, p in ipairs(stage.platforms) do
+                    if p.type == "solid" and this.check_for_collision(hb, p, 3, 0) then
+                        hb.duration = 1
+                        break
+                    end
+                end
             end
         end
         -- shockwave hitboxes are only created after an initial delay
@@ -560,10 +580,32 @@ roundelie = {
                 this.shockwave_info.create = false
                 local x_init, y_init, cx, w, h, duration = this.shockwave_info.x_init, this.shockwave_info.y_init, this.shockwave_info.cx, 3, 4, 6
                 if this.shockwave_info.left then
-                    this.shockwave_left_hb = hitbox.create(this.connectionID, x_init - (w/2) - cx, y_init + (8 - h), w, h, 1, -2.0, -1.75, duration)
+                    local hb = {x = x_init - (w/2) - cx, y = y_init + (8 - h), w = w, h = h}
+                    local is_wall = false
+                    -- check for collision with walls
+                    for _, p in ipairs(stage.platforms) do
+                        if p.type == "solid" and this.check_for_collision(hb, p, -3, 0) then
+                            is_wall = true
+                            break
+                        end
+                    end
+                    if (not is_wall) then
+                        this.shockwave_left_hb = hitbox.create(this.connectionID, hb.x, hb.y, hb.w, hb.h, 1, -2.0, -1.75, duration)
+                    end
                 end
                 if this.shockwave_info.right then
-                    this.shockwave_right_hb = hitbox.create(this.connectionID, x_init - (w/2) + cx, y_init + (8 - h), w, h, 1,  2.0, -1.75, duration)
+                    local hb = {x = x_init - (w/2) + cx, y = y_init + (8 - h), w = w, h = h}
+                    local is_wall = false
+                    -- check for collision with walls
+                    for _, p in ipairs(stage.platforms) do
+                        if p.type == "solid" and this.check_for_collision(hb, p, 3, 0) then
+                            is_wall = true
+                            break
+                        end
+                    end
+                    if (not is_wall) then
+                        this.shockwave_right_hb = hitbox.create(this.connectionID, hb.x, hb.y, hb.w, hb.h, 1, -2.0, -1.75, duration)
+                    end
                 end
             end
             -- placeholder visual for shockwave(s)
