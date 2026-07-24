@@ -436,6 +436,79 @@ roundelie = {
                     end
                 })
         end
+        
+        --
+        this.init_ground_chunk = function(start_x, start_y, dest_x, dest_y)
+            -- start and end pos roughly match the upper bounds of the big ground-slam hitbox after it expands on tick 3
+            -- => initial velocity is calculated using these values
+            --[[
+            TODO: ...
+                - pick color(s?) for the sprites from the stage fg
+                - particles should disappear on collision
+                    - maybe particles also break when they collide with opponent?
+                - experiment with particles fading out if timer expires before they collide with a platform
+                - add minor variation to initial position, similar to smoke (note: need to account for flipY also)
+                - particles should retain a bit of vx based on initial velocity, instead of falling straight down after breaking
+            ]]
+            table.insert(particles_fg, {
+                drag = 0.4,  -- deceleration
+                x = start_x,
+                y = start_y,
+                -- e.g. given drag/deceleration of 0.5, and distance from start to dest x of 3.0, initial velocity is:
+                --  start_x + vx + (drag * vx) = dest_x  =>  vx = (dest_x - start_x) / (1 + drag)  =>  vx = (6.0 - 3.0) / (1 + 0.5)  => vx = 3.0 / 1.5  =>  2.0
+                vx = (dest_x - start_x), -- / (1 + drag),
+                vy = (dest_y - start_y), -- / (1 + drag),
+                
+                init_delay = 1,  -- bit of a hack, but, ehh
+                timer = 0,
+                anim_duration = 10,  -- 3 frames, animated on 3s => 1f buffer ensures every sprite before the ending sprite is drawn for 3f
+                duration = 16,       -- max duration before the particle is destroyed (TODO: particle can be destroyed earlier on collision)
+                hitbox_active_window = 3 - 1,  -- window for particles to ignore gravity (corresponding to window where hitbox is active)
+                
+                -- TODO: for clarity, can darken the colors slightly when the hitbox is no longer active?
+                
+                flipX = love.math.random() > 0.5 and -1 or 1,
+                flipY = love.math.random() > 0.5 and -1 or 1,
+                
+                -- x = x + love.math.random() * 2 - 1,
+                -- y = y + love.math.random() * 2 - 1,
+                -- vx = love.math.random() * 0.6 - 0.3,
+                -- vy = -0.1 - love.math.random() * 0.2,
+                -- timer = 0,
+                -- duration = 8,
+
+                update = function(p)
+                    if (p.init_delay > 0) then
+                        p.init_delay = p.init_delay - 1
+                        return
+                    end
+                    
+                    if (p.timer == 0) then
+                        p.vx = p.vx / (1 + p.drag)
+                        p.vy = p.vy / (1 + p.drag)
+                    else
+                        p.x = p.x + p.vx
+                        p.y = p.y + p.vy
+                        p.vx = p.vx * p.drag
+                        if (p.timer <= p.hitbox_active_window) then
+                            p.vy = p.vy * p.drag
+                        else
+                            --this.vy = util.appr(this.vy, maxfall, math.abs(this.vy) > 0.124 and 0.334 or 0.167)
+                            p.vy = util.appr(p.vy, 3.0, math.abs(p.vy) > 0.2 and 0.334 or 0.167)
+                        end
+                    end
+                    p.timer = p.timer + 1
+                    return p.timer > p.duration
+                end,
+                
+                draw = function(p)
+                    local frame = math.floor(p.timer / p.anim_duration * 3) + 1
+                    if frame > 3 then frame = 3 end
+                    local dx, dy = math.floor(p.x), math.floor(p.y)
+                    sprites.draw(sprites.ground_chunk[frame], p.flipX == -1 and dx + 8 or dx, p.flipY == -1 and dy + 8 or dy, 0, p.flipX, p.flipY, 0, 0)
+                end,
+            })
+        end
     end,
     
     update = function(this)
@@ -521,23 +594,22 @@ roundelie = {
         
         -- update dynamic hitboxes ::
         
+        -- dive ground-slam hitbox is active near the ground for the first 2 frames,
+        --   then chunks of the ground shoot out for the next 3 frames, and the hitbox travels upward with the chunks
         local hb = this.divebomb_slam_hb
-        -- dive ground-slam hitbox is active near the ground for the first 2 frames, then pieces of the ground shoot out for the next 3 frames
-        --  and the hitbox travels upward with the ground pieces
-        if hb and hb.active and hb.duration <= 3 then
-            if hb.duration == 3 then
-                hb.y = hb.y - 5  -- hitbox suddenly grows to the height of a full tile on tick 3
+        if hb and hb.active and hb.big_dive_slam and hb.duration <= 4 then
+            -- hb.duration is decremented *after* this, so e.g. tick 3 is at `hb.duration == 4` (with initial duration of 6)
+            -- also hitbox is *actually* active for (duration - 1), currently (6 - 1) => 5 ticks
+            if hb.duration == 4 then
+                hb.y = hb.y - 5  -- hitbox suddenly expands to the height of a full tile on tick 3
                 hb.h = hb.h + 4
-            elseif hb.duration == 2 then
+            elseif hb.duration == 3 then
                 hb.y = hb.y - 3
                 hb.h = hb.h - 4
-                hb.kx = hb.kx / 2  -- knockback is significantly weaker on ticks 4 and 5
-                hb.kx = hb.ky / 2
-            elseif hb.duration == 1 then
+                hb.kx = hb.kx * 0.66  -- knockback is much weaker on ticks 4 and 5
+                hb.ky = hb.ky * 0.66
+            elseif hb.duration == 2 then
                 hb.y = hb.y - 2
-                hb.h = hb.h - 3
-                hb.kx = hb.kx / 2
-                hb.kx = hb.ky / 2
             end
         end
         -- shockwave hitboxes travel out from the center of the ground-slam hitbox (=> the impact of the dive)
@@ -760,14 +832,14 @@ roundelie = {
                     end
                     
                     if check_is_big_slam then
-                        this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 5)
+                        this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 6)
                         this.divebomb_slam_hb.big_dive_slam = true
                         --
                         this.shockwave_info.vx = 5.0
                         this.shockwave_info.left = true
                         this.shockwave_info.right = true
                     else
-                        this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 2)
+                        this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 3)
                         this.divebomb_slam_hb.small_dive_slam = true
                         --
                         this.shockwave_info.vx = 3.75
@@ -783,29 +855,20 @@ roundelie = {
                         this.shockwave_delay = 2
                     end
                     
-                    -- draw placeholder visual over hitbox
-                    -- TODO: actual vfx will be pieces shooting out from the ground with colors picked from the stage fg
-                    --  (see https://love2d.org/wiki/ImageData:getPixel)
-                    table.insert(
-                        particles_fg, {
-                            hb = this.divebomb_slam_hb,  -- ref to table -> particle has access to updated values
-                            
-                            update = function(p)
-                                return (not (p.hb and p.hb.active))
-                            end,
-                            
-                            draw = function(p)
-                                love.graphics.setColor(1, 0, 0, 0.5)
-                                love.graphics.rectangle("fill", p.hb.x, p.hb.y, p.hb.w, p.hb.h)
-                                love.graphics.setColor(1, 1, 1, 1)
-                            end
-                        })
+                    -- [wip] draw visual for ground-slam: chunks of the ground fly out on impact
+                    --  TODO: colors for the chunks will be picked from the stage fg
+                    --        (see https://love2d.org/wiki/ImageData:getPixel)
+                    if check_is_big_slam then
+                        this.init_ground_chunk(impact_x - 4 - 6, impact_y + 3, hb_x,            impact_y - 6)
+                        this.init_ground_chunk(impact_x - 4,     impact_y + 3, impact_x - 4,    impact_y - 6)
+                        this.init_ground_chunk(impact_x - 4 + 6, impact_y + 3, hb_x + hb_w - 6, impact_y - 6)
+                    end
                     
                     -- draw smoke over ground-slam hitbox
-                    -- TODO: probably want to replace this with something that 1) covers a smaller area and 2) doesn't linger for as long
+                    -- TODO: might want to replace this with something that 1) covers a smaller area and 2) doesn't linger for as long
                     --      e.g. "dust" more constrained to the surface of the platform, or a "reduced" smoke effect
-                    game.init_smoke(hb_x - 1, this.divebomb_slam_hb.y + 4) -- + 1)
-                    game.init_smoke(hb_x + hb_w - 6, this.divebomb_slam_hb.y + 4) -- + 1)
+                    game.init_smoke(hb_x - 1, this.divebomb_slam_hb.y + 4)
+                    game.init_smoke(hb_x + hb_w - 6, this.divebomb_slam_hb.y + 4)
                     
                     local step_count = math.floor((hb_w - 4) / 8)
                     local base_amt = math.floor((hb_w - 4) / step_count)
