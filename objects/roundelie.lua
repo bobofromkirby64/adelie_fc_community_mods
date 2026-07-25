@@ -444,11 +444,18 @@ roundelie = {
             --[[
             TODO: ...
                 - pick color(s?) for the sprites from the stage fg
-                - particles should disappear on collision
+                    - 1) for initial implementation, just pick the color from stage fg a couple pixels under the dive impact pos
+                    - 2) (maybe?) sample two colors, one from top two rows of pixels, and one from middle two rows of pixels
+                           (if feasible, could determine the "most common" color in the range, rather than just picking at random)
+                           then color the top of the chunks with the "top" color, and the bottom of the chunks with the "bottom" color
+                - particles should break on collision
                     - maybe particles also break when they collide with opponent?
-                - experiment with particles fading out if timer expires before they collide with a platform
+                - experiment with particles fading out if a timer expires before they break on collision
                 - add minor variation to initial position, similar to smoke (note: need to account for flipY also)
                 - particles should retain a bit of vx based on initial velocity, instead of falling straight down after breaking
+                - experiment with drawing black outline around sprites (think it prooobably makes sense to do since these are projectiles, so long as it's not too busy)
+                    - and also with the shockwaves
+                - for clarity, maybe slightly darken colors when hitbox is no longer active (orrr brighten them for the inverse)
             ]]
             table.insert(particles_fg, {
                 drag = 0.4,  -- deceleration
@@ -462,10 +469,8 @@ roundelie = {
                 init_delay = 1,  -- bit of a hack, but, ehh
                 timer = 0,
                 anim_duration = 10,  -- 3 frames, animated on 3s => 1f buffer ensures every sprite before the ending sprite is drawn for 3f
-                duration = 16,       -- max duration before the particle is destroyed (TODO: particle can be destroyed earlier on collision)
+                duration = 16,       -- max duration before the particle is destroyed (particle can be destroyed earlier on collision)
                 hitbox_active_window = 3 - 1,  -- window for particles to ignore gravity (corresponding to window where hitbox is active)
-                
-                -- TODO: for clarity, can darken the colors slightly when the hitbox is no longer active?
                 
                 flipX = love.math.random() > 0.5 and -1 or 1,
                 flipY = love.math.random() > 0.5 and -1 or 1,
