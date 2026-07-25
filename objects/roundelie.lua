@@ -38,12 +38,8 @@
 TODO: ((?) => "maybe")
 
 (core/moveset)
-    - shockwave/ground-slam rework
-        - current range is too large for an attack that is immediately active, and it also extends past the edge of platforms in an unintuitive way
-        - roundelie desperately wants a way to threaten space in front of it, and would also really benefit from another way to knock opponents horizontally that isn't the teleport
     - the combination of being able to cancel jump momentum with dive and being able to grace jump after cancelling out of jump with dive makes for some very silly movement; maybe experiment with having roundelie unable to interrupt a dive for the first few frames after input? or if we like the silly movement, we should at least make it so it's less of a mess of smoke when you press the dive button over and over
-    - (?) extend dive hitbox (? maybe at a certain speed threshhold) so that e.g. it can trade with maddy dive rather than losing to it outright
-    - (?) experiment with teleport knockback (imo current knockback doesn't really fit with the concept of a teleport, it should be a bit more chaotic or at least have variance relative to roundelie's position?)
+    - experiment with teleport knockback (imo current knockback doesn't really fit with the concept of a teleport, it should be a bit more chaotic or at least have variance relative to roundelie's position?)
     - (?) let roundelie influence horizontal speed slightly (but still not dive, teleport, or bjump) during conk state
     - ...
  
@@ -439,8 +435,8 @@ roundelie = {
         
         --
         this.init_ground_chunk = function(start_x, start_y, dest_x, dest_y)
-            -- start and end pos roughly match the upper bounds of the big ground-slam hitbox after it expands on tick 3
-            -- => initial velocity is calculated using these values
+            -- dest xy correspond to a point on the upper bound of the big ground-slam hitbox after it expands
+            --   => particle vx/y is calculated using the start and dest xy pos
             --[[
             TODO: ...
                 - pick color(s?) for the sprites from the stage fg
@@ -448,39 +444,26 @@ roundelie = {
                     - 2) (maybe?) sample two colors, one from top two rows of pixels, and one from middle two rows of pixels
                            (if feasible, could determine the "most common" color in the range, rather than just picking at random)
                            then color the top of the chunks with the "top" color, and the bottom of the chunks with the "bottom" color
-                - particles should break on collision
-                    - maybe particles also break when they collide with opponent?
-                - experiment with particles fading out if a timer expires before they break on collision
-                - add minor variation to initial position, similar to smoke (note: need to account for flipY also)
-                - particles should retain a bit of vx based on initial velocity, instead of falling straight down after breaking
                 - experiment with drawing black outline around sprites (think it prooobably makes sense to do since these are projectiles, so long as it's not too busy)
                     - and also with the shockwaves
-                - for clarity, maybe slightly darken colors when hitbox is no longer active (orrr brighten them for the inverse)
             ]]
             table.insert(particles_fg, {
-                drag = 0.4,  -- deceleration
-                x = start_x,
-                y = start_y,
-                -- e.g. given drag/deceleration of 0.5, and distance from start to dest x of 3.0, initial velocity is:
-                --  start_x + vx + (drag * vx) = dest_x  =>  vx = (dest_x - start_x) / (1 + drag)  =>  vx = (6.0 - 3.0) / (1 + 0.5)  => vx = 3.0 / 1.5  =>  2.0
+                drag = 0.415,  -- deceleration (lower to *increase*)
+                x = start_x + love.math.random() * 2 - 1,
+                y = start_y + love.math.random() * 2 - 1,
+                -- start_x + vx + (drag * vx) = dest_x  =>  vx = (dest_x - start_x) / (1 + drag)
                 vx = (dest_x - start_x), -- / (1 + drag),
                 vy = (dest_y - start_y), -- / (1 + drag),
                 
                 init_delay = 1,  -- bit of a hack, but, ehh
                 timer = 0,
+                duration = 17,       -- max duration before the particle is destroyed
                 anim_duration = 10,  -- 3 frames, animated on 3s => 1f buffer ensures every sprite before the ending sprite is drawn for 3f
-                duration = 16,       -- max duration before the particle is destroyed (particle can be destroyed earlier on collision)
-                hitbox_active_window = 3 - 1,  -- window for particles to ignore gravity (corresponding to window where hitbox is active)
+                hitbox_active_window = 4,  -- window for particles to ignore gravity (corresponding to window where hitbox is active)
                 
                 flipX = love.math.random() > 0.5 and -1 or 1,
                 flipY = love.math.random() > 0.5 and -1 or 1,
-                
-                -- x = x + love.math.random() * 2 - 1,
-                -- y = y + love.math.random() * 2 - 1,
-                -- vx = love.math.random() * 0.6 - 0.3,
-                -- vy = -0.1 - love.math.random() * 0.2,
-                -- timer = 0,
-                -- duration = 8,
+                color = { r = 255, g = 255, b = 255, a = 1.0 },
 
                 update = function(p)
                     if (p.init_delay > 0) then
@@ -489,17 +472,18 @@ roundelie = {
                     end
                     
                     if (p.timer == 0) then
+                        -- init
                         p.vx = p.vx / (1 + p.drag)
                         p.vy = p.vy / (1 + p.drag)
                     else
                         p.x = p.x + p.vx
                         p.y = p.y + p.vy
                         p.vx = p.vx * p.drag
-                        if (p.timer <= p.hitbox_active_window) then
+                        if (p.timer < p.hitbox_active_window) then
                             p.vy = p.vy * p.drag
                         else
-                            --this.vy = util.appr(this.vy, maxfall, math.abs(this.vy) > 0.124 and 0.334 or 0.167)
-                            p.vy = util.appr(p.vy, 3.0, math.abs(p.vy) > 0.2 and 0.334 or 0.167)
+                            p.vx = util.appr(p.vx, 0, 0.157)
+                            p.vy = util.appr(p.vy, 3.0, math.abs(p.vy) > 0.2 and 0.274 or 0.137)  -- meant to hang a bit at the top of the arc
                         end
                     end
                     p.timer = p.timer + 1
@@ -507,10 +491,21 @@ roundelie = {
                 end,
                 
                 draw = function(p)
+                    local fade = (p.duration - p.timer > 3) and 1.0 or (1.0 - (3 - (p.duration - p.timer)) * 0.25)
+                    local dim = (p.timer <= p.hitbox_active_window) and 0 or 40  -- slightly darken color(s) when hitbox is no longer active
                     local frame = math.floor(p.timer / p.anim_duration * 3) + 1
                     if frame > 3 then frame = 3 end
                     local dx, dy = math.floor(p.x), math.floor(p.y)
+                    
+                    love.graphics.setShader(paletteSwapShader)
+                    paletteSwapShader:send("color_find", {255/255, 255/255, 255/255, 1.0})
+                    paletteSwapShader:send("color_replace", {(p.color.r - dim)/255, (p.color.g - dim)/255, (p.color.b - dim)/255, 1.0})
+                    love.graphics.setColor(1, 1, 1, fade)
+                    
                     sprites.draw(sprites.ground_chunk[frame], p.flipX == -1 and dx + 8 or dx, p.flipY == -1 and dy + 8 or dy, 0, p.flipX, p.flipY, 0, 0)
+                    
+                    love.graphics.setShader()
+                    love.graphics.setColor(1, 1, 1)
                 end,
             })
         end
@@ -864,7 +859,7 @@ roundelie = {
                     --  TODO: colors for the chunks will be picked from the stage fg
                     --        (see https://love2d.org/wiki/ImageData:getPixel)
                     if check_is_big_slam then
-                        this.init_ground_chunk(impact_x - 4 - 6, impact_y + 3, hb_x,            impact_y - 6)
+                        this.init_ground_chunk(impact_x - 4 - 6, impact_y + 3, hb_x - 2,        impact_y - 6)
                         this.init_ground_chunk(impact_x - 4,     impact_y + 3, impact_x - 4,    impact_y - 6)
                         this.init_ground_chunk(impact_x - 4 + 6, impact_y + 3, hb_x + hb_w - 6, impact_y - 6)
                     end
