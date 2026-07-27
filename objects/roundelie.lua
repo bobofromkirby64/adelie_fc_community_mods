@@ -48,21 +48,38 @@ TODO: ((?) => "maybe")
     - ...
  
 (visual)
-    - experiment with alternative "teleport is on cooldown" effects
     - take another pass at the rosetta skin but more in the style of the gold skin (=> ball of stone that doesn't change shape) (and also experiment with the "square" idea)
+        - update: square would require pretty significant changes to the animations to not look awful
+            so probably better to just make it a mossy stone ball with the same vibe/aesthetic? and have it be "not squishy" like the gold skin
+            also I prooobably should just play through rosetta to get context for like, what the "roundelie block" in the mod actually does
+                (I'd ask for context but I actually really want to play through it and I also don't want to be spoiled, lol)
     - implement the first-frame roll anim for jump explicitly (atm it's just a side-effect of the current midair roll anim logic)
+        - case in point: this is currently broken with recent changes to sprite logic
     - add skid/turn-around effect for roll
-    - use inflate pose when grace jumping out of a dive bounce
-    - (?) take another pass at the teleport vfx (mainly want to experiment with replacing the bulk of the "single-pixel" particles with sprites)
-    - (?) clean up spritesheets
+    - take another pass at the teleport vfx (mainly want to experiment with replacing the bulk of the "single-pixel" particles with sprites)
+        imagining sparks with like, bolts in between for on-hit
+        and much more explicit "poof" of smoke for standard effect (can also give the afterimage another shot)
+        also roundelie should disappear for 1-2 frames to really sell the effect as a "teleport"
+        also roundelie should do the inflate pose on re-entry (unless it's cancelled by another action e.g. an immediate dive, similarly to the crouch on landing)
+    - clean up spritesheets
+        mainly reorganize and also get rid of unecessary roll sprites
+    - upside-down crouch :3
+    - conk "inflate" pose
+        (grace-jumping out of a big bounce looks strange since roundelie is still stuck in the "conk" state but the standard inflate/jump anim implies roundelie canceled out of it/has more control over movement)
+    - (?) inbetween crouch pose
+        might be a bit extra lol but I think it'll make the anim a lot smoother (and maddy and lani get to have smooth animations on their stuff >:( ) and also sell roundelie as "ball of blubber" a bit more
     - (?) add a "tumble" anim after a long enough fall
         - mainly because the "falling" jump pose looks strange when it's been out for too long
         - could try reusing the roll but a transition pose might be needed? but could also maybe reuse a different sprite for that, like of the jump sprites and just rotate it, maybe?
         - NOTE: roll looks strange, for this; can revisit later
     - (?) experiment with adding alternate/random conk poses (could reuse the roll sprites...)
     - (?) experiment with adding fill color to sprites for sadface/tears/sroundelie during hitstun
-    - (?) upside-down crouch :3
+        - update: current paletteSwap shader only swaps one color, so either need to modify the shader, overlay a different sprite with tears, or... idk something else lol
     - (?) sweat drops for empty bjump (out of uses)
+        - could also use the "tears" effect for this, in addition to the sweat drops
+    - (?) experiment with actually expanding the sprite for the inflate pose
+        i.e. draw a 9x9 or 10x10 sprite for it, since the harsh black outline unfortunately makes the curr sprite look very goofy on stages with a brighter background
+            (the outline also emphasizes the "diamond shape" of the sprites in general, but that's an issue with all "circular" sprites atm e.g. the snowball)
     - ...
 
 (other)
