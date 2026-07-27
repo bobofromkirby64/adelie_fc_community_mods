@@ -48,14 +48,11 @@ TODO: ((?) => "maybe")
     - ...
  
 (visual)
-    - redraw portraits for the other skins in the new style
     - experiment with alternative "teleport is on cooldown" effects
     - take another pass at the rosetta skin but more in the style of the gold skin (=> ball of stone that doesn't change shape) (and also experiment with the "square" idea)
-    - sprite adjustments (mainly the idle poses, the "look up" pose, and the middle/transitional jump pose have been bugging me)
     - implement the first-frame roll anim for jump explicitly (atm it's just a side-effect of the current midair roll anim logic)
     - add skid/turn-around effect for roll
     - use inflate pose when grace jumping out of a dive bounce
-    - (?) for the statue/gold skin, idle1 sprite looks strange after ending a roll => use the upright roll sprite instead of idle1 out of a roll, or have idle poses for diff orientations that aren't just the roll poses
     - (?) take another pass at the teleport vfx (mainly want to experiment with replacing the bulk of the "single-pixel" particles with sprites)
     - (?) clean up spritesheets
     - (?) add a "tumble" anim after a long enough fall
@@ -148,6 +145,7 @@ roundelie = {
         this.dive_start = 0
         this.dive_smoketrail = 0
         this.dribble_window = 0
+        this.landing_window = 0
         
         this.prev_x = 0
         this.prev_y = 0
@@ -450,6 +448,11 @@ roundelie = {
             this.dive_smoketrail = this.dive_smoketrail - 1
         end
         
+        -- tracks a specified # of ticks after roundelie lands (used for sprite anim logic)
+        if this.landing_window > 0 then
+            this.landing_window = this.landing_window - 1
+        end
+        
         -- iframes
         if this.invincible_timer > 0 then
             this.invincible_timer = this.invincible_timer - 1
@@ -511,7 +514,7 @@ roundelie = {
             local bump = dash_btn and (not this.p_dash) and this.bump_cooldown == 0
             this.p_jump = jump_btn
             this.p_dash = dash_btn
-            this.is_start_of_jump = jump or bump
+            this.is_start_of_jump = false
             
             local ground_hit = this:is_solid(0, 1)
             local on_ground = ground_hit ~= false
@@ -520,6 +523,7 @@ roundelie = {
             if on_ground and not this.was_on_ground and not this.down_attack then
                 -- down_attack (dive) already creates smoke when it lands, so no need to draw extra
                 game.init_smoke(this.x, this.y + 4)
+                this.landing_window = 4
             end
             
             -- weird semisolid fall through
@@ -616,6 +620,7 @@ roundelie = {
             
             if this.jbuffer > 0 then
                 if this.grace > 0 then
+                    this.is_start_of_jump = true
                     this.jbuffer = 0
                     -- this.grace = 0
                     this.vy = -3.36
@@ -670,6 +675,7 @@ roundelie = {
             if this.conk > 0 then
                 this.vx = 0.15 * this.conk * this.conkdir
             elseif v_input == -1 and bump and this.bjump > 0 then
+                this.is_start_of_jump = true
                 this.bump_cooldown = 0 --TODO: different from main branch, update documentation and code neatness if you want to keep
                 this.vy = -3.0
                 love.audio.play("maddy_nodash", "static")
@@ -733,13 +739,14 @@ roundelie = {
             if this.idle_poses_idx == 2 then this.idle_poses_idx = 4 elseif this.idle_poses_idx == 4 then this.idle_poses_idx = 2 end   -- TODO: messy
         end
         
-        if this.hitstun > 0 then
+        if this.hitstun > 0 and this.current_anim ~= "crouch" then
             -- animations are paused during hitstun
             next_anim = this.current_anim
-        elseif this.conk > 0 then
-            if this.was_big_conk then next_anim = "conk" else next_anim = "jump2" end
+        elseif this.conk > 0 and (not (this.current_anim == "jump1" or this.current_anim  == "jump2")) then
+            -- TODO: (?) add inflate for conk pose
+            if this.is_start_of_jump then next_anim = "jump1"; elseif this.was_big_conk then next_anim = "conk"; else next_anim = "jump2" end
         elseif not anim_on_ground then
-            if this.down_attack then 
+            if this.down_attack and this.dribble_window == 0 then
                 next_anim = (this.vy == 4.5 and "dive2" or "dive1")
             elseif (this.is_start_of_jump or this.current_anim == "jump1") and this.vy <= -0.7 then
                 -- "inflate" pose is only drawn after a jump or bjump (up+x)
@@ -761,6 +768,8 @@ roundelie = {
             next_anim = "crouch"
         elseif (this.current_anim == roll and math.abs(this.vx) >= 1.2) or (this.current_anim ~= roll and math.abs(this.vx) > 0.1) then
             next_anim = "roll"
+        elseif this.landing_window > 0 then
+            next_anim = "crouch"
         end
 
         if next_anim ~= this.current_anim then
@@ -782,6 +791,8 @@ roundelie = {
                 this.anim_timer = 0
             end
         end
+        
+        if this.landing_window > 0 and next_anim ~= "crouch" then this.landing_window = 0; end
 
         local anim = this.animations[this.current_anim]
         -- animations are paused during hitstun
