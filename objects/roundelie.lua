@@ -134,6 +134,7 @@ roundelie = {
         this.current_anim = "idle1"
         this.anim_frame = 1
         this.anim_timer = 0
+        this.is_skin_squishy = (not (this.skin == 3) or (this.skin == 4))
         
         this.respawn_timer = 0
         this.invincible_timer = 0
@@ -492,6 +493,7 @@ roundelie = {
         
         --
         this.prev_facing = this.facing
+        this.is_start_of_jump = false
         
         local h_input = (inputSource.getKeyDown(id, "right") and 1 or 0) - (inputSource.getKeyDown(id, "left") and 1 or 0)
         local v_input = (inputSource.getKeyDown(id, "down") and 1 or 0) - (inputSource.getKeyDown(id, "up") and 1 or 0)
@@ -514,7 +516,6 @@ roundelie = {
             local bump = dash_btn and (not this.p_dash) and this.bump_cooldown == 0
             this.p_jump = jump_btn
             this.p_dash = dash_btn
-            this.is_start_of_jump = false
             
             local ground_hit = this:is_solid(0, 1)
             local on_ground = ground_hit ~= false
@@ -768,7 +769,7 @@ roundelie = {
             next_anim = "crouch"
         elseif (this.current_anim == roll and math.abs(this.vx) >= 1.2) or (this.current_anim ~= roll and math.abs(this.vx) > 0.1) then
             next_anim = "roll"
-        elseif this.landing_window > 0 then
+        elseif this.landing_window > 0 and this.is_skin_squishy then
             next_anim = "crouch"
         end
 
