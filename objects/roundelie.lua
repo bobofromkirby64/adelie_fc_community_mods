@@ -76,13 +76,13 @@ roundelie = {
         this.connectionID = nil
         
         local player_skins = {
-            {sprites["characters/roundelie_1"], {1,1,1,1}}, -- roundelie (default)
-            {sprites["characters/roundelie_2"], {1,1,1,1}}, -- delaughter (purple/red)
-            {sprites["characters/roundelie_3"], {1,1,1,1}}, -- statue (golden)
+            {sprites["characters/roundelie_1"], { 29/255,  43/255,  83/255, 1}}, -- roundelie (default)
+            {sprites["characters/roundelie_2"], {126/255,  37/255,  83/255, 1}}, -- delaughter (purple/red)
+            {sprites["characters/roundelie_3"], {255/255,  29/255,   0/255, 1}}, -- statue (golden)
             {sprites["characters/roundelie_4"], {1,1,1,1}}, -- ancient monument (from rosetta)
         }
         
-        this.spritesheet, this.nothing = unpack(player_skins[tonumber(skin)]) --TODO: using this.nothing as a placeholder since this is what the stools do
+        this.spritesheet, this.base_color = unpack(player_skins[tonumber(skin)])
         this.skin = tonumber(skin)
         this.spr = this.spritesheet[7]
         this.damage = 0
@@ -900,7 +900,7 @@ roundelie = {
         this.spr = this.spritesheet[frame_idx]
         local cx = this.hurtbox.x + (this.hurtbox.w / 2)
         
-        -- apply pal swaps
+        -- apply palette swaps
         if isBlinking then
             love.graphics.setShader(whiteShader)
             love.graphics.setColor(1, 1, 1)
@@ -908,16 +908,17 @@ roundelie = {
             love.graphics.setShader(paletteSwapShader)
             if this.skin == 3 then
                 -- eyes swap from default (gold) -> "activated" (white)
-                paletteSwapShader:send("color_find", {203/255, 136/255, 4/255, 1.0})
+                paletteSwapShader:send("color_find",    {203/255, 136/255,   4/255, 1.0})
                 paletteSwapShader:send("color_replace", {255/255, 255/255, 255/255, 1.0})    
             elseif this.skin == 4 then
                 -- ...
-                paletteSwapShader:send("color_find", {171/255, 82/255, 54/255, 1.0})
+                paletteSwapShader:send("color_find",    {171/255,  82/255,  54/255, 1.0})
                 paletteSwapShader:send("color_replace", {255/255, 119/255, 168/255, 1.0})
             else
-                -- TODO: swap out placeholder effect
-                paletteSwapShader:send("color_find", {255/255, 163/255, 0/255, 1.0})
-                paletteSwapShader:send("color_replace", {95/255, 87/255, 79/255, 1.0})
+                local r, g, b = unpack(this.base_color)
+                local tint = this.skin == 1 and 1.65 or 0.65
+                paletteSwapShader:send("color_find", this.base_color)
+                paletteSwapShader:send("color_replace", {r * tint, g * tint, b * tint, 1.0})
             end
             
         end
