@@ -134,7 +134,7 @@ roundelie = {
         this.current_anim = "idle1"
         this.anim_frame = 1
         this.anim_timer = 0
-        this.is_skin_squishy = (not (this.skin == 3) or (this.skin == 4))
+        this.is_skin_squishy = not ((this.skin == 3) or (this.skin == 4))
         
         this.respawn_timer = 0
         this.invincible_timer = 0
