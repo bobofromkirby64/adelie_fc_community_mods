@@ -895,9 +895,9 @@ roundelie = {
         elseif this.dash_cooldown > 0 then
             love.graphics.setShader(paletteSwapShader)
             if this.skin == 3 then
-                -- eyes swap from default (gold) -> "deactivated" (dark blue)
+                -- eyes swap from default (gold) -> "activated" (white)
                 paletteSwapShader:send("color_find", {203/255, 136/255, 4/255, 1.0})
-                paletteSwapShader:send("color_replace", {29/255, 43/255, 83/255, 1.0})    
+                paletteSwapShader:send("color_replace", {255/255, 255/255, 255/255, 1.0})    
             elseif this.skin == 4 then
                 -- ...
                 paletteSwapShader:send("color_find", {171/255, 82/255, 54/255, 1.0})
