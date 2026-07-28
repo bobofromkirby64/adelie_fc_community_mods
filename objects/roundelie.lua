@@ -541,7 +541,7 @@ roundelie = {
             if on_ground and not this.was_on_ground and not this.down_attack then
                 -- down_attack (dive) already creates smoke when it lands, so no need to draw extra
                 game.init_smoke(this.x, this.y + 4)
-                this.landing_window = 4
+                this.landing_window = 3
             end
             
             -- weird semisolid fall through
@@ -928,14 +928,17 @@ roundelie = {
                 paletteSwapShader:send("color_find",    {203/255, 136/255,   4/255, 1.0})
                 paletteSwapShader:send("color_replace", {255/255, 255/255, 255/255, 1.0})    
             elseif this.skin == 4 then
-                -- ...
+                -- TODO: replace placeholder effect
                 paletteSwapShader:send("color_find",    {171/255,  82/255,  54/255, 1.0})
                 paletteSwapShader:send("color_replace", {255/255, 119/255, 168/255, 1.0})
             else
                 local r, g, b = unpack(this.base_color)
-                local tint = this.skin == 1 and 1.65 or 0.65
+                local tint = this.skin == 1 and 1.50 or 0.80
+                local fade_r = this.skin == 2 and 10/255 or 0
+                local fade_g = 0
+                local fade_b = this.skin == 1 and 20/255 or 0
                 paletteSwapShader:send("color_find", this.base_color)
-                paletteSwapShader:send("color_replace", {r * tint, g * tint, b * tint, 1.0})
+                paletteSwapShader:send("color_replace", {r * tint - fade_r, g * tint - fade_g, b * tint - fade_b, 1.0})
             end
             
         end
