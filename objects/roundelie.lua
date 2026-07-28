@@ -131,23 +131,25 @@ roundelie = {
         this.shockwave_hb = nil  -- hitbox created by diving (down+x attack) into the ground
         
         this.animations = {
-            idle1 = {frames = {1},  speed = 1}, -- upright
-            idle2 = {frames = {2}, speed = 1},  -- facing right (CW 90)
-            idle3 = {frames = {3}, speed = 1},  -- upside-down
-            idle4 = {frames = {4}, speed = 1},  -- facing left (CCW 90)
-            crouch = {frames = {5}, speed = 1}, --
-            up = {frames = {6}, speed = 1},     -- look up
-            roll  = {frames = {7, 7, 7, 7}, speed = 3}, -- rotates by frame_idx * 90 degrees, and base sprite is facing left, => facing up -> right -> down -> left
-            jump1 = {frames = {8}, speed = 1},  -- inflate pose
-            jump2 = {frames = {9}, speed = 1},  --
-            jump3 = {frames = {10}, speed = 1}, --
-            dive1 = {frames = {11}, speed = 1}, --
-            dive2 = {frames = {12}, speed = 1}, -- used when dive will result in big ground-slam upon landing
-            conk = {frames = {13}, speed = 1},  -- disoriented pose used after big bounce
+            idle1 =  {frames = {1}, speed = 1},  -- upright
+            idle2 =  {frames = {2}, speed = 1},  -- facing right (CW 90)
+            idle3 =  {frames = {3}, speed = 1},  -- upside-down
+            idle4 =  {frames = {4}, speed = 1},  -- facing left (CCW 90)
+            crouch = {frames = {5}, speed = 1},  --
+            up =     {frames = {6}, speed = 1},  -- looking up
+            -- sprite is rotated by frame_idx * 90 degrees, and base sprite is facing left, so animation => facing up -> right -> down -> left
+            roll  =  {frames = {7, 7, 7, 7}, speed = 3},
+            jump1 =  {frames = {8}, speed = 1},  -- inflate
+            jump2 =  {frames = {9}, speed = 1},  --
+            jump3 =  {frames = {10}, speed = 1}, --
+            dive1 =  {frames = {11}, speed = 1}, --
+            dive2 =  {frames = {12}, speed = 1}, -- "fast" dive; used when landing will cause a big ground-slam
+            conk =   {frames = {13}, speed = 1}, -- disoriented; used during big bounce
         }
+        this.directions = { UP = 1, RIGHT = 2, DOWN = 3, LEFT = 4 }
+        this.orientation = this.directions.UP
         this.idle_poses = { "idle1", "idle2", "idle3", "idle4" }
-        this.idle_poses_idx = 1
-        this.current_anim = "idle1"
+        this.current_anim = this.idle_poses[1]
         this.anim_frame = 1
         this.anim_timer = 0
         this.is_squishy = not ((this.skin == 3) or (this.skin == 4))
@@ -737,71 +739,68 @@ roundelie = {
             this.should_draw_dive_vfx = false
         end
         
-        -- sprite stuff
-        local anim_on_ground = this.vy >= 0 and this:is_solid(0, 1)
-        local next_anim = this.idle_poses[this.idle_poses_idx]
-        
-        -- TODO: I have a feeling putting this here is making it messier but I need to look into it a bit more
+        -- update sprite pose orientation
         if this.current_anim == "roll" then
-           
-            if this.prev_facing ~= this.facing then
-                -- when roundelie's direction changes mid-roll, the flipped sprite makes the "right" rolling pose becomes "left", and vice versa
-                -- i.e. [up->right->down->left] becomes [up->left->down->right]
-                if this.anim_frame == 2 then this.anim_frame = 4 elseif this.anim_frame == 4 then this.anim_frame = 2 end  -- TODO: messy
-            end
-            this.idle_poses_idx = this.anim_frame
-            next_anim = this.idle_poses[this.idle_poses_idx]
-            
-        elseif this.prev_facing ~= this.facing and (this.current_anim == "idle2" or this.current_anim == "idle4") then
-            -- also need to account for current pose being idle for the roll orientation issue (related `TODO` at the start of this conditional block)
-            if this.idle_poses_idx == 2 then this.idle_poses_idx = 4 elseif this.idle_poses_idx == 4 then this.idle_poses_idx = 2 end   -- TODO: messy
+            this.orientation = this.anim_frame
         end
+        
+        if this.prev_facing ~= this.facing then
+            if this.orientation == this.directions.RIGHT then
+                this.orientation = this.directions.LEFT
+            elseif this.orientation == this.directions.LEFT then
+                this.orientation = this.directions.RIGHT
+            end
+        end
+        
+        -- select sprite pose
+        local anim_on_ground = this.vy >= 0 and this:is_solid(0, 1)
+        local next_anim
         
         if this.hitstun > 0 and this.current_anim ~= "crouch" then
             -- animations are paused during hitstun
             next_anim = this.current_anim
-        elseif this.conk > 0 and (not (this.current_anim == "jump1" or this.current_anim  == "jump2")) then
-            -- TODO: (?) add inflate for conk pose
-            if this.is_start_of_jump then next_anim = "jump1"; elseif this.was_big_conk then next_anim = "conk"; else next_anim = "jump2" end
         elseif not anim_on_ground then
-            if this.down_attack and this.dribble_window == 0 then
-                next_anim = (this.vy == 4.5 and "dive2" or "dive1")
+            if this.conk > 0 and this.was_big_conk then
+                -- during big bounce
+                next_anim = "conk"
+            elseif this.down_attack and this.dribble_window == 0 then
+                -- dive / down attack
+                next_anim = (this.vy == 4.5) and "dive2" or "dive1"
             elseif (this.is_start_of_jump or this.current_anim == "jump1") and this.vy <= -0.7 then
-                -- "inflate" pose is only drawn after a jump or bjump (up+x)
+                -- inflate (at the start of a jump/bump)
                 next_anim = "jump1"
-            -- roll continues in midair, but stops if roundelie isn't moving quickly enough in the same direction
-            elseif this.current_anim == "roll" and ((this.prev_facing == 1 and this.vx >= 1.0) or (this.prev_facing == -1 and this.vx <= -1.0)) then
-                -- TODO: buffer/first-frame jump => roll animation plays instead of inflate for the jump
-                --       need to implement this explicitly rather than have it exist as a side-effect of the current midair roll logic
+            elseif this.current_anim == "roll" and math.abs(this.vx) >= 1.0 then
+                -- roll (midair)
                 next_anim = "roll"
-            elseif this.vy >= 0.3 then
-                next_anim = "jump3"
             else
-                -- bit hacky? point is to avoid getting knocked into the air and have sprites quickly change from jump3->jump2->jump3 after hitstun ends
-                next_anim = this.current_anim ~= "jump3" and "jump2" or "jump3"
+                -- default midair pose (jump/fall)
+                this.orientation = this.directions.UP
+                next_anim = this.vy < 0.3 and "jump2" or "jump3"
             end
-        elseif v_input == -1 then
-            next_anim = "up"
-        elseif v_input == 1 then
-            next_anim = "crouch"
-        elseif (this.current_anim == roll and math.abs(this.vx) >= 1.2) or (this.current_anim ~= roll and math.abs(this.vx) > 0.1) then
-            next_anim = "roll"
-        elseif this.landing_window > 0 and this.is_squishy then
-            next_anim = "crouch"
+        --
+        else
+            --
+            if v_input == 1 or (this.landing_window > 0 and this.is_squishy and this.current_anim ~= "roll") then
+                this.orientation = this.directions.UP
+                next_anim = "crouch"
+            elseif (this.current_anim == "roll" and math.abs(this.vx) >= 1.0) or (this.current_anim ~= "roll" and math.abs(this.vx) > 0) then
+                next_anim = "roll"
+            elseif v_input == -1 and this.orientation == this.directions.UP then
+                next_anim = "up"
+            else
+                next_anim = this.idle_poses[this.orientation]
+            end
         end
-
+        
+        if this.landing_window > 0 and next_anim ~= "crouch" then this.landing_window = 0; end
+        
+        -- update current animation
         if next_anim ~= this.current_anim then
-            if next_anim ~= "roll" and next_anim ~= "idle2" and next_anim ~= "idle3" and next_anim ~= "idle4" then  -- TODO: messy
-                -- `idle_poses_idx` is used to keep track of roundelie's orientation
-                -- but whenever a sprite that is NOT an idle or rolling pose is drawn, then the current orientation resets to the default (upright) position
-                this.idle_poses_idx = 1
-            end
-            
             this.current_anim = next_anim
             
             if next_anim == "roll" then
-                this.anim_frame = this.idle_poses_idx  -- starting frame of the roll anim is determined by roundelie's orientation
-                -- speeding up the animation immediately after direction changes helps the roll appear more natural
+                this.anim_frame = this.orientation
+                -- speed up the animation immediately after changing direction to help the roll appear more natural
                 this.anim_timer = (this.prev_facing ~= this.facing) and math.floor(this.animations[next_anim].speed / 2) or 0
             else
                 this.anim_frame = 1
@@ -809,12 +808,9 @@ roundelie = {
             end
         end
         
-        if this.landing_window > 0 and next_anim ~= "crouch" then this.landing_window = 0; end
-
-        local anim = this.animations[this.current_anim]
-        -- animations are paused during hitstun
-        if this.hitstun == 0 then this.anim_timer = this.anim_timer + 1 end
+        if this.hitstun == 0 then this.anim_timer = this.anim_timer + 1 end  -- animations are paused during hitstun
         
+        local anim = this.animations[this.current_anim]
         if this.anim_timer >= anim.speed then
             this.anim_timer = 0
             this.anim_frame = this.anim_frame + 1
