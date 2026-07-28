@@ -61,8 +61,6 @@ TODO: ((?) => "maybe")
         and much more explicit "poof" of smoke for standard effect (can also give the afterimage another shot)
         also roundelie should disappear for 1-2 frames to really sell the effect as a "teleport"
         also roundelie should do the inflate pose on re-entry (unless it's cancelled by another action e.g. an immediate dive, similarly to the crouch on landing)
-    - clean up spritesheets
-        mainly reorganize and also get rid of unecessary roll sprites
     - upside-down crouch :3
     - conk "inflate" pose
         (grace-jumping out of a big bounce looks strange since roundelie is still stuck in the "conk" state but the standard inflate/jump anim implies roundelie canceled out of it/has more control over movement)
@@ -96,6 +94,7 @@ roundelie = {
             {sprites["characters/roundelie_1"], { 29/255,  43/255,  83/255, 1}}, -- roundelie (default)
             {sprites["characters/roundelie_2"], {126/255,  37/255,  83/255, 1}}, -- delaughter (purple/red)
             {sprites["characters/roundelie_3"], {255/255,  29/255,   0/255, 1}}, -- statue (golden)
+            -- TODO: rosetta skin is broken until it's reworked
             {sprites["characters/roundelie_4"], {1,1,1,1}}, -- ancient monument (from rosetta)
         }
         
@@ -132,26 +131,27 @@ roundelie = {
         this.shockwave_hb = nil  -- hitbox created by diving (down+x attack) into the ground
         
         this.animations = {
-            idle1 = {frames = {1},  speed = 1},  -- upright
-            idle2 = {frames = {14}, speed = 1},  -- right (CW 90 degrees)
-            idle3 = {frames = {15}, speed = 1},  -- upside-down
-            idle4 = {frames = {16}, speed = 1},  -- left (CW 270 degrees)
-            roll = {frames = {10, 2, 3, 4}, speed = 3}, -- up -> right -> down -> left ...
-            jump1 = {frames = {11}, speed = 1},  -- inflate
-            jump2 = {frames = {12}, speed = 1},  --
-            jump3 = {frames = {5}, speed = 1},   --
-            dive1 = {frames = {9}, speed = 1},   -- down+x pose
-            dive2 = {frames = {13}, speed = 1},  -- down+x pose *when large shockwave will be created upon landing
-            crouch = {frames = {6}, speed = 1},
-            up = {frames = {7}, speed = 1},
-            conk = {frames = {8}, speed = 1},    -- disoriented used for after down+x collides with ground and creates a large shockwave
+            idle1 = {frames = {1},  speed = 1}, -- upright
+            idle2 = {frames = {2}, speed = 1},  -- facing right (CW 90)
+            idle3 = {frames = {3}, speed = 1},  -- upside-down
+            idle4 = {frames = {4}, speed = 1},  -- facing left (CCW 90)
+            crouch = {frames = {5}, speed = 1}, --
+            up = {frames = {6}, speed = 1},     -- look up
+            roll  = {frames = {7, 7, 7, 7}, speed = 3}, -- rotates by frame_idx * 90 degrees, and base sprite is facing left, => facing up -> right -> down -> left
+            jump1 = {frames = {8}, speed = 1},  -- inflate pose
+            jump2 = {frames = {9}, speed = 1},  --
+            jump3 = {frames = {10}, speed = 1}, --
+            dive1 = {frames = {11}, speed = 1}, --
+            dive2 = {frames = {12}, speed = 1}, -- used when dive will result in big ground-slam upon landing
+            conk = {frames = {13}, speed = 1},  -- disoriented pose used after big bounce
         }
         this.idle_poses = { "idle1", "idle2", "idle3", "idle4" }
         this.idle_poses_idx = 1
         this.current_anim = "idle1"
         this.anim_frame = 1
         this.anim_timer = 0
-        this.is_skin_squishy = not ((this.skin == 3) or (this.skin == 4))
+        this.is_squishy = not ((this.skin == 3) or (this.skin == 4))
+        this.sprite_rotation = 0
         
         this.respawn_timer = 0
         this.invincible_timer = 0
@@ -786,7 +786,7 @@ roundelie = {
             next_anim = "crouch"
         elseif (this.current_anim == roll and math.abs(this.vx) >= 1.2) or (this.current_anim ~= roll and math.abs(this.vx) > 0.1) then
             next_anim = "roll"
-        elseif this.landing_window > 0 and this.is_skin_squishy then
+        elseif this.landing_window > 0 and this.is_squishy then
             next_anim = "crouch"
         end
 
@@ -795,7 +795,6 @@ roundelie = {
                 -- `idle_poses_idx` is used to keep track of roundelie's orientation
                 -- but whenever a sprite that is NOT an idle or rolling pose is drawn, then the current orientation resets to the default (upright) position
                 this.idle_poses_idx = 1
-                
             end
             
             this.current_anim = next_anim
@@ -915,7 +914,8 @@ roundelie = {
         local anim = this.animations[this.current_anim]
         local frame_idx = anim.frames[this.anim_frame]
         this.spr = this.spritesheet[frame_idx]
-        local cx = this.hurtbox.x + (this.hurtbox.w / 2)
+        local cx, cy = this.hurtbox.x + (this.hurtbox.w / 2), 4
+        local rotation = (this.current_anim == "roll") and math.rad(this.facing * this.anim_frame * 90) or 0
         
         -- apply palette swaps
         if isBlinking then
@@ -948,7 +948,7 @@ roundelie = {
             local base_spr = sprites[ this.current_anim == "crouch" and "characters/roundelie_3_base_crouch" or "characters/roundelie_3_base_default" ]
             sprites.draw(base_spr, this.x + cx, this.y, 0, 1, 1, cx, 0)
         end
-        sprites.draw(this.spr, this.x + cx, this.y, 0, this.facing, 1, cx, 0)
+        sprites.draw(this.spr, this.x + cx, this.y + cy, rotation, this.facing, 1, cx, cy)
         
         if this.connectionID == connectionID then
             local px = math.floor(this.x)
