@@ -766,7 +766,7 @@ roundelie = {
         -- select sprite pose
         local next_anim
         
-        if this.hitstun > 0 and this.current_anim ~= "crouch" then
+        if this.hitstun > 0 and this.current_anim ~= "crouch" and this.current_anim ~= "squash" then
             -- animations are paused during hitstun
             next_anim = this.current_anim
         elseif not anim_on_ground then
