@@ -723,8 +723,10 @@ roundelie = {
         end
         
         
+        -- apply updates
         this:move(this.vx, this.vy)
         this:check_snowballs()
+        
         
         -- check if roundelie has landed on a platform
         -- (has to happen after movement is calculated so that animations are accurate)
@@ -942,19 +944,21 @@ roundelie = {
             if this.skin == 3 then
                 -- eyes swap from default (gold) -> "activated" (white)
                 paletteSwapShader:send("color_find",    {203/255, 136/255,   4/255, 1.0})
-                paletteSwapShader:send("color_replace", {255/255, 255/255, 255/255, 1.0})    
+                paletteSwapShader:send("color_replace", {255/255, 255/255, 255/255, 1.0})
             elseif this.skin == 4 then
                 -- TODO: replace placeholder effect
                 paletteSwapShader:send("color_find",    {171/255,  82/255,  54/255, 1.0})
                 paletteSwapShader:send("color_replace", {255/255, 119/255, 168/255, 1.0})
             else
                 local r, g, b = unpack(this.base_color)
-                local tint = this.skin == 1 and 1.50 or 0.80
-                local fade_r = this.skin == 2 and 10/255 or 0
-                local fade_g = 0
-                local fade_b = this.skin == 1 and 20/255 or 0
+                local tint = this.skin == 1 and 1.25 or 0.95
+                r, g, b = r * tint, g * tint, b * tint
+                -- ref: https://stackoverflow.com/questions/13328029/how-to-desaturate-a-color
+                --      https://en.wikipedia.org/wiki/Grayscale#Luma_coding_in_video_systems
+                local L = 0.299 * r + 0.587 * g + 0.114 * b  -- calculate luma using standard human-eye luminance weights (BT.601)
+                local f = 0.20  -- => 20% desaturation
                 paletteSwapShader:send("color_find", this.base_color)
-                paletteSwapShader:send("color_replace", {r * tint - fade_r, g * tint - fade_g, b * tint - fade_b, 1.0})
+                paletteSwapShader:send("color_replace", {(r + f * (L - r)), (g + f * (L - g)), (b + f * (L - b)), 1.0})
             end
             
         end
