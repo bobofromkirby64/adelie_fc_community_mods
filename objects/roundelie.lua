@@ -118,6 +118,7 @@ roundelie = {
         this.p_jump = false
         this.p_dash = false
         this.is_start_of_jump = false  -- => is roundelie starting a jump or bjump (up+x)
+        this.is_first_frame_jump = false  -- is roundelie jumping off the ground on the first possible tick after landing
         this.was_on_ground = false
         this.was_big_conk = false
         this.should_draw_dive_vfx = false
@@ -513,6 +514,7 @@ roundelie = {
         --
         this.prev_facing = this.facing
         this.is_start_of_jump = false
+        this.is_first_frame_jump = false
         
         local h_input = (inputSource.getKeyDown(id, "right") and 1 or 0) - (inputSource.getKeyDown(id, "left") and 1 or 0)
         local v_input = (inputSource.getKeyDown(id, "down") and 1 or 0) - (inputSource.getKeyDown(id, "up") and 1 or 0)
@@ -641,6 +643,9 @@ roundelie = {
             if this.jbuffer > 0 then
                 if this.grace > 0 then
                     this.is_start_of_jump = true
+                    
+                    if (not this.was_on_ground) and this:is_solid(0, 1) then this.is_first_frame_jump = true; end
+                    
                     this.jbuffer = 0
                     -- this.grace = 0
                     this.vy = -3.36
@@ -766,7 +771,14 @@ roundelie = {
             elseif this.down_attack and this.dribble_window == 0 then
                 -- dive / down attack
                 next_anim = (this.vy == 4.5) and "dive2" or "dive1"
-            elseif (this.is_start_of_jump or this.current_anim == "jump1") and this.vy <= -0.7 then
+            elseif this.is_start_of_jump then
+                --
+                if this.is_first_frame_jump and math.abs(this.vx) >= 1.5 then
+                    next_anim = "roll"
+                else
+                    next_anim = "jump1"
+                end
+            elseif this.current_anim == "jump1" and this.vy <= -0.7 then
                 -- inflate (at the start of a jump/bump)
                 next_anim = "jump1"
             elseif this.current_anim == "roll" and math.abs(this.vx) >= 1.0 then
