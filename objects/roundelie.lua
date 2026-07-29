@@ -53,19 +53,17 @@ TODO: ((?) => "maybe")
             so probably better to just make it a mossy stone ball with the same vibe/aesthetic? and have it be "not squishy" like the gold skin
             also I prooobably should just play through rosetta to get context for like, what the "roundelie block" in the mod actually does
                 (I'd ask for context but I actually really want to play through it and I also don't want to be spoiled, lol)
-    - implement the first-frame roll anim for jump explicitly (atm it's just a side-effect of the current midair roll anim logic)
-        - case in point: this is currently broken with recent changes to sprite logic
     - add skid/turn-around effect for roll
     - take another pass at the teleport vfx (mainly want to experiment with replacing the bulk of the "single-pixel" particles with sprites)
         imagining sparks with like, bolts in between for on-hit
         and much more explicit "poof" of smoke for standard effect (can also give the afterimage another shot)
         also roundelie should disappear for 1-2 frames to really sell the effect as a "teleport"
-        also roundelie should do the inflate pose on re-entry (unless it's cancelled by another action e.g. an immediate dive, similarly to the crouch on landing)
-    - upside-down crouch :3
+        also also roundelie should do the inflate pose on re-entry (unless it's cancelled by another action e.g. an immediate dive, similarly to the crouch on landing)
     - conk "inflate" pose
         (grace-jumping out of a big bounce looks strange since roundelie is still stuck in the "conk" state but the standard inflate/jump anim implies roundelie canceled out of it/has more control over movement)
-    - (?) inbetween crouch pose
-        might be a bit extra lol but I think it'll make the anim a lot smoother (and maddy and lani get to have smooth animations on their stuff >:( ) and also sell roundelie as "ball of blubber" a bit more
+    - (?) use squash anim to transition out of crouching in more situations
+        e.g. from diff orientations of idle pose -> look up
+    - (?) upside-down crouch :3
     - (?) add a "tumble" anim after a long enough fall
         - mainly because the "falling" jump pose looks strange when it's been out for too long
         - could try reusing the roll but a transition pose might be needed? but could also maybe reuse a different sprite for that, like of the jump sprites and just rotate it, maybe?
@@ -146,6 +144,8 @@ roundelie = {
             dive1 =  {frames = {11}, speed = 1}, --
             dive2 =  {frames = {12}, speed = 1}, -- "fast" dive; used when landing will cause a big ground-slam
             conk =   {frames = {13}, speed = 1}, -- disoriented; used during big bounce
+            squash = {frames = {5, 14}, speed = 4},  -- used when roundelie lands on a platform
+            -- NOTE: ^ this is actually a bit hacky; with landing_window == 6 and (anim) speed == 4, each pose is held for 3 (not 4) frames
         }
         this.directions = { UP = 1, RIGHT = 2, DOWN = 3, LEFT = 4 }
         this.orientation = this.directions.UP
@@ -542,12 +542,6 @@ roundelie = {
             local on_ground = ground_hit ~= false
             local on_semisolid = ground_hit and (ground_hit.type == "semisolid" or ground_hit.semisolid)
             
-            if on_ground and not this.was_on_ground and not this.down_attack then
-                -- down_attack (dive) already creates smoke when it lands, so no need to draw extra
-                game.init_smoke(this.x, this.y + 4)
-                this.landing_window = 3
-            end
-            
             -- weird semisolid fall through
             if on_semisolid and v_input == 1 and not (this.was_on_ground) and jump_btn then --very hacky fix and I don't like it but I don't want to edit the move function since it breaks interoperability (would be very easy though). Maybe better fix? Or at least a hacky fix that's identical to the ideal case
                 if not this:is_solid(0, 1, true) then
@@ -728,8 +722,20 @@ roundelie = {
             this.prev_vy = this.vy -- part of the hacky semisolid fix
         end
         
+        
         this:move(this.vx, this.vy)
         this:check_snowballs()
+        
+        -- check if roundelie has landed on a platform
+        -- (has to happen after movement is calculated so that animations are accurate)
+        local anim_on_ground = false
+        if this.vy >= 0 and this:is_solid(0, 1) then
+            anim_on_ground = true
+            if (not this.was_on_ground) then
+                game.init_smoke(this.x, this.y + 4)
+                this.landing_window = 6
+            end
+        end
         
         -- teleport vfx
         if this.teleport_info.init then
@@ -758,7 +764,6 @@ roundelie = {
         end
         
         -- select sprite pose
-        local anim_on_ground = this.vy >= 0 and this:is_solid(0, 1)
         local next_anim
         
         if this.hitstun > 0 and this.current_anim ~= "crouch" then
@@ -792,10 +797,13 @@ roundelie = {
         --
         else
             --
-            if v_input == 1 or (this.landing_window > 0 and this.is_squishy and this.current_anim ~= "roll") then
+            if v_input == 1 then
                 this.orientation = this.directions.UP
                 next_anim = "crouch"
-            elseif (this.current_anim == "roll" and math.abs(this.vx) >= 1.0) or (this.current_anim ~= "roll" and math.abs(this.vx) > 0) then
+            elseif this.landing_window > 0 and this.is_squishy and this.current_anim ~= "roll" then
+                this.orientation = this.directions.UP
+                next_anim = "squash"
+            elseif (this.current_anim == "roll" and math.abs(this.vx) >= 1.0) or (this.current_anim ~= "roll" and math.abs(this.vx) > 0.5) then
                 next_anim = "roll"
             elseif v_input == -1 and this.orientation == this.directions.UP then
                 next_anim = "up"
@@ -804,7 +812,7 @@ roundelie = {
             end
         end
         
-        if this.landing_window > 0 and next_anim ~= "crouch" then this.landing_window = 0; end
+        if this.landing_window > 0 and anim_on_ground and next_anim ~= "squash" then this.landing_window = 0; end
         
         -- update current animation
         if next_anim ~= this.current_anim then
