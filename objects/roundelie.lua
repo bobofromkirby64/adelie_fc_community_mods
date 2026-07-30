@@ -434,6 +434,34 @@ roundelie = {
                     end
                 })
         end
+        
+        -- 
+        this.init_turnaround_dust = function(x, y, facing)
+            table.insert(particles_fg, {
+                x = x + (facing == 1 and 4 or 0) - (4 * facing) + 1, -- + love.math.random() * 2 - 1,
+                y = y, -- + love.math.random() * 2 - 1,
+                vx = -0.3 * facing, --(love.math.random() * 0.6 - 0.3) * facing,
+                vy = -0.1 - love.math.random() * 0.2,
+                timer = 0,
+                duration = 12,  -- 4f, animated on 3s
+                flipX = -1 * facing,
+                update = function(p)
+                    p.x = p.x + p.vx
+                    p.y = p.y + p.vy
+                    p.timer = p.timer + 1
+                    if p.timer > p.duration then
+                        return true
+                    end
+                end,
+                draw = function(p)
+                    local frame = math.floor(p.timer / p.duration * 4) + 1
+                    if frame > 4 then frame = 4 end
+                    local dx, dy = math.floor(p.x), math.floor(p.y)
+                    --sprites.draw(sprites.smoke[frame], p.flipX == -1 and dx + 8 or dx, p.flipY == -1 and dy + 8 or dy, 0, p.flipX, p.flipY, 0, 0)
+                    sprites.draw(sprites["characters/roundelie_turnaround_dust"][frame], dx, dy, 0, p.flipX, 1, 4, 0)
+                end,
+            })
+        end
     end,
     
     update = function(this)
@@ -758,6 +786,11 @@ roundelie = {
         end
         
         if this.prev_facing ~= this.facing then
+            -- TODO: messy
+            if (anim_on_ground and math.abs(this.vx) >= 0.2 and this.current_anim ~= "squash" and v_input ~= 1) then
+                this.init_turnaround_dust(this.x, this.y + 2, this.facing)
+            end
+            
             if this.orientation == this.directions.RIGHT then
                 this.orientation = this.directions.LEFT
             elseif this.orientation == this.directions.LEFT then

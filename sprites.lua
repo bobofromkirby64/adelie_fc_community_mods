@@ -62,6 +62,7 @@ local spriteList = {
     "characters/roundelie_3_base_crouch",
     {"characters/roundelie_4", 16, 1},
     {"characters/roundelie_teleport_afterimage", 3, 1},
+    {"characters/roundelie_turnaround_dust", 4, 1},
     {"objects/goldstool_1", 4, 1},
     {"objects/goldstool_2", 4, 1},
     {"objects/goldstool_3", 4, 1},
