@@ -53,7 +53,6 @@ TODO: ((?) => "maybe")
             so probably better to just make it a mossy stone ball with the same vibe/aesthetic? and have it be "not squishy" like the gold skin
             also I prooobably should just play through rosetta to get context for like, what the "roundelie block" in the mod actually does
                 (I'd ask for context but I actually really want to play through it and I also don't want to be spoiled, lol)
-    - add skid/turn-around effect for roll
     - take another pass at the teleport vfx (mainly want to experiment with replacing the bulk of the "single-pixel" particles with sprites)
         imagining sparks with like, bolts in between for on-hit
         and much more explicit "poof" of smoke for standard effect (can also give the afterimage another shot)
@@ -438,18 +437,19 @@ roundelie = {
         -- 
         this.init_turnaround_dust = function(x, y, facing)
             table.insert(particles_fg, {
-                x = x + (facing == 1 and 4 or 0) - (4 * facing) + 1, -- + love.math.random() * 2 - 1,
-                y = y, -- + love.math.random() * 2 - 1,
-                vx = -0.3 * facing, --(love.math.random() * 0.6 - 0.3) * facing,
+                x = x + (facing == -1 and 8 or 1),
+                y = y,
+                -- facing => direction of the roll => dust cloud moves in the opposite direction
+                vx = -0.16 * facing,
                 vy = -0.1 - love.math.random() * 0.2,
-                timer = 0,
-                duration = 12,  -- 4f, animated on 3s
+                timer = 1,
+                duration = 12,  -- 4f, animated on 3s => 1-3-3-3
                 flipX = -1 * facing,
                 update = function(p)
                     p.x = p.x + p.vx
                     p.y = p.y + p.vy
                     p.timer = p.timer + 1
-                    if p.timer > p.duration then
+                    if p.timer >= p.duration then
                         return true
                     end
                 end,
@@ -457,7 +457,6 @@ roundelie = {
                     local frame = math.floor(p.timer / p.duration * 4) + 1
                     if frame > 4 then frame = 4 end
                     local dx, dy = math.floor(p.x), math.floor(p.y)
-                    --sprites.draw(sprites.smoke[frame], p.flipX == -1 and dx + 8 or dx, p.flipY == -1 and dy + 8 or dy, 0, p.flipX, p.flipY, 0, 0)
                     sprites.draw(sprites["characters/roundelie_turnaround_dust"][frame], dx, dy, 0, p.flipX, 1, 4, 0)
                 end,
             })
@@ -788,7 +787,7 @@ roundelie = {
         if this.prev_facing ~= this.facing then
             -- TODO: messy
             if (anim_on_ground and math.abs(this.vx) >= 0.2 and this.current_anim ~= "squash" and v_input ~= 1) then
-                this.init_turnaround_dust(this.x, this.y + 2, this.facing)
+                this.init_turnaround_dust(this.x, this.y + 1, this.facing)
             end
             
             if this.orientation == this.directions.RIGHT then
