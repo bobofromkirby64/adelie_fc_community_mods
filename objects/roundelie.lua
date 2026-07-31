@@ -433,16 +433,15 @@ roundelie = {
         end
         
         -- 
-        this.init_turnaround_dust = function(x, y, facing)
+        this.init_dust_cloud = function(x, y, direction)
             table.insert(particles_fg, {
-                x = x + (facing == -1 and 8 or 1),
+                x = x + (direction == -1 and 1 or 8),
                 y = y,
-                -- facing => direction of the roll => dust cloud moves in the opposite direction
-                vx = -0.16 * facing,
+                vx = 0.18 * direction,
                 vy = -0.1 - love.math.random() * 0.2,
                 timer = 1,
                 duration = 12,  -- 4f, animated on 3s => 1-3-3-3
-                flipX = -1 * facing,
+                flipX = direction,
                 update = function(p)
                     p.x = p.x + p.vx
                     p.y = p.y + p.vy
@@ -455,7 +454,7 @@ roundelie = {
                     local frame = math.floor(p.timer / p.duration * 4) + 1
                     if frame > 4 then frame = 4 end
                     local dx, dy = math.floor(p.x), math.floor(p.y)
-                    sprites.draw(sprites["characters/roundelie_turnaround_dust"][frame], dx, dy, 0, p.flipX, 1, 4, 0)
+                    sprites.draw(sprites["characters/roundelie_dust_cloud"][frame], dx, dy, 0, p.flipX, 1, 4, 0)
                 end,
             })
         end
@@ -764,7 +763,7 @@ roundelie = {
         -- check if roundelie has landed on a platform
         -- (has to happen after movement is calculated so that animations are accurate)
         local anim_on_ground = false
-        if this.vy >= 0 and this:is_solid(0, 1) then
+        if this.hitstun == 0 and this.vy >= 0 and this:is_solid(0, 1) then
             anim_on_ground = true
             if (not this.was_on_ground) then
                 game.init_smoke(this.x, this.y + 4)
@@ -793,7 +792,7 @@ roundelie = {
         if this.prev_facing ~= this.facing then
             -- TODO: messy
             if (anim_on_ground and math.abs(this.vx) >= 0.2 and this.current_anim ~= "squash" and v_input ~= 1) then
-                this.init_turnaround_dust(this.x, this.y + 1, this.facing)
+                this.init_dust_cloud(this.x, this.y + 1, -1 * this.facing)
             end
             
             if this.orientation == this.directions.RIGHT then
@@ -843,7 +842,7 @@ roundelie = {
             elseif this.landing_window > 0 and this.is_squishy and this.current_anim ~= "roll" then
                 this.orientation = this.directions.UP
                 next_anim = "squash"
-            elseif (this.current_anim == "roll" and math.abs(this.vx) >= 1.0) or (this.current_anim ~= "roll" and math.abs(this.vx) > 0.5) then
+            elseif (this.current_anim == "roll" and (math.abs(this.vx) >= 1.0 or h_input == 1 or h_input == -1)) or (this.current_anim ~= "roll" and math.abs(this.vx) > 0.5) then
                 next_anim = "roll"
             elseif v_input == -1 and this.orientation == this.directions.UP then
                 next_anim = "up"
@@ -1011,7 +1010,9 @@ roundelie = {
         -- TODO: messy
         if this.is_squishy and this.current_anim == "jump1" and this.inflate_timer > 0 then
             local spr = this.skin == 1 and "characters/roundelie_1_inflate" or "characters/roundelie_2_inflate"
-            sprites.draw(sprites[spr], this.x + cx, this.y + cy, 0, this.facing, 1, cx + 1, cy + 1)
+            -- inflate sprite is drawn 1 px higher to compensate for the larger sprite size
+            -- (e.g. on the first frame that the inflate sprite is drawn, it looks like roundelie only moves up 1px when it should move up 2px)
+            sprites.draw(sprites[spr], this.x + cx, this.y + cy - 1, 0, this.facing, 1, cx + 1, cy + 1)
         else
             sprites.draw(this.spr, this.x + cx, this.y + cy, rotation, this.facing, 1, cx, cy)
         end
