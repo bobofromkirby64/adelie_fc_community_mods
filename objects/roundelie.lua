@@ -41,41 +41,55 @@ TODO: ((?) => "maybe")
     - shockwave/ground-slam rework
         - current range is too large for an attack that is immediately active, and it also extends past the edge of platforms in an unintuitive way
         - roundelie desperately wants a way to threaten space in front of it, and would also really benefit from another way to knock opponents horizontally that isn't the teleport
+    - add min delay between bjump uses
+        (spamming input should still work to buffer bjumps, but it'll feel better if every bjump gains some height)
     - the combination of being able to cancel jump momentum with dive and being able to grace jump after cancelling out of jump with dive makes for some very silly movement; maybe experiment with having roundelie unable to interrupt a dive for the first few frames after input? or if we like the silly movement, we should at least make it so it's less of a mess of smoke when you press the dive button over and over
-    - (?) extend dive hitbox (? maybe at a certain speed threshhold) so that e.g. it can trade with maddy dive rather than losing to it outright
     - (?) experiment with teleport knockback (imo current knockback doesn't really fit with the concept of a teleport, it should be a bit more chaotic or at least have variance relative to roundelie's position?)
     - (?) let roundelie influence horizontal speed slightly (but still not dive, teleport, or bjump) during conk state
-    - ...
+    - (?) small speed boost when starting a roll or when changing roll direction
+    - (?) slight bounce off of the ground after landing a midair roll at max fall-speed
  
 (visual)
-    - take another pass at the rosetta skin but more in the style of the gold skin (=> ball of stone that doesn't change shape) (and also experiment with the "square" idea)
-        - update: square would require pretty significant changes to the animations to not look awful
-            so probably better to just make it a mossy stone ball with the same vibe/aesthetic? and have it be "not squishy" like the gold skin
-            also I prooobably should just play through rosetta to get context for like, what the "roundelie block" in the mod actually does
-                (I'd ask for context but I actually really want to play through it and I also don't want to be spoiled, lol)
-    - take another pass at the teleport vfx (mainly want to experiment with replacing the bulk of the "single-pixel" particles with sprites)
-        imagining sparks with like, bolts in between for on-hit
-        and much more explicit "poof" of smoke for standard effect (can also give the afterimage another shot)
-        also roundelie should disappear for 1-2 frames to really sell the effect as a "teleport"
-        also also roundelie should do the inflate pose on re-entry (unless it's cancelled by another action e.g. an immediate dive, similarly to the crouch on landing)
-    - conk "inflate" pose
-        (grace-jumping out of a big bounce looks strange since roundelie is still stuck in the "conk" state but the standard inflate/jump anim implies roundelie canceled out of it/has more control over movement)
+    - draw dust cloud for gold skin on landing
+    - gold skin needs SOMETHING for inflate equivalent effect
+    - upside-down crouch :3
+    - fix rolling infinitely into a wall (lol)
+    - upside-down crouch :3
+        need a new sprite for crouch; squash pose can be flipped
+    - experiment with 8x16 width sprite for crouch
+    - inflate during conk
+        should be fine to just, flip the inflate sprite?
+    - update orientation for different poses, e.g. dive should set orientation to DOWN
+    - draw dust cloud at the start of a roll as well as when a roll changes directions
+    - experiment with using an anim to smoothly transition to the fall/jump3 pose, rather than have it entirely speed based
+    - experiment with adding an anim to transition to the look up pose from different orientations
+    - * roll animation should be tied to speed, both vx and vy
+    - midair roll should continue until roll is at an orientation that will transition smoothly into the fall pose
+        i.e. shouldn't go from DOWN -> fall, it should roll back to upright position first
+    - experiment with making squash more severe with bigger falls
+        i.e. have a big squash anim that uses the crouch
+        can use same "max fall-speed" threshold used for gold skin landing
+    - subsequent inflates should still play a bit of an "inflate" animation
+        i.e. inflate -> jump1 (for a few frames) -> inflate
+    - small teleport changes
+        roundelie should disappear completely while invulnerable
+        roundelie should exit teleport in inflate pose
+    - (?) take another pass at teleport vfx
+        picturing sparks with bolts shooting between them for on-hit
+        + a much more explicit poof of smoke for the standard effect
+            (can also experiment with drawing an after-image in the origin point smoke, again, but this time using stencil?)
     - (?) use squash anim to transition out of crouching in more situations
-        e.g. from diff orientations of idle pose -> look up
-    - (?) upside-down crouch :3
-    - (?) add a "tumble" anim after a long enough fall
-        - mainly because the "falling" jump pose looks strange when it's been out for too long
-        - could try reusing the roll but a transition pose might be needed? but could also maybe reuse a different sprite for that, like of the jump sprites and just rotate it, maybe?
-        - NOTE: roll looks strange, for this; can revisit later
-    - (?) experiment with adding alternate/random conk poses (could reuse the roll sprites...)
-    - (?) experiment with adding fill color to sprites for sadface/tears/sroundelie during hitstun
-        - update: current paletteSwap shader only swaps one color, so either need to modify the shader, overlay a different sprite with tears, or... idk something else lol
-    - (?) sweat drops for empty bjump (out of uses)
-        - could also use the "tears" effect for this, in addition to the sweat drops
+        (e.g. from diff orientations of idle pose -> look up)
+    - (?) experiment with drawing sadface/tears/sroundelie during hitstun
+    - (?) experiment with sweat drops for empty bjump (out of uses)
+        (could also use the "tears" effect for this, in addition to the sweat drops)
     - ...
 
 (other)
-    - sfx pass (shockwave/ground-slam, teleport, unique sounds for roundelie in general)
+    - * audio bugs
+        - diving when on the ground shouldn't play a sound effect, and similarly sound effects should only play when the action is performed
+        - sfx should play on action, not queue when there's multiple sound effects in a row e.g. when dribbling
+    - * sfx pass (shockwave/ground-slam, teleport, unique sounds for roundelie in general)
     - ...
 ]]--
 
