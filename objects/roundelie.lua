@@ -72,9 +72,6 @@ TODO: ((?) => "maybe")
         - update: current paletteSwap shader only swaps one color, so either need to modify the shader, overlay a different sprite with tears, or... idk something else lol
     - (?) sweat drops for empty bjump (out of uses)
         - could also use the "tears" effect for this, in addition to the sweat drops
-    - (?) experiment with actually expanding the sprite for the inflate pose
-        i.e. draw a 9x9 or 10x10 sprite for it, since the harsh black outline unfortunately makes the curr sprite look very goofy on stages with a brighter background
-            (the outline also emphasizes the "diamond shape" of the sprites in general, but that's an issue with all "circular" sprites atm e.g. the snowball)
     - ...
 
 (other)
@@ -137,9 +134,9 @@ roundelie = {
             up =     {frames = {6}, speed = 1},  -- looking up
             -- sprite is rotated by frame_idx * 90 degrees, and base sprite is facing left, so animation => facing up -> right -> down -> left
             roll  =  {frames = {7, 7, 7, 7}, speed = 3},
-            jump1 =  {frames = {8}, speed = 1},  -- inflate
+            jump1 =  {frames = {8}, speed = 1},  -- rising
             jump2 =  {frames = {9}, speed = 1},  --
-            jump3 =  {frames = {10}, speed = 1}, --
+            jump3 =  {frames = {10}, speed = 1}, -- falling
             dive1 =  {frames = {11}, speed = 1}, --
             dive2 =  {frames = {12}, speed = 1}, -- "fast" dive; used when landing will cause a big ground-slam
             conk =   {frames = {13}, speed = 1}, -- disoriented; used during big bounce
@@ -166,6 +163,7 @@ roundelie = {
         this.dive_smoketrail = 0
         this.dribble_window = 0
         this.landing_window = 0
+        this.inflate_timer = 0
         
         this.prev_x = 0
         this.prev_y = 0
@@ -501,6 +499,12 @@ roundelie = {
             this.landing_window = this.landing_window - 1
         end
         
+        -- anim timer for window to draw the "inflate" sprite
+        -- TODO: messy?
+        if this.inflate_timer > 0 then
+            this.inflate_timer = this.inflate_timer - 1
+        end
+        
         -- iframes
         if this.invincible_timer > 0 then
             this.invincible_timer = this.invincible_timer - 1
@@ -664,6 +668,7 @@ roundelie = {
             if this.jbuffer > 0 then
                 if this.grace > 0 then
                     this.is_start_of_jump = true
+                    this.inflate_timer = 6
                     
                     if (not this.was_on_ground) and this:is_solid(0, 1) then this.is_first_frame_jump = true; end
                     
@@ -722,7 +727,8 @@ roundelie = {
                 this.vx = 0.15 * this.conk * this.conkdir
             elseif v_input == -1 and bump and this.bjump > 0 then
                 this.is_start_of_jump = true
-                this.bump_cooldown = 0 --TODO: different from main branch, update documentation and code neatness if you want to keep
+                this.inflate_timer = 5  -- slightly shorter than a normal jump
+                this.bump_cooldown = 0  --TODO: different from main branch, update documentation and code neatness if you want to keep
                 this.vy = -3.0
                 love.audio.play("maddy_nodash", "static")
                 if this.bjump >= 1 then
@@ -818,7 +824,7 @@ roundelie = {
                     next_anim = "jump1"
                 end
             elseif this.current_anim == "jump1" and this.vy <= -0.7 then
-                -- inflate (at the start of a jump/bump)
+                -- inflate (at the start of a jump/bump) -> jump (rising)
                 next_anim = "jump1"
             elseif this.current_anim == "roll" and math.abs(this.vx) >= 1.0 then
                 -- roll (midair)
@@ -1000,7 +1006,15 @@ roundelie = {
             local base_spr = sprites[ this.current_anim == "crouch" and "characters/roundelie_3_base_crouch" or "characters/roundelie_3_base_default" ]
             sprites.draw(base_spr, this.x + cx, this.y, 0, 1, 1, cx, 0)
         end
-        sprites.draw(this.spr, this.x + cx, this.y + cy, rotation, this.facing, 1, cx, cy)
+        --sprites.draw(this.spr, this.x + cx, this.y + cy, rotation, this.facing, 1, cx, cy)
+        
+        -- TODO: messy
+        if this.is_squishy and this.current_anim == "jump1" and this.inflate_timer > 0 then
+            local spr = this.skin == 1 and "characters/roundelie_1_inflate" or "characters/roundelie_2_inflate"
+            sprites.draw(sprites[spr], this.x + cx, this.y + cy, 0, this.facing, 1, cx + 1, cy + 1)
+        else
+            sprites.draw(this.spr, this.x + cx, this.y + cy, rotation, this.facing, 1, cx, cy)
+        end
         
         if this.connectionID == connectionID then
             local px = math.floor(this.x)
