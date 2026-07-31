@@ -66,9 +66,6 @@ TODO: ((?) => "maybe")
     - * roll animation should be tied to speed, both vx and vy
     - midair roll should continue until roll is at an orientation that will transition smoothly into the fall pose
         i.e. shouldn't go from DOWN -> fall, it should roll back to upright position first
-    - experiment with making squash more severe with bigger falls
-        i.e. have a big squash anim that uses the crouch
-        can use same "max fall-speed" threshold used for gold skin landing
     - subsequent inflates should still play a bit of an "inflate" animation
         i.e. inflate -> jump1 (for a few frames) -> inflate
     - small teleport changes
@@ -129,6 +126,7 @@ roundelie = {
         this.is_first_frame_jump = false  -- is roundelie jumping off the ground on the first possible tick after landing
         this.was_on_ground = false
         this.was_big_conk = false
+        this.was_big_fall = false
         this.should_draw_dive_vfx = false
         
         this.teleport_info = {
@@ -155,6 +153,8 @@ roundelie = {
             dive2 =  {frames = {12}, speed = 1}, -- "fast" dive; used when landing will cause a big ground-slam
             conk =   {frames = {13}, speed = 1}, -- disoriented; used during big bounce
             squash = {frames = {14}, speed = 1}, -- 
+            squash_big = {frames = {5, 14}, speed = 5}, -- used when landing at max fall-speed
+            -- ^ a bit hacky; with landing_window == 8 and (anim) speed == 5, each pose is held for 4 (not 5) frames
         }
         this.directions = { UP = 1, RIGHT = 2, DOWN = 3, LEFT = 4 }
         this.orientation = this.directions.UP
@@ -780,7 +780,14 @@ roundelie = {
             anim_on_ground = true
             if (not this.was_on_ground) then
                 game.init_smoke(this.x, this.y + 4)
-                this.landing_window = 4
+                
+                if this.prev_vy >= 3 then
+                    this.was_big_fall = true
+                    this.landing_window = 8
+                else
+                    this.was_big_fall = false
+                    this.landing_window = 4
+                end
             end
         end
         
@@ -860,7 +867,7 @@ roundelie = {
                 end
             elseif this.landing_window > 0 and this.is_squishy and this.current_anim ~= "roll" then
                 this.orientation = this.directions.UP
-                next_anim = "squash"
+                next_anim = (this.was_big_fall or this.current_anim == "squash_big") and "squash_big" or "squash"
             elseif (this.current_anim == "roll" and (math.abs(this.vx) >= 1.0 or h_input == 1 or h_input == -1)) or (this.current_anim ~= "roll" and math.abs(this.vx) > 0.5) then
                 next_anim = "roll"
             elseif v_input == -1 and this.orientation == this.directions.UP then
@@ -870,7 +877,7 @@ roundelie = {
             end
         end
         
-        if this.landing_window > 0 and anim_on_ground and next_anim ~= "squash" then this.landing_window = 0; end
+        if this.landing_window > 0 and anim_on_ground and (next_anim ~= "squash" and next_anim ~= "squash_big") then this.landing_window = 0; end
         
         -- update current animation
         if next_anim ~= this.current_anim then
