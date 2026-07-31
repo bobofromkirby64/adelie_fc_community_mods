@@ -140,8 +140,7 @@ roundelie = {
             dive1 =  {frames = {11}, speed = 1}, --
             dive2 =  {frames = {12}, speed = 1}, -- "fast" dive; used when landing will cause a big ground-slam
             conk =   {frames = {13}, speed = 1}, -- disoriented; used during big bounce
-            squash = {frames = {5, 14}, speed = 4},  -- used when roundelie lands on a platform
-            -- NOTE: ^ this is actually a bit hacky; with landing_window == 6 and (anim) speed == 4, each pose is held for 3 (not 4) frames
+            squash = {frames = {14}, speed = 1}, -- 
         }
         this.directions = { UP = 1, RIGHT = 2, DOWN = 3, LEFT = 4 }
         this.orientation = this.directions.UP
@@ -767,7 +766,7 @@ roundelie = {
             anim_on_ground = true
             if (not this.was_on_ground) then
                 game.init_smoke(this.x, this.y + 4)
-                this.landing_window = 6
+                this.landing_window = 4
             end
         end
         
@@ -836,9 +835,15 @@ roundelie = {
         --
         else
             --
-            if v_input == 1 then
+            if this.current_anim == "crouch" and v_input ~= 1 then
+                next_anim = "squash"
+            elseif v_input == 1 then
                 this.orientation = this.directions.UP
-                next_anim = "crouch"
+                if this.current_anim == "squash" or this.current_anim == "crouch" then
+                    next_anim = "crouch"
+                else
+                    next_anim = "squash"
+                end
             elseif this.landing_window > 0 and this.is_squishy and this.current_anim ~= "roll" then
                 this.orientation = this.directions.UP
                 next_anim = "squash"
