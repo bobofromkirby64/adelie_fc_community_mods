@@ -50,12 +50,13 @@ TODO: ((?) => "maybe")
     - (?) slight bounce off of the ground after landing a midair roll at max fall-speed
  
 (visual)
+    - * rosetta skin rework
     - draw dust cloud for gold skin on landing
     - gold skin needs SOMETHING for inflate equivalent effect
     - fix rolling infinitely into a wall (lol)
-    - upside-down crouch :3
+    - (?) upside-down crouch :3
         need a new sprite for crouch; squash pose can (probably?) be flipped
-    - experiment with 8x16 width sprite for crouch
+    - (?) experiment with 8x16 width sprite for crouch
     - update orientation for different poses, e.g. dive should set orientation to DOWN
     - draw dust cloud at the start of a roll as well as when a roll changes directions
     - experiment with using an anim to smoothly transition to the fall/jump3 pose, rather than have it entirely speed based
@@ -820,7 +821,7 @@ roundelie = {
         -- select sprite pose
         local next_anim
         
-        if this.hitstun > 0 and this.current_anim ~= "crouch" and this.current_anim ~= "squash" then
+        if this.hitstun > 0 and this.current_anim ~= "crouch" and this.current_anim ~= "squash" and this.current_anim ~= "squash_big" then
             -- animations are paused during hitstun
             next_anim = this.current_anim
         elseif not anim_on_ground then
