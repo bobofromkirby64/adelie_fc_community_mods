@@ -52,13 +52,10 @@ TODO: ((?) => "maybe")
 (visual)
     - draw dust cloud for gold skin on landing
     - gold skin needs SOMETHING for inflate equivalent effect
-    - upside-down crouch :3
     - fix rolling infinitely into a wall (lol)
     - upside-down crouch :3
-        need a new sprite for crouch; squash pose can be flipped
+        need a new sprite for crouch; squash pose can (probably?) be flipped
     - experiment with 8x16 width sprite for crouch
-    - inflate during conk
-        should be fine to just, flip the inflate sprite?
     - update orientation for different poses, e.g. dive should set orientation to DOWN
     - draw dust cloud at the start of a roll as well as when a roll changes directions
     - experiment with using an anim to smoothly transition to the fall/jump3 pose, rather than have it entirely speed based
@@ -66,8 +63,6 @@ TODO: ((?) => "maybe")
     - * roll animation should be tied to speed, both vx and vy
     - midair roll should continue until roll is at an orientation that will transition smoothly into the fall pose
         i.e. shouldn't go from DOWN -> fall, it should roll back to upright position first
-    - subsequent inflates should still play a bit of an "inflate" animation
-        i.e. inflate -> jump1 (for a few frames) -> inflate
     - small teleport changes
         roundelie should disappear completely while invulnerable
         roundelie should exit teleport in inflate pose
@@ -680,7 +675,7 @@ roundelie = {
             if this.jbuffer > 0 then
                 if this.grace > 0 then
                     this.is_start_of_jump = true
-                    this.inflate_timer = 6
+                    this.inflate_timer = 10
                     
                     if (not this.was_on_ground) and this:is_solid(0, 1) then this.is_first_frame_jump = true; end
                     
@@ -739,7 +734,7 @@ roundelie = {
                 this.vx = 0.15 * this.conk * this.conkdir
             elseif v_input == -1 and bump and this.bjump > 0 then
                 this.is_start_of_jump = true
-                this.inflate_timer = 5  -- slightly shorter than a normal jump
+                this.inflate_timer = 10
                 this.bump_cooldown = 0  --TODO: different from main branch, update documentation and code neatness if you want to keep
                 this.vy = -3.0
                 love.audio.play("maddy_nodash", "static")
@@ -831,13 +826,17 @@ roundelie = {
         elseif not anim_on_ground then
             if this.conk > 0 and this.was_big_conk then
                 -- during big bounce
-                next_anim = "conk"
+                if this.is_start_of_jump or (this.current_anim == "jump1" and this.inflate_timer > 0) then
+                    next_anim = "jump1"
+                else
+                    next_anim = "conk"
+                end
             elseif this.down_attack and this.dribble_window == 0 then
                 -- dive / down attack
                 next_anim = (this.vy == 4.5) and "dive2" or "dive1"
             elseif this.is_start_of_jump then
                 --
-                if this.is_first_frame_jump and math.abs(this.vx) >= 1.5 then
+                if this.current_anim ~= "jump1" and this.is_first_frame_jump and math.abs(this.vx) >= 1.5 then
                     next_anim = "roll"
                 else
                     next_anim = "jump1"
@@ -1031,14 +1030,11 @@ roundelie = {
             local base_spr = sprites[ this.current_anim == "crouch" and "characters/roundelie_3_base_crouch" or "characters/roundelie_3_base_default" ]
             sprites.draw(base_spr, this.x + cx, this.y, 0, 1, 1, cx, 0)
         end
-        --sprites.draw(this.spr, this.x + cx, this.y + cy, rotation, this.facing, 1, cx, cy)
         
         -- TODO: messy
-        if this.is_squishy and this.current_anim == "jump1" and this.inflate_timer > 0 then
+        if this.is_squishy and this.current_anim == "jump1" and this.inflate_timer > 0 and this.inflate_timer <= 8 then
             local spr = this.skin == 1 and "characters/roundelie_1_inflate" or "characters/roundelie_2_inflate"
-            -- inflate sprite is drawn 1 px higher to compensate for the larger sprite size
-            -- (e.g. on the first frame that the inflate sprite is drawn, it looks like roundelie only moves up 1px when it should move up 2px)
-            sprites.draw(sprites[spr], this.x + cx, this.y + cy - 1, 0, this.facing, 1, cx + 1, cy + 1)
+            sprites.draw(sprites[spr], this.x + cx, this.y + cy, rotation, this.facing, 1, cx + 1, cy + 1)
         else
             sprites.draw(this.spr, this.x + cx, this.y + cy, rotation, this.facing, 1, cx, cy)
         end
