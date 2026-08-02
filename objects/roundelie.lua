@@ -35,10 +35,10 @@
 --   Roundelie can stop a snowball from rolling either by diving into it or by knocking it into the air with the ground-slam
 
 --[[
-TODO: ((?) => "maybe")
+TODO: ((?) => "maybe", (*) => high prio)
 
 (core/moveset)
-    - shockwave/ground-slam rework
+    - * shockwave/ground-slam rework
         - current range is too large for an attack that is immediately active, and it also extends past the edge of platforms in an unintuitive way
         - roundelie desperately wants a way to threaten space in front of it, and would also really benefit from another way to knock opponents horizontally that isn't the teleport
     - add min delay between bjump uses
@@ -53,24 +53,22 @@ TODO: ((?) => "maybe")
     - * rosetta skin rework
     - draw dust cloud for gold skin on landing
     - gold skin needs SOMETHING for inflate equivalent effect
-    - fix rolling infinitely into a wall (lol)
+    - * fix rolling infinitely into a wall (lol)
+    - * fix missing texture on squash for gold skin
     - (?) upside-down crouch :3
-        need a new sprite for crouch; squash pose can (probably?) be flipped
+        would need a new sprite for crouch; squash pose can (probably?) be flipped
     - (?) experiment with 8x16 width sprite for crouch
-    - update orientation for different poses, e.g. dive should set orientation to DOWN
+    - (?) update orientation for different poses, e.g. dive should set orientation to DOWN
     - draw dust cloud at the start of a roll as well as when a roll changes directions
-    - experiment with using an anim to smoothly transition to the fall/jump3 pose, rather than have it entirely speed based
-    - experiment with adding an anim to transition to the look up pose from different orientations
-    - * roll animation should be tied to speed, both vx and vy
-    - midair roll should continue until roll is at an orientation that will transition smoothly into the fall pose
-        i.e. shouldn't go from DOWN -> fall, it should roll back to upright position first
+    - (?) experiment with using an anim to smoothly transition to the fall/jump3 pose, rather than have it entirely speed based
+    - (?) experiment with adding an anim to transition to the look up pose from different orientations
     - small teleport changes
-        roundelie should disappear completely while invulnerable
-        roundelie should exit teleport in inflate pose
+        - roundelie should disappear completely while invulnerable
+        - roundelie should exit teleport in inflate pose
     - (?) take another pass at teleport vfx
-        picturing sparks with bolts shooting between them for on-hit
-        + a much more explicit poof of smoke for the standard effect
-            (can also experiment with drawing an after-image in the origin point smoke, again, but this time using stencil?)
+        experiment drawing sparks with energy shooting between them for on-hit effect
+        + a much more explicit poof of smoke for the standard/non-hit effect
+        (and can also experiment with drawing an after-image in the origin point smoke, again, but this time using stencil?)
     - (?) use squash anim to transition out of crouching in more situations
         (e.g. from diff orientations of idle pose -> look up)
     - (?) experiment with drawing sadface/tears/sroundelie during hitstun
@@ -149,8 +147,9 @@ roundelie = {
             dive2 =  {frames = {12}, speed = 1}, -- "fast" dive; used when landing will cause a big ground-slam
             conk =   {frames = {13}, speed = 1}, -- disoriented; used during big bounce
             squash = {frames = {14}, speed = 1}, -- 
-            squash_big_fall = {frames = {5, 14}, speed = 5}, -- used when landing at max fall-speed
+            squash_big_fall = {frames = {5, 14}, speed = 5},  -- used when landing at max fall-speed
             -- ^ a bit hacky; with landing_window == 8 and (anim) speed == 5, each pose is held for 4 (not 5) frames
+            flip = {frames = {7, 7, 7, 7}, speed = 2},  -- used to correct orientation in midair
         }
         this.directions = { UP = 1, RIGHT = 2, DOWN = 3, LEFT = 4 }
         this.orientation = this.directions.UP
@@ -817,7 +816,7 @@ roundelie = {
         end
         
         -- update sprite pose orientation
-        if this.current_anim == "roll" then
+        if this.current_anim == "roll" or this.current_anim == "flip" then
             this.orientation = this.anim_frame
         end
         
@@ -872,9 +871,16 @@ roundelie = {
             elseif this.current_anim == "jump1" and this.vy <= -0.7 then
                 -- inflate (at the start of a jump/bump) -> jump (rising)
                 next_anim = "jump1"
-            elseif this.current_anim == "roll" and math.abs(this.vx) >= 1.0 then
+            elseif this.current_anim == "roll" then
                 -- roll (midair)
-                next_anim = "roll"
+                if math.abs(this.vx) < 1.0 then
+                    next_anim = (this.orientation == this.directions.UP) and "jump2" or "flip"
+                else
+                    next_anim = "roll"
+                end
+            elseif this.current_anim == "flip" then
+                -- exit midair roll by rotating back to the upright orientation
+                next_anim = (this.orientation == this.directions.UP) and "jump2" or "flip"
             else
                 -- default midair pose (jump/fall)
                 this.orientation = this.directions.UP
@@ -909,7 +915,7 @@ roundelie = {
         -- update current animation
         if next_anim ~= this.current_anim then
             this.current_anim = next_anim
-            this.anim_frame = (next_anim == "roll") and this.orientation or 1
+            this.anim_frame = (next_anim == "roll" or next_anim == "flip") and this.orientation or 1
             this.anim_timer = 0
         end
         
@@ -1016,7 +1022,7 @@ roundelie = {
         local frame_idx = anim.frames[this.anim_frame]
         this.spr = this.spritesheet[frame_idx]
         local cx, cy = this.hurtbox.x + (this.hurtbox.w / 2), 4
-        local rotation = (this.current_anim == "roll") and math.rad(this.facing * this.anim_frame * 90) or 0
+        local rotation = (this.current_anim == "roll" or this.current_anim == "flip") and math.rad(this.facing * this.anim_frame * 90) or 0
         
         -- apply palette swaps
         if isBlinking then
