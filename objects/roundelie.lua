@@ -848,8 +848,12 @@ roundelie = {
         local next_anim
         
         if this.hitstun > 0 and this.current_anim ~= "crouch" and (not anim_is_squash) then
-            -- animations are paused during hitstun
-            next_anim = this.current_anim
+            if this.current_anim == "roll" then
+                next_anim = "flip"
+            else
+                -- animations are paused during hitstun
+                next_anim = this.current_anim
+            end
         elseif not anim_on_ground then
             if this.conk > 0 and this.was_big_conk then
                 -- during big bounce
@@ -879,7 +883,7 @@ roundelie = {
                     next_anim = "roll"
                 end
             elseif this.current_anim == "flip" then
-                -- exit midair roll by rotating back to the upright orientation
+                -- roundelie continues spinning until it's back in the upright orientation
                 next_anim = (this.orientation == this.directions.UP) and "jump2" or "flip"
             else
                 -- default midair pose (jump/fall)
