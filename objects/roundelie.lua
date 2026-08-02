@@ -43,28 +43,30 @@ TODO: ((?) => "maybe", (*) => high prio)
         - roundelie desperately wants a way to threaten space in front of it, and would also really benefit from another way to knock opponents horizontally that isn't the teleport
     - add min delay between bjump uses
         (spamming input should still work to buffer bjumps, but it'll feel better if every bjump gains some height)
-    - the combination of being able to cancel jump momentum with dive and being able to grace jump after cancelling out of jump with dive makes for some very silly movement; maybe experiment with having roundelie unable to interrupt a dive for the first few frames after input? or if we like the silly movement, we should at least make it so it's less of a mess of smoke when you press the dive button over and over
+    - experiment with preventing roundelie from cancelling out of dive for first few frames
+        (mainly I think this will make the dive feel a bit better and sell it more as an "action")
     - (?) experiment with teleport knockback (imo current knockback doesn't really fit with the concept of a teleport, it should be a bit more chaotic or at least have variance relative to roundelie's position?)
     - (?) let roundelie influence horizontal speed slightly (but still not dive, teleport, or bjump) during conk state
     - (?) small speed boost when starting a roll or when changing roll direction
     - (?) slight bounce off of the ground after landing a midair roll at max fall-speed
+    - ...
  
 (visual)
     - * rosetta skin rework
     - draw dust cloud for gold skin on landing
     - gold skin needs SOMETHING for inflate equivalent effect
+    - draw dust cloud at the start of a roll as well as when a roll changes directions
     - * fix rolling infinitely into a wall (lol)
     - * fix missing texture on squash for gold skin
-    - (?) upside-down crouch :3
-        would need a new sprite for crouch; squash pose can (probably?) be flipped
-    - (?) experiment with 8x16 width sprite for crouch
-    - (?) update orientation for different poses, e.g. dive should set orientation to DOWN
-    - draw dust cloud at the start of a roll as well as when a roll changes directions
-    - (?) experiment with using an anim to smoothly transition to the fall/jump3 pose, rather than have it entirely speed based
-    - (?) experiment with adding an anim to transition to the look up pose from different orientations
     - small teleport changes
         - roundelie should disappear completely while invulnerable
         - roundelie should exit teleport in inflate pose
+    - ...
+    - (?) upside-down crouch :3
+        would need a new sprite for crouch; squash pose can (probably?) be flipped
+    - (?) experiment with 8x16 width sprite for crouch
+    - (?) experiment with using an anim to smoothly transition to the fall/jump3 pose, rather than have it entirely speed based
+    - (?) experiment with adding an anim to transition to the look up pose from different orientations
     - (?) take another pass at teleport vfx
         experiment drawing sparks with energy shooting between them for on-hit effect
         + a much more explicit poof of smoke for the standard/non-hit effect
@@ -149,7 +151,7 @@ roundelie = {
             squash = {frames = {14}, speed = 1}, -- 
             squash_big_fall = {frames = {5, 14}, speed = 5},  -- used when landing at max fall-speed
             -- ^ a bit hacky; with landing_window == 8 and (anim) speed == 5, each pose is held for 4 (not 5) frames
-            flip = {frames = {7, 7, 7, 7}, speed = 2},  -- used to correct orientation in midair
+            flip = {frames = {7, 7, 7, 7}, speed = 3},  -- used to correct orientation in midair
         }
         this.directions = { UP = 1, RIGHT = 2, DOWN = 3, LEFT = 4 }
         this.orientation = this.directions.UP
@@ -158,7 +160,6 @@ roundelie = {
         this.anim_frame = 1
         this.anim_timer = 0
         this.is_squishy = not ((this.skin == 3) or (this.skin == 4))
-        this.sprite_rotation = 0
         
         this.respawn_timer = 0
         this.invincible_timer = 0
@@ -171,7 +172,7 @@ roundelie = {
         this.dive_smoketrail = 0
         this.dribble_window = 0
         this.landing_window = 0
-        this.inflate_timer = 0
+        this.inflate_timer = 0  -- TODO: messy
         this.falling_timer = 0
         
         this.prev_x = 0
@@ -513,8 +514,7 @@ roundelie = {
         end
         
         -- anim timer for window to draw the "inflate" sprite
-        -- TODO: messy?
-        if this.inflate_timer > 0 then
+        if this.inflate_timer > 0 then  -- TODO: messy
             this.inflate_timer = this.inflate_timer - 1
         end
         
@@ -815,7 +815,7 @@ roundelie = {
             this.should_draw_dive_vfx = false
         end
         
-        -- update sprite pose orientation
+        -- update sprite pose / animation orientation
         if this.current_anim == "roll" or this.current_anim == "flip" then
             this.orientation = this.anim_frame
         end
@@ -844,11 +844,12 @@ roundelie = {
         end
         this.animations.roll.speed = roll_anim_speed
         
-        -- select sprite pose
+        -- select current sprite pose / animation
         local next_anim
         
         if this.hitstun > 0 and this.current_anim ~= "crouch" and (not anim_is_squash) then
-            if this.current_anim == "roll" then
+            if (not anim_on_ground) and this.orientation ~= this.directions.UP then
+                this.animations.flip.speed = this.animations.roll.speed
                 next_anim = "flip"
             else
                 -- animations are paused during hitstun
@@ -858,6 +859,7 @@ roundelie = {
             if this.conk > 0 and this.was_big_conk then
                 -- during big bounce
                 if this.is_start_of_jump or (this.current_anim == "jump1" and this.inflate_timer > 0) then
+                    this.orientation = this.directions.UP
                     next_anim = "jump1"
                 else
                     next_anim = "conk"
@@ -867,6 +869,7 @@ roundelie = {
                 next_anim = (this.vy == MAX_DIVE_SPEED) and "dive2" or "dive1"
             elseif this.is_start_of_jump then
                 --
+                this.orientation = this.directions.UP
                 if this.current_anim ~= "jump1" and this.is_first_frame_jump and math.abs(this.vx) >= 1.5 then
                     next_anim = "roll"
                 else
@@ -877,18 +880,26 @@ roundelie = {
                 next_anim = "jump1"
             elseif this.current_anim == "roll" then
                 -- roll (midair)
-                if math.abs(this.vx) < 1.0 then
+                if math.abs(this.vx) < MAX_RUN_SPEED then  -- more strict check than for grounded roll
+                    this.animations.flip.speed = math.min(this.animations.roll.speed, 3)
                     next_anim = (this.orientation == this.directions.UP) and "jump2" or "flip"
                 else
                     next_anim = "roll"
                 end
             elseif this.current_anim == "flip" then
                 -- roundelie continues spinning until it's back in the upright orientation
+                -- TODO: flip rotation shouldn't change if roundelie changes the direction its facing
+                --      i.e. if the flip rotation is CW, rotation after turning around should still be CW
+                --      (also should experiment with speeding up anim if facing direction changes)
                 next_anim = (this.orientation == this.directions.UP) and "jump2" or "flip"
             else
-                -- default midair pose (jump/fall)
-                this.orientation = this.directions.UP
-                next_anim = this.vy < 0.3 and "jump2" or "jump3"
+                if this.orientation ~= this.directions.UP then
+                    this.animations.flip.speed = 3
+                    next_anim = "flip"
+                else
+                    -- default midair pose (jump/fall)
+                    next_anim = this.vy < 0.3 and "jump2" or "jump3"
+                end
             end
         --
         else
@@ -902,7 +913,7 @@ roundelie = {
                 else
                     next_anim = "squash"
                 end
-            elseif this.landing_window > 0 and this.is_squishy and this.current_anim ~= "roll" then
+            elseif this.landing_window > 0 and this.is_squishy and this.current_anim ~= "roll" and this.current_anim ~= "flip" then
                 this.orientation = this.directions.UP
                 next_anim = (this.was_big_fall or this.current_anim == "squash_big_fall") and "squash_big_fall" or "squash"
             elseif (this.current_anim == "roll" and (math.abs(this.vx) >= 1.0 or h_input == 1 or h_input == -1)) or (this.current_anim ~= "roll" and math.abs(this.vx) > 0.5) then
@@ -918,9 +929,9 @@ roundelie = {
         
         -- update current animation
         if next_anim ~= this.current_anim then
-            this.current_anim = next_anim
             this.anim_frame = (next_anim == "roll" or next_anim == "flip") and this.orientation or 1
-            this.anim_timer = 0
+            this.anim_timer = (this.current_anim == "roll" and next_anim == "flip") and this.anim_timer or 0
+            this.current_anim = next_anim
         end
         
         if this.hitstun == 0 then this.anim_timer = this.anim_timer + 1 end  -- animations are paused during hitstun
