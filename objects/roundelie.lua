@@ -149,7 +149,7 @@ roundelie = {
             dive2 =  {frames = {12}, speed = 1}, -- "fast" dive; used when landing will cause a big ground-slam
             conk =   {frames = {13}, speed = 1}, -- disoriented; used during big bounce
             squash = {frames = {14}, speed = 1}, -- 
-            squash_big = {frames = {5, 14}, speed = 5}, -- used when landing at max fall-speed
+            squash_big_fall = {frames = {5, 14}, speed = 5}, -- used when landing at max fall-speed
             -- ^ a bit hacky; with landing_window == 8 and (anim) speed == 5, each pose is held for 4 (not 5) frames
         }
         this.directions = { UP = 1, RIGHT = 2, DOWN = 3, LEFT = 4 }
@@ -557,11 +557,16 @@ roundelie = {
         
         local h_input = (inputSource.getKeyDown(id, "right") and 1 or 0) - (inputSource.getKeyDown(id, "left") and 1 or 0)
         local v_input = (inputSource.getKeyDown(id, "down") and 1 or 0) - (inputSource.getKeyDown(id, "up") and 1 or 0)
+        
+        local MAX_RUN_SPEED  = 2.0  -- different from ra2, but the speed building doesn't fit well with the character and is overcomplicated
+        local MAX_FALL_SPEED = 3.0
+        local MAX_DIVE_SPEED = 4.5
+        
         -- hitstun (set by hitbox.lua)
         if this.hitstun > 0 then
             this.dash_time = 0
             this.hitstun = this.hitstun - 1
-            this.vy = util.appr(this.vy, 3, 0.15)
+            this.vy = util.appr(this.vy, MAX_FALL_SPEED, 0.15)
             this.vx = util.appr(this.vx, 0, 0.143)
             
             if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
@@ -617,7 +622,7 @@ roundelie = {
                     -- shockwaves
                     -- TODO: still need sfx for the shockwave (probably don't want on-hit sfx)
                     -- TODO: probably should experiment with making the shockwave smaller, and also not extend as far into the air e.g. when you bounce near the edge of a platform
-                    if this.prev_vy == 4.5 and this.dive_start == 0 then
+                    if this.prev_vy == MAX_DIVE_SPEED and this.dive_start == 0 then
                         this.shockwave_hb = hitbox.create(this.connectionID, (this.x - 25) + (-5 * this.conkdir), this.y + 4, 60, 4, 3, -2 * this.conkdir, -4, 2)
                         this.shockwave_hb.shockwave_large = true
                         this.conk = 10
@@ -661,16 +666,14 @@ roundelie = {
                     this.teleport_hb = nil
                 end
             end
-            local maxrun = 2 -- different from ra2, but the speed building doesn't fit well with the character and is overcomplicated
             local accel = on_ground and 0.93 or 0.80
             local deccel = 0.16
             
-            this.vx = math.abs(this.vx) <= maxrun and util.appr(this.vx, h_input * maxrun, accel) or util.appr(this.vx, util.sign(this.vx) * maxrun, deccel)
+            this.vx = math.abs(this.vx) <= MAX_RUN_SPEED and util.appr(this.vx, h_input * MAX_RUN_SPEED, accel) or util.appr(this.vx, util.sign(this.vx) * MAX_RUN_SPEED, deccel)
             if this.vx ~= 0 then this.facing = util.sign(this.vx) end
             
-            local maxfall = 3
             if not on_ground then
-                this.vy = util.appr(this.vy, maxfall, math.abs(this.vy) > 0.124 and 0.334 or 0.167)
+                this.vy = util.appr(this.vy, MAX_FALL_SPEED, math.abs(this.vy) > 0.124 and 0.334 or 0.167)
             end
             
             if this.jbuffer > 0 then
@@ -702,7 +705,7 @@ roundelie = {
                 if not this.down_attack then 
                     -- dive has a 1f delay before the hitbox comes out and an initial burst of speed after the delay
                     this.freeze = 1
-                    this.vy = util.appr(this.vy, 4.5, 1.95)
+                    this.vy = util.appr(this.vy, MAX_DIVE_SPEED, 1.95)
                     
                     -- a bit hacky, but this helps prevent the smoke-trail effect from being drawn when roundelie starts diving right before bouncing (e.g., while dribbling or wall-climbing)
                     this.should_draw_dive_vfx = this.dribble_window == 0 or
@@ -713,7 +716,7 @@ roundelie = {
                 else
                     -- the dive hitbox remains active as long as the input (down+x) is held
                     hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx), 4.5, 2)
-                    this.vy = util.appr(this.vy, 4.5, 0.60)
+                    this.vy = util.appr(this.vy, MAX_DIVE_SPEED, 0.60)
                     if this.dive_smoketrail > 0 then game.init_smoke(this.x, this.y) end
                 end
 
@@ -818,10 +821,19 @@ roundelie = {
             end
         end
         
+        -- update roll speed
+        local roll_anim_speed = 4
+        if ((math.abs(this.vx) + math.abs(this.vy)) / 2) >= ((MAX_RUN_SPEED + MAX_FALL_SPEED) / 2) then
+            roll_anim_speed = 2
+        elseif (math.abs(this.vx) >= MAX_RUN_SPEED) or (this.vy <= -1.0) then
+            roll_anim_speed = 3
+        end
+        this.animations.roll.speed = roll_anim_speed
+        
         -- select sprite pose
         local next_anim
         
-        if this.hitstun > 0 and this.current_anim ~= "crouch" and this.current_anim ~= "squash" and this.current_anim ~= "squash_big" then
+        if this.hitstun > 0 and this.current_anim ~= "crouch" and this.current_anim ~= "squash" and this.current_anim ~= "squash_big_fall" then
             -- animations are paused during hitstun
             next_anim = this.current_anim
         elseif not anim_on_ground then
@@ -834,7 +846,7 @@ roundelie = {
                 end
             elseif this.down_attack and this.dribble_window == 0 then
                 -- dive / down attack
-                next_anim = (this.vy == 4.5) and "dive2" or "dive1"
+                next_anim = (this.vy == MAX_DIVE_SPEED) and "dive2" or "dive1"
             elseif this.is_start_of_jump then
                 --
                 if this.current_anim ~= "jump1" and this.is_first_frame_jump and math.abs(this.vx) >= 1.5 then
@@ -867,7 +879,7 @@ roundelie = {
                 end
             elseif this.landing_window > 0 and this.is_squishy and this.current_anim ~= "roll" then
                 this.orientation = this.directions.UP
-                next_anim = (this.was_big_fall or this.current_anim == "squash_big") and "squash_big" or "squash"
+                next_anim = (this.was_big_fall or this.current_anim == "squash_big_fall") and "squash_big_fall" or "squash"
             elseif (this.current_anim == "roll" and (math.abs(this.vx) >= 1.0 or h_input == 1 or h_input == -1)) or (this.current_anim ~= "roll" and math.abs(this.vx) > 0.5) then
                 next_anim = "roll"
             elseif v_input == -1 and this.orientation == this.directions.UP then
@@ -877,20 +889,13 @@ roundelie = {
             end
         end
         
-        if this.landing_window > 0 and anim_on_ground and (next_anim ~= "squash" and next_anim ~= "squash_big") then this.landing_window = 0; end
+        if this.landing_window > 0 and anim_on_ground and (next_anim ~= "squash" and next_anim ~= "squash_big_fall") then this.landing_window = 0; end
         
         -- update current animation
         if next_anim ~= this.current_anim then
             this.current_anim = next_anim
-            
-            if next_anim == "roll" then
-                this.anim_frame = this.orientation
-                -- speed up the animation immediately after changing direction to help the roll appear more natural
-                this.anim_timer = (this.prev_facing ~= this.facing) and math.floor(this.animations[next_anim].speed / 2) or 0
-            else
-                this.anim_frame = 1
-                this.anim_timer = 0
-            end
+            this.anim_frame = (next_anim == "roll") and this.orientation or 1
+            this.anim_timer = 0
         end
         
         if this.hitstun == 0 then this.anim_timer = this.anim_timer + 1 end  -- animations are paused during hitstun
