@@ -173,6 +173,7 @@ roundelie = {
         this.dribble_window = 0
         this.landing_window = 0
         this.inflate_timer = 0
+        this.falling_timer = 0
         
         this.prev_x = 0
         this.prev_y = 0
@@ -481,6 +482,11 @@ roundelie = {
             return
         end
         
+        -- # of ticks since roundelie has started falling
+        if this.falling_timer > 0 then
+            this.falling_timer = this.falling_timer + 1
+        end
+        
         --
         if this.dribble_window > 0 then
             this.dribble_window = this.dribble_window - 1
@@ -773,20 +779,27 @@ roundelie = {
         
         
         -- check if roundelie has landed on a platform
-        -- (has to happen after movement is calculated so that animations are accurate)
+        -- (this is done after movement is calculated so that animations are more accurate)
         local anim_on_ground = false
         if this.hitstun == 0 and this.vy >= 0 and this:is_solid(0, 1) then
             anim_on_ground = true
             if (not this.was_on_ground) then
                 game.init_smoke(this.x, this.y + 4)
                 
-                if this.prev_vy >= 3 then
+                if this.prev_vy > 3 or (this.prev_vy == 3 and this.falling_timer >= 15) then
                     this.was_big_fall = true
                     this.landing_window = 8
                 else
                     this.was_big_fall = false
                     this.landing_window = 4
                 end
+                this.falling_timer = 0
+            end
+        else
+            if this.vy < 0 and this.falling_timer > 0 then
+                this.falling_timer = 0
+            elseif this.falling_timer == 0 then
+                this.falling_timer = 1
             end
         end
         
@@ -808,9 +821,11 @@ roundelie = {
             this.orientation = this.anim_frame
         end
         
+        local anim_is_squash = this.current_anim == "squash" or this.current_anim == "squash_big_fall"
+        
         if this.prev_facing ~= this.facing then
             -- TODO: messy
-            if (anim_on_ground and math.abs(this.vx) >= 0.2 and this.current_anim ~= "squash" and v_input ~= 1) then
+            if (anim_on_ground and math.abs(this.vx) >= 0.2 and (not anim_is_squash) and v_input ~= 1) then
                 this.init_dust_cloud(this.x, this.y + 1, -1 * this.facing)
             end
             
@@ -833,7 +848,7 @@ roundelie = {
         -- select sprite pose
         local next_anim
         
-        if this.hitstun > 0 and this.current_anim ~= "crouch" and this.current_anim ~= "squash" and this.current_anim ~= "squash_big_fall" then
+        if this.hitstun > 0 and this.current_anim ~= "crouch" and (not anim_is_squash) then
             -- animations are paused during hitstun
             next_anim = this.current_anim
         elseif not anim_on_ground then
@@ -872,7 +887,7 @@ roundelie = {
                 next_anim = "squash"
             elseif v_input == 1 then
                 this.orientation = this.directions.UP
-                if this.current_anim == "squash" or this.current_anim == "crouch" then
+                if anim_is_squash or this.current_anim == "crouch" then
                     next_anim = "crouch"
                 else
                     next_anim = "squash"
