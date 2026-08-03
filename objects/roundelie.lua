@@ -1,5 +1,5 @@
 -- objects/roundelie.lua
--- v0.6.1
+-- v0.7.0
 
 -- Movement Documentation:
 -- Z to jump, left and right arrow keys to move
@@ -35,7 +35,7 @@
 --   Roundelie can stop a snowball from rolling either by diving into it or by knocking it into the air with the ground-slam
 
 --[[
-TODO: ((?) => "maybe", (*) => high prio)
+TODO: ((?) => "maybe", (*) => "high priority")
 
 (core/moveset)
     - * shockwave/ground-slam rework
@@ -56,23 +56,21 @@ TODO: ((?) => "maybe", (*) => high prio)
     - draw dust cloud for gold skin on landing
     - gold skin needs SOMETHING for inflate equivalent effect
     - draw dust cloud at the start of a roll as well as when a roll changes directions
+    - dust cloud issues
+        - dust cloud is often drawn far away from the roll
+        - dust cloud is sometimes drawn on top of the roll
+            => position of the dust cloud should vary based on roundelie's movement following a direction change
     - * fix rolling infinitely into a wall (lol)
-    - (?) upside-down crouch :3
-        would need a new sprite for crouch; squash pose can (probably?) be flipped
-    - (?) experiment with 8x16 width sprite for crouch
-    - (?) experiment with using an anim to smoothly transition to the fall/jump3 pose, rather than have it entirely speed based
     - (?) experiment with adding an anim to transition to the look up pose from different orientations
-    - (?) take another pass at teleport vfx
-        experiment drawing sparks with energy shooting between them for on-hit effect
-        + a much more explicit poof of smoke for the standard/non-hit effect
-        (and can also experiment with drawing an after-image in the origin point smoke, again, but this time using stencil?)
-    - (?) use squash anim to transition out of crouching in more situations
-        (e.g. from diff orientations of idle pose -> look up)
+    - (?) more changes to teleport vfx
+            experiment drawing sparks with energy shooting between them for on-hit effect
+                + a much more explicit poof of smoke for the standard/non-hit effect
+            (can also experiment with drawing an after-image in the origin point smoke, again, but this time using stencil?)
     - (?) experiment with drawing sadface/tears/sroundelie during hitstun
     - (?) experiment with sweat drops for empty bjump (out of uses)
         (could also use the "tears" effect for this, in addition to the sweat drops)
     - ...
-    (*) ...
+    (*) new issues introduced by recent changes (lol)
     - fall duration check should maybe be a distance check instead? e.g. should diving through top plat on lava fields be considered a "big" fall
     - flip anim issues
         - direction changes aren't handled well, i.e. roundelie shouldn't change rotation direction in midair
