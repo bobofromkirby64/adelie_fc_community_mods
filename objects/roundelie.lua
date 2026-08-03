@@ -57,9 +57,6 @@ TODO: ((?) => "maybe", (*) => high prio)
     - gold skin needs SOMETHING for inflate equivalent effect
     - draw dust cloud at the start of a roll as well as when a roll changes directions
     - * fix rolling infinitely into a wall (lol)
-    - small teleport changes
-        - roundelie should disappear completely while invulnerable
-        - roundelie should exit teleport in inflate pose
     - (?) upside-down crouch :3
         would need a new sprite for crouch; squash pose can (probably?) be flipped
     - (?) experiment with 8x16 width sprite for crouch
@@ -161,8 +158,14 @@ roundelie = {
             crouch_up = {frames = {14}, speed = 3, has_ending = true},
             squash_small_fall = {frames = {5, 14}, speed = 3, has_ending = true},  --
             squash_big_fall   = {frames = {5, 14}, speed = 4, has_ending = true},  --
-            inflate_start = {frames = {8}, speed = 2, has_ending = true}, --
-            inflate       = {frames = {8}, speed = 7, has_ending = true}, --
+            inflate_start = {frames = {8}, speed = 2, has_ending = true, next_anim = "inflate"},  --
+            inflate       = {frames = {8}, speed = 7, has_ending = true, next_anim = "inflate_exit"},  --
+            inflate_exit  = {frames = {9}, speed = 3, has_ending = true},  -- TODO: actually implement, e.g. different behavior for anim_on_ground
+            teleport_start   = {frames = {8}, speed = 1, next_anim = "teleport_inflate"},  --
+            teleport_inflate = {frames = {9}, speed = 6, has_ending = true, next_anim = "inflate_exit"},  --
+            -- flip_start = {...}  -- TODO: implement
+                -- mainly to handle edge cases, e.g. cancel out of first-frame flip jump into standard inflate jump
+
         }
         this.directions = { UP = 1, RIGHT = 2, DOWN = 3, LEFT = 4 }
         this.orientation = this.directions.UP
@@ -183,6 +186,7 @@ roundelie = {
         this.dive_smoketrail = 0
         this.dribble_window = 0
         this.falling_timer = 0
+        this.invis_timer = 0
         
         this.prev_x = 0
         this.prev_y = 0
@@ -442,7 +446,7 @@ roundelie = {
                         end
                         
                         -- initial burst
-                        if p.timer <= 2 then
+                        if p.timer <= 1 then
                             love.graphics.setColor(1, 1, 1)
                             -- hitbox is size 10x10 and centered on roundelie => 12-diameter circle fits well enough
                             love.graphics.circle("fill", p.x + p.cx, p.y + p.cy, 6)
@@ -481,6 +485,13 @@ roundelie = {
     
     update = function(this)
         local id = this.connectionID
+        
+        -- # of ticks that roundelie disappears (=> sprite is not drawn) after a teleport
+        if this.invis_timer > 0 then
+            -- roundelie is invulnerable while invisible
+            -- timer continues to decrement during freeze
+            this.invis_timer = this.invis_timer - 1
+        end
         
         if this.freeze > 0 then
             this.freeze = this.freeze - 1
@@ -550,6 +561,7 @@ roundelie = {
                 -- idk how much of this is needed ...
                 this.current_anim = this.idle_poses[1]
                 this.orientation = this.directions.UP
+                this.anim_frame = 1
                 this.anim_timer = 0
                 
                 if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
@@ -805,6 +817,8 @@ roundelie = {
         -- teleport vfx
         if this.teleport_info.init then
             this:draw_teleport_vfx()
+            this.current_anim = "teleport_start"  -- bit hacky
+            this.invis_timer = 4
         end
         
         -- dive vfx
@@ -858,6 +872,10 @@ roundelie = {
                 -- animations are paused during hitstun
                 next_anim = this.current_anim
             end
+        elseif this.current_anim == "teleport_start" then
+            -- roundelie is inflated when becoming visible after a teleport (roundelie disappears at the start of the teleport)
+            this.orientation = this.directions.UP
+            next_anim = "teleport_inflate"
         elseif not anim_on_ground then
             if (not (this.current_anim == "inflate_start" or this.current_anim == "inflate")) and this.conk > 0 and this.was_big_conk then
                 -- during big bounce
@@ -882,8 +900,8 @@ roundelie = {
             elseif (not anim_is_loop) and (not anim_is_finished) then
                 --
                 next_anim = this.current_anim
-            elseif this.current_anim == "inflate_start" and anim_is_finished then
-                next_anim = "inflate"
+            elseif (not anim_is_loop) and anim_is_finished and anim.next_anim then
+                next_anim = anim.next_anim
             -- elseif anim_is_finished and this.current_anim == "inflate" then
                 -- next_anim = "jump1"
             elseif (this.current_anim == "jump1" or (this.current_anim == "inflate" and anim_is_finished)) and this.vy <= -0.7 then
@@ -1030,6 +1048,9 @@ roundelie = {
             
             this.freeze = 6
             target.freeze = 6
+            
+            if this.invis_timer > 0 then this.invis_timer = this.invis_timer + 2; end
+            
             camera.shake(3, 3, 5)
         end
     end,
@@ -1087,11 +1108,13 @@ roundelie = {
             sprites.draw(base_spr, this.x + cx, this.y, 0, 1, 1, cx, 0)
         end
         
-        if this.is_squishy and this.current_anim == "inflate" then
-            local temp_spr = this.skin == 1 and "characters/roundelie_1_inflate" or "characters/roundelie_2_inflate"
-            sprites.draw(sprites[temp_spr], this.x + cx, this.y + cy, rotation, this.facing, 1, cx + 1, cy + 1)
-        else
-            sprites.draw(this.spr, this.x + cx, this.y + cy, rotation, this.facing, 1, cx, cy)
+        if (this.invis_timer == 0) then
+            if this.is_squishy and (this.current_anim == "inflate" or this.current_anim == "teleport_inflate") then
+                local temp_spr = this.skin == 1 and "characters/roundelie_1_inflate" or "characters/roundelie_2_inflate"
+                sprites.draw(sprites[temp_spr], this.x + cx, this.y + cy, rotation, this.facing, 1, cx + 1, cy + 1)
+            else
+                sprites.draw(this.spr, this.x + cx, this.y + cy, rotation, this.facing, 1, cx, cy)
+            end
         end
         
         if this.connectionID == connectionID then
