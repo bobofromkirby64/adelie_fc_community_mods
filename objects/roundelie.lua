@@ -57,11 +57,9 @@ TODO: ((?) => "maybe", (*) => high prio)
     - gold skin needs SOMETHING for inflate equivalent effect
     - draw dust cloud at the start of a roll as well as when a roll changes directions
     - * fix rolling infinitely into a wall (lol)
-    - * fix missing texture on squash for gold skin
     - small teleport changes
         - roundelie should disappear completely while invulnerable
         - roundelie should exit teleport in inflate pose
-    - ...
     - (?) upside-down crouch :3
         would need a new sprite for crouch; squash pose can (probably?) be flipped
     - (?) experiment with 8x16 width sprite for crouch
@@ -77,6 +75,17 @@ TODO: ((?) => "maybe", (*) => high prio)
     - (?) experiment with sweat drops for empty bjump (out of uses)
         (could also use the "tears" effect for this, in addition to the sweat drops)
     - ...
+    (*) ...
+    - fall duration check should maybe be a distance check instead? e.g. should diving through top plat on lava fields be considered a "big" fall
+    - flip anim issues
+        - direction changes aren't handled well, i.e. roundelie shouldn't change rotation direction in midair
+            - could maybe add upside-down midair pose(s) to mitigate this?
+        - sometimes the anim seems a bit fast, particularly out of hitstun
+    - hitstun issues
+        - roll (or flip?) animates sometimes, for some reason
+        - not sure if I'm a fan of it always being one of the roll/flip sprite poses?
+    - roll anim issues
+        - changes to anim logic made the roll feel a bit choppier, need to investigate further
 
 (other)
     - * audio bugs
@@ -142,16 +151,18 @@ roundelie = {
             up =     {frames = {6}, speed = 1},  -- looking up
             -- sprite is rotated by frame_idx * 90 degrees, and base sprite is facing left, so animation => facing up -> right -> down -> left
             roll  =  {frames = {7, 7, 7, 7}, speed = 3},
+            flip =   {frames = {7, 7, 7, 7}, speed = 3},  -- used to correct orientation in midair
             jump1 =  {frames = {8}, speed = 1},  -- rising
             jump2 =  {frames = {9}, speed = 1},  --
             jump3 =  {frames = {10}, speed = 1}, -- falling
             dive1 =  {frames = {11}, speed = 1}, --
             dive2 =  {frames = {12}, speed = 1}, -- "fast" dive; used when landing will cause a big ground-slam
             conk =   {frames = {13}, speed = 1}, -- disoriented; used during big bounce
-            squash = {frames = {14}, speed = 1}, -- 
-            squash_big_fall = {frames = {5, 14}, speed = 5},  -- used when landing at max fall-speed
-            -- ^ a bit hacky; with landing_window == 8 and (anim) speed == 5, each pose is held for 4 (not 5) frames
-            flip = {frames = {7, 7, 7, 7}, speed = 3},  -- used to correct orientation in midair
+            crouch_up = {frames = {14}, speed = 3, has_ending = true},
+            squash_small_fall = {frames = {5, 14}, speed = 3, has_ending = true},  --
+            squash_big_fall   = {frames = {5, 14}, speed = 4, has_ending = true},  --
+            inflate_start = {frames = {8}, speed = 2, has_ending = true}, --
+            inflate       = {frames = {8}, speed = 7, has_ending = true}, --
         }
         this.directions = { UP = 1, RIGHT = 2, DOWN = 3, LEFT = 4 }
         this.orientation = this.directions.UP
@@ -171,8 +182,6 @@ roundelie = {
         this.dive_start = 0
         this.dive_smoketrail = 0
         this.dribble_window = 0
-        this.landing_window = 0
-        this.inflate_timer = 0  -- TODO: messy
         this.falling_timer = 0
         
         this.prev_x = 0
@@ -508,16 +517,6 @@ roundelie = {
             this.dive_smoketrail = this.dive_smoketrail - 1
         end
         
-        -- tracks a specified # of ticks after roundelie lands (used for sprite anim logic)
-        if this.landing_window > 0 then
-            this.landing_window = this.landing_window - 1
-        end
-        
-        -- anim timer for window to draw the "inflate" sprite
-        if this.inflate_timer > 0 then  -- TODO: messy
-            this.inflate_timer = this.inflate_timer - 1
-        end
-        
         -- iframes
         if this.invincible_timer > 0 then
             this.invincible_timer = this.invincible_timer - 1
@@ -548,6 +547,10 @@ roundelie = {
                 this.invincible_timer = 60
                 this.dash_cooldown = 0
                 this.bump_cooldown = 0
+                -- idk how much of this is needed ...
+                this.current_anim = this.idle_poses[1]
+                this.orientation = this.directions.UP
+                this.anim_timer = 0
                 
                 if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
                 if this.shockwave_hb then this.shockwave_hb.active = false; this.shockwave_hb = nil end
@@ -684,7 +687,6 @@ roundelie = {
             if this.jbuffer > 0 then
                 if this.grace > 0 then
                     this.is_start_of_jump = true
-                    this.inflate_timer = 10
                     
                     if (not this.was_on_ground) and this:is_solid(0, 1) then this.is_first_frame_jump = true; end
                     
@@ -743,7 +745,6 @@ roundelie = {
                 this.vx = 0.15 * this.conk * this.conkdir
             elseif v_input == -1 and bump and this.bjump > 0 then
                 this.is_start_of_jump = true
-                this.inflate_timer = 10
                 this.bump_cooldown = 0  --TODO: different from main branch, update documentation and code neatness if you want to keep
                 this.vy = -3.0
                 love.audio.play("maddy_nodash", "static")
@@ -779,18 +780,17 @@ roundelie = {
         
         -- check if roundelie has landed on a platform
         -- (this is done after movement is calculated so that animations are more accurate)
-        local anim_on_ground = false
+        local anim_on_ground, anim_is_landing = false, false
         if this.hitstun == 0 and this.vy >= 0 and this:is_solid(0, 1) then
             anim_on_ground = true
             if (not this.was_on_ground) then
                 game.init_smoke(this.x, this.y + 4)
+                anim_is_landing = true
                 
                 if this.prev_vy > 3 or (this.prev_vy == 3 and this.falling_timer >= 15) then
                     this.was_big_fall = true
-                    this.landing_window = 8
                 else
                     this.was_big_fall = false
-                    this.landing_window = 4
                 end
                 this.falling_timer = 0
             end
@@ -820,11 +820,11 @@ roundelie = {
             this.orientation = this.anim_frame
         end
         
-        local anim_is_squash = this.current_anim == "squash" or this.current_anim == "squash_big_fall"
+        local anim_is_squash = this.current_anim == "crouch_up" or this.current_anim == "squash_small_fall" or this.current_anim == "squash_big_fall"
         
         if this.prev_facing ~= this.facing then
             -- TODO: messy
-            if (anim_on_ground and math.abs(this.vx) >= 0.2 and (not anim_is_squash) and v_input ~= 1) then
+            if anim_on_ground and math.abs(this.vx) >= 0.2 and (not anim_is_squash) and v_input ~= 1 then
                 this.init_dust_cloud(this.x, this.y + 1, -1 * this.facing)
             end
             
@@ -845,38 +845,49 @@ roundelie = {
         this.animations.roll.speed = roll_anim_speed
         
         -- select current sprite pose / animation
+        local anim = this.animations[this.current_anim]
+        local anim_is_finished = anim.has_ending and anim.speed and ((anim.speed * #anim.frames) <= this.anim_timer + 1)
+        local anim_is_loop = (not anim.has_ending)
         local next_anim
         
-        if this.hitstun > 0 and this.current_anim ~= "crouch" and (not anim_is_squash) then
-            if (not anim_on_ground) and this.orientation ~= this.directions.UP then
-                this.animations.flip.speed = this.animations.roll.speed
+        if this.hitstun > 0 then
+            this.animations.flip.speed = math.min(this.animations.roll.speed, 3)
+            if (not anim_on_ground) then
                 next_anim = "flip"
             else
                 -- animations are paused during hitstun
                 next_anim = this.current_anim
             end
         elseif not anim_on_ground then
-            if this.conk > 0 and this.was_big_conk then
+            if (not (this.current_anim == "inflate_start" or this.current_anim == "inflate")) and this.conk > 0 and this.was_big_conk then
                 -- during big bounce
-                if this.is_start_of_jump or (this.current_anim == "jump1" and this.inflate_timer > 0) then
+                if this.is_start_of_jump then
                     this.orientation = this.directions.UP
-                    next_anim = "jump1"
+                    next_anim = "inflate_start"
                 else
                     next_anim = "conk"
                 end
             elseif this.down_attack and this.dribble_window == 0 then
                 -- dive / down attack
+                this.orientation = this.directions.UP
                 next_anim = (this.vy == MAX_DIVE_SPEED) and "dive2" or "dive1"
             elseif this.is_start_of_jump then
                 --
                 this.orientation = this.directions.UP
-                if this.current_anim ~= "jump1" and this.is_first_frame_jump and math.abs(this.vx) >= 1.5 then
+                if (not (this.current_anim == "inflate_start" or this.current_anim == "inflate")) and this.is_first_frame_jump and math.abs(this.vx) >= 1.5 then
                     next_anim = "roll"
                 else
-                    next_anim = "jump1"
+                    next_anim = "inflate_start"
                 end
-            elseif this.current_anim == "jump1" and this.vy <= -0.7 then
-                -- inflate (at the start of a jump/bump) -> jump (rising)
+            elseif (not anim_is_loop) and (not anim_is_finished) then
+                --
+                next_anim = this.current_anim
+            elseif this.current_anim == "inflate_start" and anim_is_finished then
+                next_anim = "inflate"
+            -- elseif anim_is_finished and this.current_anim == "inflate" then
+                -- next_anim = "jump1"
+            elseif (this.current_anim == "jump1" or (this.current_anim == "inflate" and anim_is_finished)) and this.vy <= -0.7 then
+                --
                 next_anim = "jump1"
             elseif this.current_anim == "roll" then
                 -- roll (midair)
@@ -894,7 +905,7 @@ roundelie = {
                 next_anim = (this.orientation == this.directions.UP) and "jump2" or "flip"
             else
                 if this.orientation ~= this.directions.UP then
-                    this.animations.flip.speed = 3
+                    this.animations.flip.speed = math.min(this.animations.roll.speed, 3)
                     next_anim = "flip"
                 else
                     -- default midair pose (jump/fall)
@@ -904,18 +915,18 @@ roundelie = {
         --
         else
             --
-            if this.current_anim == "crouch" and v_input ~= 1 then
-                next_anim = "squash"
+            if this.is_squishy and this.current_anim == "crouch" and v_input ~= 1 then
+                next_anim = "crouch_up"
             elseif v_input == 1 then
                 this.orientation = this.directions.UP
-                if anim_is_squash or this.current_anim == "crouch" then
-                    next_anim = "crouch"
-                else
-                    next_anim = "squash"
-                end
-            elseif this.landing_window > 0 and this.is_squishy and this.current_anim ~= "roll" and this.current_anim ~= "flip" then
+                next_anim = "crouch"
+            elseif (not anim_is_loop) and (not anim_is_finished) then
+                --
+                next_anim = this.current_anim
+            elseif anim_is_landing and this.is_squishy and this.current_anim ~= "roll" and (not (math.abs(this.vx) >= 1.0 and this.current_anim == "flip")) then
+                --
                 this.orientation = this.directions.UP
-                next_anim = (this.was_big_fall or this.current_anim == "squash_big_fall") and "squash_big_fall" or "squash"
+                next_anim = (this.was_big_fall or this.current_anim == "squash_big_fall") and "squash_big_fall" or "squash_small_fall"
             elseif (this.current_anim == "roll" and (math.abs(this.vx) >= 1.0 or h_input == 1 or h_input == -1)) or (this.current_anim ~= "roll" and math.abs(this.vx) > 0.5) then
                 next_anim = "roll"
             elseif v_input == -1 and this.orientation == this.directions.UP then
@@ -925,20 +936,23 @@ roundelie = {
             end
         end
         
-        if this.landing_window > 0 and anim_on_ground and (next_anim ~= "squash" and next_anim ~= "squash_big_fall") then this.landing_window = 0; end
-        
         -- update current animation
         if next_anim ~= this.current_anim then
+            -- TODO: messy!
             this.anim_frame = (next_anim == "roll" or next_anim == "flip") and this.orientation or 1
-            this.anim_timer = (this.current_anim == "roll" and next_anim == "flip") and this.anim_timer or 0
+
+            if (this.current_anim == "roll" and next_anim == "flip") or (this.current_anim == "flip" and next_anim == "roll") then
+                this.anim_timer = this.anim_timer % this.animations[this.current_anim].speed
+            else
+                this.anim_timer = -1
+            end
             this.current_anim = next_anim
         end
         
-        if this.hitstun == 0 then this.anim_timer = this.anim_timer + 1 end  -- animations are paused during hitstun
+        if this.hitstun == 0 then this.anim_timer = this.anim_timer + 1; end  -- animations are paused during hitstun
         
         local anim = this.animations[this.current_anim]
-        if this.anim_timer >= anim.speed then
-            this.anim_timer = 0
+        if (this.anim_timer > 0) and ((this.anim_timer % anim.speed) == 0) then
             this.anim_frame = this.anim_frame + 1
             if this.anim_frame > #anim.frames then
                 this.anim_frame = 1
@@ -1073,10 +1087,9 @@ roundelie = {
             sprites.draw(base_spr, this.x + cx, this.y, 0, 1, 1, cx, 0)
         end
         
-        -- TODO: messy
-        if this.is_squishy and this.current_anim == "jump1" and this.inflate_timer > 0 and this.inflate_timer <= 8 then
-            local spr = this.skin == 1 and "characters/roundelie_1_inflate" or "characters/roundelie_2_inflate"
-            sprites.draw(sprites[spr], this.x + cx, this.y + cy, rotation, this.facing, 1, cx + 1, cy + 1)
+        if this.is_squishy and this.current_anim == "inflate" then
+            local temp_spr = this.skin == 1 and "characters/roundelie_1_inflate" or "characters/roundelie_2_inflate"
+            sprites.draw(sprites[temp_spr], this.x + cx, this.y + cy, rotation, this.facing, 1, cx + 1, cy + 1)
         else
             sprites.draw(this.spr, this.x + cx, this.y + cy, rotation, this.facing, 1, cx, cy)
         end
