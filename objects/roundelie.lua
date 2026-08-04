@@ -60,7 +60,6 @@ TODO: ((?) => "maybe", (*) => "high priority")
         - dust cloud is often drawn far away from the roll
         - dust cloud is sometimes drawn on top of the roll
             => position of the dust cloud should vary based on roundelie's movement following a direction change
-    - * fix rolling infinitely into a wall (lol)
     - (?) experiment with adding an anim to transition to the look up pose from different orientations
     - (?) more changes to teleport vfx
             experiment drawing sparks with energy shooting between them for on-hit effect
@@ -79,8 +78,6 @@ TODO: ((?) => "maybe", (*) => "high priority")
     - hitstun issues
         - roll (or flip?) animates sometimes, for some reason
         - not sure if I'm a fan of it always being one of the roll/flip sprite poses?
-    - roll anim issues
-        - changes to anim logic made the roll feel a bit choppier, need to investigate further
 
 (other)
     - * audio bugs
@@ -509,7 +506,7 @@ roundelie = {
         if this.dribble_window > 0 then
             this.dribble_window = this.dribble_window - 1
         end
-        if this.conk > 1 then this.dribble_window = 0; elseif this.conk == 1 then this.dribble_window = 8; end  -- messy?
+        if this.conk > 1 then this.dribble_window = 0; elseif this.conk == 1 then this.dribble_window = 8; end  -- TODO: messy
         
         -- # of ticks until roundelie is able to act after bouncing
         if this.conk > 0 then
@@ -842,23 +839,25 @@ roundelie = {
             
             if this.orientation == this.directions.RIGHT then
                 this.orientation = this.directions.LEFT
+                this.anim_frame = this.anim_frame + 2
             elseif this.orientation == this.directions.LEFT then
                 this.orientation = this.directions.RIGHT
+                this.anim_frame = this.anim_frame - 2
             end
         end
         
         -- update roll speed
-        local roll_anim_speed = 4
+        local prev_anim_speed, new_anim_speed = this.animations.roll.speed, 4
         if ((math.abs(this.vx) + math.abs(this.vy)) / 2) >= ((MAX_RUN_SPEED + MAX_FALL_SPEED) / 2) then
-            roll_anim_speed = 2
+            new_anim_speed = 2
         elseif (math.abs(this.vx) >= MAX_RUN_SPEED) or (this.vy <= -1.0) then
-            roll_anim_speed = 3
+            new_anim_speed = 3
         end
-        this.animations.roll.speed = roll_anim_speed
+        this.animations.roll.speed = new_anim_speed
         
         -- select current sprite pose / animation
         local anim = this.animations[this.current_anim]
-        local anim_is_finished = anim.has_ending and anim.speed and ((anim.speed * #anim.frames) <= this.anim_timer + 1)
+        local anim_is_finished = anim.has_ending and ((anim.speed * #anim.frames) <= (this.anim_timer + 1))
         local anim_is_loop = (not anim.has_ending)
         local next_anim
         
@@ -895,19 +894,17 @@ roundelie = {
                 else
                     next_anim = "inflate_start"
                 end
-            elseif (not anim_is_loop) and (not anim_is_finished) then
+            elseif (not anim_is_loop) and (not anim_is_finished) and (not anim_is_squash) then
                 --
                 next_anim = this.current_anim
             elseif (not anim_is_loop) and anim_is_finished and anim.next_anim then
                 next_anim = anim.next_anim
-            -- elseif anim_is_finished and this.current_anim == "inflate" then
-                -- next_anim = "jump1"
             elseif (this.current_anim == "jump1" or (this.current_anim == "inflate" and anim_is_finished)) and this.vy <= -0.7 then
                 --
                 next_anim = "jump1"
             elseif this.current_anim == "roll" then
                 -- roll (midair)
-                if math.abs(this.vx) < MAX_RUN_SPEED then  -- more strict check than for grounded roll
+                if math.abs(this.vx) < MAX_RUN_SPEED then  -- more strict than the check for the grounded roll
                     this.animations.flip.speed = math.min(this.animations.roll.speed, 3)
                     next_anim = (this.orientation == this.directions.UP) and "jump2" or "flip"
                 else
@@ -943,7 +940,7 @@ roundelie = {
                 --
                 this.orientation = this.directions.UP
                 next_anim = (this.was_big_fall or this.current_anim == "squash_big_fall") and "squash_big_fall" or "squash_small_fall"
-            elseif (this.current_anim == "roll" and (math.abs(this.vx) >= 1.0 or h_input == 1 or h_input == -1)) or (this.current_anim ~= "roll" and math.abs(this.vx) > 0.5) then
+            elseif (this.current_anim == "roll" and (math.abs(this.vx) >= 1.0 or (h_input ~= 0 and math.abs(this.vx) > 0))) or (this.current_anim ~= "roll" and math.abs(this.vx) > 0.5) then
                 next_anim = "roll"
             elseif v_input == -1 and this.orientation == this.directions.UP then
                 next_anim = "up"
@@ -954,12 +951,18 @@ roundelie = {
         
         -- update current animation
         if next_anim ~= this.current_anim then
-            -- TODO: messy!
-            this.anim_frame = (next_anim == "roll" or next_anim == "flip") and this.orientation or 1
-
-            if (this.current_anim == "roll" and next_anim == "flip") or (this.current_anim == "flip" and next_anim == "roll") then
-                this.anim_timer = this.anim_timer % this.animations[this.current_anim].speed
+            if (next_anim == "roll" or next_anim == "flip") then
+                this.anim_frame = this.orientation
+                if this.current_anim == "roll" or this.current_anim == "flip" then
+                    this.anim_timer = this.anim_timer % anim.speed
+                else
+                    -- roll/flip animation is sped up at the start to appear more natural
+                    this.anim_timer = 0
+                end
             else
+                this.anim_frame = 1
+                -- e.g. if anim.speed is 3, then anim_frame will increment when anim_timer == 3
+                --   => if anim_timer is initialized to 0, the first frame of the animation will only be drawn for 2 frames
                 this.anim_timer = -1
             end
             this.current_anim = next_anim
@@ -968,7 +971,10 @@ roundelie = {
         if this.hitstun == 0 then this.anim_timer = this.anim_timer + 1; end  -- animations are paused during hitstun
         
         local anim = this.animations[this.current_anim]
-        if (this.anim_timer > 0) and ((this.anim_timer % anim.speed) == 0) then
+        if (not anim_is_loop) and (this.anim_timer > 0) and (this.anim_timer % anim.speed == 0) then
+            this.anim_frame = this.anim_frame + 1
+        elseif anim_is_loop and this.anim_timer >= anim.speed then
+            this.anim_timer = 0
             this.anim_frame = this.anim_frame + 1
             if this.anim_frame > #anim.frames then
                 this.anim_frame = 1
