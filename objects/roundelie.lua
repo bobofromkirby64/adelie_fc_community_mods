@@ -53,31 +53,33 @@ TODO: ((?) => "maybe", (*) => "high priority")
  
 (visual)
     - * rosetta skin rework
+    - flip doesn't handle direction changes well
+        i.e. roundelie shouldn't change rotation in midair, and flip should at most take 3 rotations
+            (could add new upside-down midair poses to help mitigate this?)
+            (could also experiment with speeding up the flip anim the longer it's out, to avoid excessively long flips)
     - draw dust cloud for gold skin on landing
     - gold skin needs SOMETHING for inflate equivalent effect
+        (and probably something for transitioning <-> crouch, also?)
     - draw dust cloud at the start of a roll as well as when a roll changes directions
     - dust cloud issues
         - dust cloud is often drawn far away from the roll
         - dust cloud is sometimes drawn on top of the roll
             => position of the dust cloud should vary based on roundelie's movement following a direction change
+    - hitstun changes
+        - flip is default pose; animations play out to get into flip if needed
+        - orientation is based on knockback
+            - e.g. knockback to the right, roundelie will be oriented to the right
+            - (?) can have roundelie flip into the new direction (new animation 'flip_hitstun')
+        - bouncing off of the floor or wall changes orientation and causes roundelie to flip into new orientation
+        - (?) experiment with tears/sroundelie face during hitstun
+    - (?) fall duration check maybe should be a distance check instead? e.g. should diving through top plat on lava fields be considered a "big" fall
     - (?) experiment with adding an anim to transition to the look up pose from different orientations
     - (?) more changes to teleport vfx
             experiment drawing sparks with energy shooting between them for on-hit effect
-                + a much more explicit poof of smoke for the standard/non-hit effect
+                + a more explicit poof of smoke for the standard/non-hit effect
             (can also experiment with drawing an after-image in the origin point smoke, again, but this time using stencil?)
-    - (?) experiment with drawing sadface/tears/sroundelie during hitstun
     - (?) experiment with sweat drops for empty bjump (out of uses)
         (could also use the "tears" effect for this, in addition to the sweat drops)
-    - ...
-    (*) new issues introduced by recent changes (lol)
-    - fall duration check should maybe be a distance check instead? e.g. should diving through top plat on lava fields be considered a "big" fall
-    - flip anim issues
-        - direction changes aren't handled well, i.e. roundelie shouldn't change rotation direction in midair
-            - could maybe add upside-down midair pose(s) to mitigate this?
-        - sometimes the anim seems a bit fast, particularly out of hitstun
-    - hitstun issues
-        - roll (or flip?) animates sometimes, for some reason
-        - not sure if I'm a fan of it always being one of the roll/flip sprite poses?
 
 (other)
     - * audio bugs
