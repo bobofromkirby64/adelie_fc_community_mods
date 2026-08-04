@@ -60,11 +60,6 @@ TODO: ((?) => "maybe", (*) => "high priority")
     - draw dust cloud for gold skin on landing
     - gold skin needs SOMETHING for inflate equivalent effect
         (and probably something for transitioning <-> crouch, also?)
-    - draw dust cloud at the start of a roll as well as when a roll changes directions
-    - dust cloud issues
-        - dust cloud is often drawn far away from the roll
-        - dust cloud is sometimes drawn on top of the roll
-            => position of the dust cloud should vary based on roundelie's movement following a direction change
     - hitstun changes
         - flip is default pose; animations play out to get into flip if needed
         - orientation is based on knockback
@@ -455,12 +450,14 @@ roundelie = {
         -- 
         this.init_dust_cloud = function(x, y, direction)
             table.insert(particles_fg, {
-                x = x + (direction == -1 and 1 or 8),
+                -- TODO: shift sprites over by a pixel to make the logic cleaner
+                -- TODO: implement improved check to draw turnaround dust cloud
+                x = x + (direction == -1 and 4 or 5),
                 y = y,
                 vx = 0.18 * direction,
                 vy = -0.1 - love.math.random() * 0.2,
-                timer = 1,
-                duration = 12,  -- 4f, animated on 3s => 1-3-3-3
+                timer = -1,
+                duration = 12,  -- animated on 4s
                 flipX = direction,
                 update = function(p)
                     p.x = p.x + p.vx
@@ -471,8 +468,8 @@ roundelie = {
                     end
                 end,
                 draw = function(p)
-                    local frame = math.floor(p.timer / p.duration * 4) + 1
-                    if frame > 4 then frame = 4 end
+                    local frame = math.floor(p.timer / p.duration * 3) + 1
+                    if frame > 3 then frame = 3 end
                     local dx, dy = math.floor(p.x), math.floor(p.y)
                     sprites.draw(sprites["characters/roundelie_dust_cloud"][frame], dx, dy, 0, p.flipX, 1, 4, 0)
                 end,
