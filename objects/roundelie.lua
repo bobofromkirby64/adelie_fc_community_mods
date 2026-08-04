@@ -813,7 +813,7 @@ roundelie = {
         if this.teleport_info.init then
             this:draw_teleport_vfx()
             this.current_anim = "teleport_start"  -- bit hacky
-            this.invis_timer = 4
+            this.invis_timer = 3
         end
         
         -- dive vfx
@@ -824,7 +824,7 @@ roundelie = {
             this.should_draw_dive_vfx = false
         end
         
-        -- update sprite pose / animation orientation
+        -- update sprite / animation orientation
         if this.current_anim == "roll" or this.current_anim == "flip" then
             this.orientation = this.anim_frame
         end
@@ -855,7 +855,7 @@ roundelie = {
         end
         this.animations.roll.speed = new_anim_speed
         
-        -- select current sprite pose / animation
+        -- select current sprite / animation
         local anim = this.animations[this.current_anim]
         local anim_is_finished = anim.has_ending and ((anim.speed * #anim.frames) <= (this.anim_timer + 1))
         local anim_is_loop = (not anim.has_ending)
@@ -936,6 +936,10 @@ roundelie = {
             elseif (not anim_is_loop) and (not anim_is_finished) then
                 --
                 next_anim = this.current_anim
+            elseif (not anim_is_loop) and anim_is_finished and anim.next_anim then
+                next_anim = anim.next_anim
+            elseif (this.current_anim == "inflate_exit") then
+                next_anim = "crouch_up"
             elseif anim_is_landing and this.is_squishy and this.current_anim ~= "roll" and (not (math.abs(this.vx) >= 1.0 and this.current_anim == "flip")) then
                 --
                 this.orientation = this.directions.UP
