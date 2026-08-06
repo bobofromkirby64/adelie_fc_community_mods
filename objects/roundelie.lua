@@ -57,7 +57,6 @@ TODO: ((?) => "maybe", (*) => "high priority")
         i.e. roundelie shouldn't change rotation in midair, and flip should at most take 3 rotations
             (could add new upside-down midair poses to help mitigate this?)
             (could also experiment with speeding up the flip anim the longer it's out, to avoid excessively long flips)
-    - draw dust cloud for gold skin on landing
     - gold skin needs SOMETHING for inflate equivalent effect
         (and probably something for transitioning <-> crouch, also?)
     - hitstun changes
@@ -792,11 +791,9 @@ roundelie = {
             this.orientation = this.anim_frame
         end
         
-        local anim_is_squash = this.current_anim == "crouch_up" or this.current_anim == "squash_small_fall" or this.current_anim == "squash_big_fall"
-        
         if this.prev_facing ~= this.facing then
-            -- TODO: messy
-            if anim_on_ground and math.abs(this.vx) >= 0.2 and (not anim_is_squash) and v_input ~= 1 then
+            if this.current_anim == "roll" and anim_on_ground and math.abs(this.vx) > 0 and math.abs(this.prev_vx) > 0 and v_input ~= 1 then
+                -- draw dust cloud after changing direction mid-roll
                 this.init_dust_cloud(this.x, this.y + 1, -1 * this.facing)
             end
             
@@ -855,7 +852,7 @@ roundelie = {
                 this.orientation = this.directions.UP
                 next_anim = (this.vy == MAX_DIVE_SPEED) and "dive2" or "dive1"
             -- handle sequences of animations
-            elseif (not anim_is_loop) and (not anim_is_finished) and (not anim_is_squash) then
+            elseif (not anim_is_loop) and (not anim_is_finished) then
                 --
                 next_anim = this.current_anim
             elseif (not anim_is_loop) and anim_is_finished and anim.next_anim then
