@@ -152,12 +152,12 @@ roundelie = {
             squash_big_fall   = {frames = {5, 14}, speed = 4, has_ending = true},  --
             inflate_start = {frames = {8}, speed = 2, has_ending = true, next_anim = "inflate"},  --
             inflate       = {frames = {8}, speed = 7, has_ending = true, next_anim = "inflate_exit"},  --
-            inflate_exit  = {frames = {9}, speed = 3, has_ending = true},  -- TODO: actually implement, e.g. different behavior for anim_on_ground
-            teleport_start   = {frames = {8}, speed = 1, next_anim = "teleport_inflate"},  --
+            inflate_exit  = {frames = {9}, speed = 3, has_ending = true},
+            inflate_quick = {frames = {8}, speed = 1, has_ending = true, next_anim = "inflate_start"}, -- inflate for 1f and then start another inflate, to handle edge case of multiple jumps in quick succession
+            teleport_start   = {frames = {8}, speed = 1},  --
             teleport_inflate = {frames = {9}, speed = 6, has_ending = true, next_anim = "inflate_exit"},  --
             -- flip_start = {...}  -- TODO: implement
                 -- mainly to handle edge cases, e.g. cancel out of first-frame flip jump into standard inflate jump
-
         }
         this.directions = { UP = 1, RIGHT = 2, DOWN = 3, LEFT = 4 }
         this.orientation = this.directions.UP
@@ -869,38 +869,34 @@ roundelie = {
                 next_anim = this.current_anim
             end
         elseif this.current_anim == "teleport_start" then
-            -- roundelie is inflated when becoming visible after a teleport (roundelie disappears at the start of the teleport)
+            -- roundelie is inflated when reappearing after a teleport
             this.orientation = this.directions.UP
             next_anim = "teleport_inflate"
         elseif not anim_on_ground then
-            if (not (this.current_anim == "inflate_start" or this.current_anim == "inflate")) and this.conk > 0 and this.was_big_conk then
-                -- during big bounce
-                if this.is_start_of_jump then
-                    this.orientation = this.directions.UP
-                    next_anim = "inflate_start"
-                else
-                    next_anim = "conk"
-                end
-            elseif this.down_attack and this.dribble_window == 0 then
-                -- dive / down attack
-                this.orientation = this.directions.UP
-                next_anim = (this.vy == MAX_DIVE_SPEED) and "dive2" or "dive1"
-            elseif this.is_start_of_jump then
+            if this.is_start_of_jump then
                 --
                 this.orientation = this.directions.UP
                 if (not (this.current_anim == "inflate_start" or this.current_anim == "inflate")) and this.is_first_frame_jump and math.abs(this.vx) >= 1.5 then
                     next_anim = "roll"
+                elseif this.current_anim == "inflate_start" and anim_is_finished then
+                    next_anim = "inflate_quick"
                 else
                     next_anim = "inflate_start"
                 end
+            elseif (not (this.current_anim == "inflate_start" or this.current_anim == "inflate")) and this.conk > 0 and this.was_big_conk then
+                -- during big bounce
+                next_anim = "conk"
+            elseif this.down_attack and this.dribble_window == 0 then
+                -- dive / down attack
+                this.orientation = this.directions.UP
+                next_anim = (this.vy == MAX_DIVE_SPEED) and "dive2" or "dive1"
+            -- handle sequences of animations
             elseif (not anim_is_loop) and (not anim_is_finished) and (not anim_is_squash) then
                 --
                 next_anim = this.current_anim
             elseif (not anim_is_loop) and anim_is_finished and anim.next_anim then
-                next_anim = anim.next_anim
-            elseif (this.current_anim == "jump1" or (this.current_anim == "inflate" and anim_is_finished)) and this.vy <= -0.7 then
                 --
-                next_anim = "jump1"
+                next_anim = anim.next_anim
             elseif this.current_anim == "roll" then
                 -- roll (midair)
                 if math.abs(this.vx) < MAX_RUN_SPEED then  -- more strict than the check for the grounded roll
@@ -926,26 +922,30 @@ roundelie = {
             end
         --
         else
-            --
+            -- handle crouch animations
             if this.is_squishy and this.current_anim == "crouch" and v_input ~= 1 then
                 next_anim = "crouch_up"
             elseif v_input == 1 then
                 this.orientation = this.directions.UP
                 next_anim = "crouch"
+            -- handle sequences of animations
             elseif (not anim_is_loop) and (not anim_is_finished) then
                 --
                 next_anim = this.current_anim
             elseif (not anim_is_loop) and anim_is_finished and anim.next_anim then
                 next_anim = anim.next_anim
             elseif (this.current_anim == "inflate_exit") then
+                -- handle inflate animation ending when on the ground, e.g. after teleport
                 next_anim = "crouch_up"
             elseif anim_is_landing and this.is_squishy and this.current_anim ~= "roll" and (not (math.abs(this.vx) >= 1.0 and this.current_anim == "flip")) then
-                --
+                -- roundelie squashes from the impact of landing
                 this.orientation = this.directions.UP
                 next_anim = (this.was_big_fall or this.current_anim == "squash_big_fall") and "squash_big_fall" or "squash_small_fall"
             elseif (this.current_anim == "roll" and (math.abs(this.vx) >= 1.0 or (h_input ~= 0 and math.abs(this.vx) > 0))) or (this.current_anim ~= "roll" and math.abs(this.vx) > 0.5) then
+                --
                 next_anim = "roll"
             elseif v_input == -1 and this.orientation == this.directions.UP then
+                --
                 next_anim = "up"
             else
                 next_anim = this.idle_poses[this.orientation]
@@ -1116,7 +1116,7 @@ roundelie = {
         end
         
         if (this.invis_timer == 0) then
-            if this.is_squishy and (this.current_anim == "inflate" or this.current_anim == "teleport_inflate") then
+            if this.is_squishy and (this.current_anim == "inflate" or this.current_anim == "teleport_inflate" or this.current_anim == "inflate_quick") then
                 local temp_spr = this.skin == 1 and "characters/roundelie_1_inflate" or "characters/roundelie_2_inflate"
                 sprites.draw(sprites[temp_spr], this.x + cx, this.y + cy, rotation, this.facing, 1, cx + 1, cy + 1)
             else
