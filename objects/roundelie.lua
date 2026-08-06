@@ -93,8 +93,8 @@ roundelie = {
             {sprites["characters/roundelie_1"], { 29/255,  43/255,  83/255, 1}}, -- roundelie (default)
             {sprites["characters/roundelie_2"], {126/255,  37/255,  83/255, 1}}, -- delaughter (purple/red)
             {sprites["characters/roundelie_3"], {255/255,  29/255,   0/255, 1}}, -- statue (golden)
-            -- TODO: rosetta skin is broken until it's reworked
-            {sprites["characters/roundelie_4"], {1,1,1,1}}, -- ancient monument (from rosetta)
+            -- TODO: rosetta skin is temporarily disabled until it's reworked
+            -- {sprites["characters/roundelie_4"], {1,1,1,1}}, -- ancient monument (from rosetta)
         }
         
         this.spritesheet, this.base_color = unpack(player_skins[tonumber(skin)])
@@ -116,8 +116,8 @@ roundelie = {
         
         this.p_jump = false
         this.p_dash = false
-        this.is_start_of_jump = false  -- => is roundelie starting a jump or bjump (up+x)
-        this.is_first_frame_jump = false  -- is roundelie jumping off the ground on the first possible tick after landing
+        this.is_start_of_jump = false     -- true if roundelie is starting a jump or bjump (up+x)
+        this.is_first_frame_jump = false  -- true if roundelie is jumping off the ground on the first possible tick after landing
         this.was_on_ground = false
         this.was_big_conk = false
         this.was_big_fall = false
@@ -133,12 +133,12 @@ roundelie = {
         
         this.animations = {
             idle1 =  {frames = {1}, speed = 1},  -- upright
-            idle2 =  {frames = {2}, speed = 1},  -- facing right (CW 90)
+            idle2 =  {frames = {2}, speed = 1},  -- oriented right (CW 90)
             idle3 =  {frames = {3}, speed = 1},  -- upside-down
-            idle4 =  {frames = {4}, speed = 1},  -- facing left (CCW 90)
+            idle4 =  {frames = {4}, speed = 1},  -- oriented left (CCW 90)
             crouch = {frames = {5}, speed = 1},  --
             up =     {frames = {6}, speed = 1},  -- looking up
-            -- sprite is rotated by frame_idx * 90 degrees, and base sprite is facing left, so animation => facing up -> right -> down -> left
+            -- sprite is rotated by frame_idx * 90 degrees, and base sprite is oriented left, so animation => oriented up -> right -> down -> left
             roll  =  {frames = {7, 7, 7, 7}, speed = 3},
             flip =   {frames = {7, 7, 7, 7}, speed = 3},  -- used to correct orientation in midair
             jump1 =  {frames = {8}, speed = 1},  -- rising
@@ -147,14 +147,14 @@ roundelie = {
             dive1 =  {frames = {11}, speed = 1}, --
             dive2 =  {frames = {12}, speed = 1}, -- "fast" dive; used when landing will cause a big ground-slam
             conk =   {frames = {13}, speed = 1}, -- disoriented; used during big bounce
-            crouch_up = {frames = {14}, speed = 3, has_ending = true},
+            crouch_up = {frames = {14}, speed = 3, has_ending = true},  --
             squash_small_fall = {frames = {5, 14}, speed = 3, has_ending = true},  --
             squash_big_fall   = {frames = {5, 14}, speed = 4, has_ending = true},  --
-            inflate_start = {frames = {8}, speed = 2, has_ending = true, next_anim = "inflate"},  --
+            inflate_start = {frames = {8}, speed = 2, has_ending = true, next_anim = "inflate"},       --
             inflate       = {frames = {8}, speed = 7, has_ending = true, next_anim = "inflate_exit"},  --
-            inflate_exit  = {frames = {9}, speed = 3, has_ending = true},
+            inflate_exit  = {frames = {9}, speed = 3, has_ending = true},                              --
             inflate_quick = {frames = {8}, speed = 1, has_ending = true, next_anim = "inflate_start"}, -- inflate for 1f and then start another inflate, to handle edge case of multiple jumps in quick succession
-            teleport_start   = {frames = {8}, speed = 1},  --
+            teleport_start   = {frames = {8}, speed = 1},                                                 --
             teleport_inflate = {frames = {9}, speed = 6, has_ending = true, next_anim = "inflate_exit"},  --
             -- flip_start = {...}  -- TODO: implement
                 -- mainly to handle edge cases, e.g. cancel out of first-frame flip jump into standard inflate jump
@@ -289,46 +289,10 @@ roundelie = {
             
             -- (1) poof out / start-point
             if this.teleport_info.horizontal then
-                -- (( commented out the entire effect for now since it's a bit of a mess ))
                 -- TODO: either rework the afterimage sprites to behave more like the existing smoke, OR
-                --  experiment with "stencil" to have the afterimage smoke effect and existing smoke combine a bit more neatly
+                --     experiment with "stencil" to have the afterimage smoke effect and existing smoke combine a bit more neatly
                 game.init_smoke(prev_x, prev_y)
             end
-            -- if this.teleport_info.horizontal then
-                -- local d = 3--5  -- base distance to draw smoke from the center of the circle
-                -- local n = 2--3  -- split circle into `n` partitions
-                -- local r = 2 * math.pi / n  -- radians
-                
-                -- for i = 1, n do
-                    -- local angle = (i * r)  + (2 * math.pi * math.random()) * 0.3
-                    -- game.init_smoke(prev_x + math.sin(angle) * d, prev_y + math.cos(angle) * d + 1)
-                -- end
-            
-                -- -- after-image formed in smoke
-                -- table.insert(
-                    -- particles_fg, {
-                        -- x = prev_x,
-                        -- y = prev_y,
-                        -- cx = this.hurtbox.x + (this.hurtbox.w / 2),
-                        -- facing = this.facing,
-                        -- timer = 0,
-                        -- duration = 15,
-                        
-                        -- update = function(p)
-                            -- p.timer = p.timer + 1
-                            -- return p.timer >= p.duration
-                        -- end,
-                        
-                        -- draw = function(p)
-                            -- local frame = math.floor(p.timer / p.duration * 3 - 0.4) + 1
-                            -- if frame < 1 then frame = 1 end
-                            -- if frame > 3 then frame = 3 end
-                            -- love.graphics.setColor(1, 1, 1)
-                            -- -- TODO: might be able to use a stencil to prevent the standard smoke from covering the after-image on the first two frames?
-                            -- sprites.draw(sprites["characters/roundelie_teleport_afterimage"][frame], p.x + p.cx, p.y, 0, p.facing, 1, p.cx, 0)
-                        -- end
-                    -- })
-            -- end
             
             -- (2) pop in / end-point
             local cx = this.hurtbox.x + (this.hurtbox.w / 2)
@@ -854,7 +818,7 @@ roundelie = {
         end
         this.animations.roll.speed = new_anim_speed
         
-        -- select current sprite / animation
+        -- determine next sprite / animation
         local anim = this.animations[this.current_anim]
         local anim_is_finished = anim.has_ending and ((anim.speed * #anim.frames) <= (this.anim_timer + 1))
         local anim_is_loop = (not anim.has_ending)
@@ -906,10 +870,10 @@ roundelie = {
                     next_anim = "roll"
                 end
             elseif this.current_anim == "flip" then
-                -- roundelie continues spinning until it's back in the upright orientation
+                -- roundelie continues rotating until it's upright
                 -- TODO: flip rotation shouldn't change if roundelie changes the direction its facing
                 --      i.e. if the flip rotation is CW, rotation after turning around should still be CW
-                --      (also should experiment with speeding up anim if facing direction changes)
+                --      (maybe also experiment with speeding up anim if facing direction changes?)
                 next_anim = (this.orientation == this.directions.UP) and "jump2" or "flip"
             else
                 if this.orientation ~= this.directions.UP then
@@ -934,7 +898,7 @@ roundelie = {
                 next_anim = this.current_anim
             elseif (not anim_is_loop) and anim_is_finished and anim.next_anim then
                 next_anim = anim.next_anim
-            elseif (this.current_anim == "inflate_exit") then
+            elseif this.is_squishy and this.current_anim == "inflate_exit" then
                 -- handle inflate animation ending when on the ground, e.g. after teleport
                 next_anim = "crouch_up"
             elseif anim_is_landing and this.is_squishy and this.current_anim ~= "roll" and (not (math.abs(this.vx) >= 1.0 and this.current_anim == "flip")) then
@@ -1063,25 +1027,27 @@ roundelie = {
     end,
     
     draw = function(this)
-        if not this.active and this.stocks <= 0 then return end
-        if this.respawn_timer > 0 then return end
+        if not this.active and this.stocks <= 0 then return; end
+        if this.respawn_timer > 0 or this.invis_timer > 0 then return; end
         
         local isBlinking = this.invincible_timer > 0 and (math.floor(this.invincible_timer / 4) % 2 == 0 or debugEnabled)
+        local isInflate  = this.current_anim == "inflate" or this.current_anim == "teleport_inflate" or this.current_anim == "inflate_quick"
+        local isRotating = this.current_anim == "roll" or this.current_anim == "flip"
         
-        -- sprite hitstun tint
+        local anim = this.animations[this.current_anim]
+        local frame_idx = anim.frames[this.anim_frame]
+        local rotation = isRotating and math.rad(this.facing * this.anim_frame * 90) or 0
+        local cx, cy = this.hurtbox.x + (this.hurtbox.w / 2), 4
+        
+        this.spr = this.spritesheet[frame_idx]
+        
+        -- apply tints and shaders
         if this.hitstun > 0 then
             love.graphics.setColor(255 / 255, 119 / 255, 168 / 255)
         else
             love.graphics.setColor(1, 1, 1)
         end
         
-        local anim = this.animations[this.current_anim]
-        local frame_idx = anim.frames[this.anim_frame]
-        this.spr = this.spritesheet[frame_idx]
-        local cx, cy = this.hurtbox.x + (this.hurtbox.w / 2), 4
-        local rotation = (this.current_anim == "roll" or this.current_anim == "flip") and math.rad(this.facing * this.anim_frame * 90) or 0
-        
-        -- apply palette swaps
         if isBlinking then
             love.graphics.setShader(whiteShader)
             love.graphics.setColor(1, 1, 1)
@@ -1106,22 +1072,21 @@ roundelie = {
                 paletteSwapShader:send("color_find", this.base_color)
                 paletteSwapShader:send("color_replace", {(r + f * (L - r)), (g + f * (L - g)), (b + f * (L - b)), 1.0})
             end
-            
         end
         
+        -- draw sprite(s)
         if this.skin == 3 then
-            -- roundelie's face and belly for the statue (gold) skin are drawn on top of a "base" sprite that does not flip
+            -- roundelie's face and belly for the statue/gold skin are drawn on top of "base" sprites that aren't flipped
             local base_spr = sprites[ this.current_anim == "crouch" and "characters/roundelie_3_base_crouch" or "characters/roundelie_3_base_default" ]
             sprites.draw(base_spr, this.x + cx, this.y, 0, 1, 1, cx, 0)
         end
         
-        if (this.invis_timer == 0) then
-            if this.is_squishy and (this.current_anim == "inflate" or this.current_anim == "teleport_inflate" or this.current_anim == "inflate_quick") then
-                local temp_spr = this.skin == 1 and "characters/roundelie_1_inflate" or "characters/roundelie_2_inflate"
-                sprites.draw(sprites[temp_spr], this.x + cx, this.y + cy, rotation, this.facing, 1, cx + 1, cy + 1)
-            else
-                sprites.draw(this.spr, this.x + cx, this.y + cy, rotation, this.facing, 1, cx, cy)
-            end
+        if this.is_squishy and isInflate then
+            -- the inflate pose uses a larger sprite that's separate from the rest of the spritesheet
+            local spr_inflate = (this.skin == 1 and "characters/roundelie_1_inflate" or "characters/roundelie_2_inflate")
+            sprites.draw(sprites[spr_inflate], this.x + cx, this.y + cy, rotation, this.facing, 1, cx + 1, cy + 1)
+        else
+            sprites.draw(this.spr, this.x + cx, this.y + cy, rotation, this.facing, 1, cx, cy)
         end
         
         if this.connectionID == connectionID then
