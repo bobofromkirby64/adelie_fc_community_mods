@@ -1,5 +1,5 @@
 -- objects/roundelie.lua
--- v0.6.1
+-- v0.6.2
 
 -- Movement Documentation:
 -- Z to jump, left and right arrow keys to move
@@ -634,6 +634,8 @@ roundelie = {
             local hb_x = cx - (hb_w / 2)
             local hb_y = cy - (hb_h / 2)
             
+            local is_wall_bounce = false
+            
             if v_input == 1 and dash_btn and not on_ground and this.conk < 1 then
                 if not this.down_attack then 
                     -- dive has a 1f delay before the hitbox comes out and an initial burst of speed after the delay
@@ -659,16 +661,17 @@ roundelie = {
                 
                 -- dive -> bounce off of a wall
                 if (this:is_solid(-3,0) or this:is_solid(3,0)) then
+                    is_wall_bounce = true
                     this.conk = 8
                     this.dive_smoketrail = 0
-                    this.vy = -2.0
+                    this.vy = -2.7
                     game.init_smoke(this.x - this.conkdir * 6, this.y)  -- same as maddy wall-jump
                 end
             else
                 this.down_attack = false
             end
             if this.conk > 0 then
-                this.vx = 0.15 * this.conk * this.conkdir
+                this.vx = 0.15 * this.conk * this.conkdir * (is_wall_bounce and 2 or 1)
             elseif v_input == -1 and bump and this.bjump > 0 then
                 this.bump_cooldown = 0 --TODO: different from main branch, update documentation and code neatness if you want to keep
                 this.vy = -3.0
