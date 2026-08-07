@@ -1057,7 +1057,7 @@ roundelie = {
         local anim_on_ground, anim_is_landing = false, false
         if this.hitstun == 0 and this.vy >= 0 and this:is_solid(0, 1) then
             anim_on_ground = true
-            if (not this.was_on_ground) then
+            if (not this.was_on_ground) and (not this.down_attack) then
                 game.init_smoke(this.x, this.y + 4)
                 anim_is_landing = true
                 
