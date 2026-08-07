@@ -1076,7 +1076,7 @@ roundelie = {
         
         -- dive vfx
         if this.should_draw_dive_vfx then
-            this.dive_smoketrail = 3
+            this.dive_smoketrail = 2
             game.init_smoke(this.prev_x, this.prev_y - 4)
             love.audio.play("maddy_downdash", "static")  -- TODO: placeholder
             this.should_draw_dive_vfx = false
