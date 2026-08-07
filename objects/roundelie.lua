@@ -716,8 +716,13 @@ roundelie = {
                     hb_l = this.shockwave_left_hb,   -- ref to table -> particle has access to updated values
                     hb_r = this.shockwave_right_hb,  -- ^
                     
+                    timer = 0,
+                    duration = 6,
+                    
                     update = function(p)
-                        return (not (p.hb_l and p.hb_l.active)) and (not (p.hb_r and p.hb_r.active))
+                        p.timer = p.timer + 1
+                        if (not (p.hb_l and p.hb_l.active)) and (not (p.hb_r and p.hb_r.active)) then p.timer = p.duration + 1; end
+                        return p.timer > p.duration
                     end,
                     
                     draw = function(p)
