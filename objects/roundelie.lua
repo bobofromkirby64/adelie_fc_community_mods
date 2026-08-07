@@ -1,5 +1,5 @@
 -- objects/roundelie.lua
--- v0.6.1
+-- v0.8.0
 
 -- Movement Documentation:
 -- Z to jump, left and right arrow keys to move
