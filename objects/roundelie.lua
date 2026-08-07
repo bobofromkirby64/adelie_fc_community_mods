@@ -405,17 +405,9 @@ roundelie = {
                     
                     draw = function(p)
                         -- smoke
-                        if p.draw_smoke and p.timer >= 2 then -- slight delay before drawing smoke so that the smoke at the startpoint dissipates first
-                            -- TODO: probably shouldn't have particles creating other particles?
-                            local d = 2  -- base distance to draw smoke from the center of the circle
-                            local n = 2  -- split circle into `n` partitions
-                            local r = 2 * math.pi / n  -- radians
-                            
-                            for i = 1, n do
-                                local angle = (i * r)  + (2 * math.pi * math.random()) * 0.3
-                                game.init_smoke(p.x + math.sin(angle) * d, p.y + math.cos(angle) * d + 1)
-                            end
+                        if p.draw_smoke and p.timer >= 2 then
                             p.draw_smoke = false
+                            game.init_smoke(p.x, p.y)
                         end
                         
                         -- initial burst
@@ -630,7 +622,7 @@ roundelie = {
         end
         
         
-        -- update dynamic hitboxes ::
+        -- update dynamic hitboxes
         
         -- dive ground-slam hitbox is active near the ground for the first 2 frames,
         --   then chunks of the ground shoot out for the next 3 frames, and the hitbox travels upward with the chunks
@@ -742,8 +734,7 @@ roundelie = {
         end
         
         
-        -- update roundelie ::
-        
+        -- update roundelie
         this.prev_facing = this.facing
         this.is_start_of_jump = false
         this.is_first_frame_jump = false
