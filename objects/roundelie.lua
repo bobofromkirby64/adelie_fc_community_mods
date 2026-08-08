@@ -420,7 +420,7 @@ roundelie = {
                 })
         end
         
-        -- 
+        --
         this.init_dust_cloud = function(x, y, direction)
             table.insert(particles_fg, {
                 -- TODO: shift sprites over by a pixel to make the logic cleaner
@@ -522,6 +522,33 @@ roundelie = {
                     
                     love.graphics.setShader()
                     love.graphics.setColor(1, 1, 1)
+                end,
+            })
+        end
+        
+        -- [wip]
+        this.init_shockwave = function(info, direction)
+            table.insert(particles_fg, {
+                shockwave_info = info,
+                direction = direction,
+                
+                x = info.x_init + (direction == -1 and 4 or -3),
+                y = info.y_init,
+                
+                timer = -1,
+                duration = 12,
+                
+                update = function(p)
+                    p.x = p.x + (p.shockwave_info.vx * p.direction)
+                    p.timer = p.timer + 1
+                    return p.timer >= p.duration
+                end,
+                
+                draw = function(p)
+                    local frame = math.floor(p.timer / p.duration * 4) + 1
+                    if frame > 4 then frame = 4 end
+                    local dx, dy = math.floor(p.x), math.floor(p.y)
+                    sprites.draw(sprites["characters/roundelie_shockwave"][frame], dx, dy, 0, p.direction, 1, 4, 0)
                 end,
             })
         end
@@ -649,8 +676,8 @@ roundelie = {
             if this.shockwave_left_hb and this.shockwave_left_hb.active then
                 local hb = this.shockwave_left_hb
                 hb.x = hb.x - this.shockwave_info.vx
-                hb.y = 8 - hb.h > 1.2 and hb.y - 1.2 or hb.y - (8 - hb.h)
-                hb.h = util.appr(hb.h, 8, 1.2)
+                hb.y = 6 - hb.h > 1.2 and hb.y - 1.2 or hb.y - (6 - hb.h)
+                hb.h = util.appr(hb.h, 6, 1.2)
                 -- check for collision with walls
                 for _, p in ipairs(stage.platforms) do
                     if p.type == "solid" and this.check_for_collision(hb, p, -3, 0) then
@@ -662,8 +689,8 @@ roundelie = {
             if this.shockwave_right_hb and this.shockwave_right_hb.active then
                 local hb = this.shockwave_right_hb
                 hb.x = hb.x + this.shockwave_info.vx
-                hb.y = 8 - hb.h > 1.2 and hb.y - 1.2 or hb.y - (8 - hb.h)
-                hb.h = util.appr(hb.h, 8, 1.2)
+                hb.y = 6 - hb.h > 1.2 and hb.y - 1.2 or hb.y - (6 - hb.h)
+                hb.h = util.appr(hb.h, 6, 1.2)
                 -- check for collision with walls
                 for _, p in ipairs(stage.platforms) do
                     if p.type == "solid" and this.check_for_collision(hb, p, 3, 0) then
@@ -710,32 +737,6 @@ roundelie = {
                     end
                 end
             end
-            -- placeholder visual for shockwave(s)
-            table.insert(
-                particles_fg, {
-                    hb_l = this.shockwave_left_hb,   -- ref to table -> particle has access to updated values
-                    hb_r = this.shockwave_right_hb,  -- ^
-                    
-                    timer = 0,
-                    duration = 6,
-                    
-                    update = function(p)
-                        p.timer = p.timer + 1
-                        if (not (p.hb_l and p.hb_l.active)) and (not (p.hb_r and p.hb_r.active)) then p.timer = p.duration + 1; end
-                        return p.timer > p.duration
-                    end,
-                    
-                    draw = function(p)
-                        love.graphics.setColor(1, 1, 0, 0.6)
-                        if p.hb_l and p.hb_l.active then
-                            love.graphics.rectangle("fill", p.hb_l.x, p.hb_l.y, p.hb_l.w, p.hb_l.h)
-                        end
-                        if p.hb_r and p.hb_r.active then
-                            love.graphics.rectangle("fill", p.hb_r.x, p.hb_r.y, p.hb_r.w, p.hb_r.h)
-                        end
-                        love.graphics.setColor(1, 1, 1, 1)
-                    end
-                })
         end
         
         
@@ -888,6 +889,12 @@ roundelie = {
                         this.shockwave_info.cx = 0
                         this.shockwave_info.create = this.shockwave_info.left or this.shockwave_info.right
                         this.shockwave_delay = 2
+                        
+                        -- [wip] draw visual for shockwaves
+                        if this.shockwave_info.create then
+                            if this.shockwave_info.left  then this.init_shockwave(this.shockwave_info, -1); end
+                            if this.shockwave_info.right then this.init_shockwave(this.shockwave_info,  1); end
+                        end
                     end
                     
                     -- [wip] draw visual for ground-slam: chunks of the ground fly out on impact
