@@ -423,15 +423,14 @@ roundelie = {
         --
         this.init_dust_cloud = function(x, y, direction)
             table.insert(particles_fg, {
-                -- TODO: shift sprites over by a pixel to make the logic cleaner
-                -- TODO: implement improved check to draw turnaround dust cloud
-                x = x + (direction == -1 and 4 or 5),
-                y = y,
-                vx = 0.18 * direction,
+                -- TODO: very messy!! try shifting the sprites around to make the logic a bit cleaner
+                x = x + (direction ~= 0 and (direction == 1 and 5 or 4) or 0),
+                y = y + (direction ~= 0 and (love.math.random() * 2 - 1) or 0),
+                vx = (direction ~= 0) and (0.18 * direction) or (love.math.random() * 0.3 - 0.15),
                 vy = -0.1 - love.math.random() * 0.2,
-                timer = -1,
-                duration = 12,  -- animated on 4s
-                flipX = direction,
+                timer = 0,  -- start @ -1 => animated on 4s, start @ 0 => 1st frame of animation is only held for 3f
+                duration = 12,
+                flipX = (direction ~= 0) and direction or (love.math.random() > 0.5 and -1 or 1),
                 update = function(p)
                     p.x = p.x + p.vx
                     p.y = p.y + p.vy
@@ -444,7 +443,8 @@ roundelie = {
                     local frame = math.floor(p.timer / p.duration * 3) + 1
                     if frame > 3 then frame = 3 end
                     local dx, dy = math.floor(p.x), math.floor(p.y)
-                    sprites.draw(sprites["characters/roundelie_dust_cloud"][frame], dx, dy, 0, p.flipX, 1, 4, 0)
+                    local spr = (direction ~= 0) and sprites["characters/roundelie_dust_cloud_A"] or sprites["characters/roundelie_dust_cloud_B"]
+                    sprites.draw(spr[frame], dx, dy, 0, p.flipX, 1, 4, 0)
                 end,
             })
         end
@@ -890,36 +890,35 @@ roundelie = {
                         this.shockwave_info.create = this.shockwave_info.left or this.shockwave_info.right
                         this.shockwave_delay = 2
                         
-                        -- [wip] draw visual for shockwaves
+                        -- [wip] draw visual for shockwaves (temporarily disabled)
                         if this.shockwave_info.create then
-                            if this.shockwave_info.left  then this.init_shockwave(this.shockwave_info, -1); end
-                            if this.shockwave_info.right then this.init_shockwave(this.shockwave_info,  1); end
+                            -- if this.shockwave_info.left  then this.init_shockwave(this.shockwave_info, -1); end
+                            -- if this.shockwave_info.right then this.init_shockwave(this.shockwave_info,  1); end
                         end
                     end
                     
-                    -- [wip] draw visual for ground-slam: chunks of the ground fly out on impact
+                    -- [wip] draw visual for ground-slam: chunks of the ground fly out on impact (temporarily disabled)
                     --  TODO: colors for the chunks will be picked from the stage fg
                     --        (see https://love2d.org/wiki/ImageData:getPixel)
                     if check_is_big_slam then
-                        this.init_ground_chunk(impact_x - 4 - 6, impact_y + 3, hb_x - 2,        impact_y - 6)
-                        this.init_ground_chunk(impact_x - 4,     impact_y + 3, impact_x - 4,    impact_y - 6)
-                        this.init_ground_chunk(impact_x - 4 + 6, impact_y + 3, hb_x + hb_w - 6, impact_y - 6)
+                        -- this.init_ground_chunk(impact_x - 4 - 6, impact_y + 3, hb_x - 2,        impact_y - 6)
+                        -- this.init_ground_chunk(impact_x - 4,     impact_y + 3, impact_x - 4,    impact_y - 6)
+                        -- this.init_ground_chunk(impact_x - 4 + 6, impact_y + 3, hb_x + hb_w - 6, impact_y - 6)
                     end
                     
-                    -- draw smoke over ground-slam hitbox
-                    -- TODO: might want to replace this with something that 1) covers a smaller area and 2) doesn't linger for as long
-                    --      e.g. "dust" more constrained to the surface of the platform, or a "reduced" smoke effect
-                    game.init_smoke(hb_x - 1, this.divebomb_slam_hb.y + 4)
-                    game.init_smoke(hb_x + hb_w - 6, this.divebomb_slam_hb.y + 4)
+                    -- draw dust clouds over ground-slam hitbox
+                    -- TODO: messy...
+                    this.init_dust_cloud(hb_x, this.divebomb_slam_hb.y - 1, -1)
+                    this.init_dust_cloud(hb_x + hb_w - 9, this.divebomb_slam_hb.y - 1, 1)
                     
-                    local step_count = math.floor((hb_w - 4) / 8)
-                    local base_amt = math.floor((hb_w - 4) / step_count)
-                    local leftover = (hb_w - 4) % step_count
+                    local sprite_count = math.floor((hb_w + 1) / 8)           -- # of "slots" where a sprite can be drawn; the dust cloud sprite is ~6px wide, +2px for padding
+                    local base_width = math.floor((hb_w + 1) / sprite_count)  -- portion of the total width allocated to each sprite slot
+                    local extra_width  = (hb_w + 1) % sprite_count            -- leftover space is evenly distributed between the slots
                     
-                    local curr_x = (hb_x - 1)
-                    for i = 1, step_count - 1 do
-                        curr_x = curr_x + base_amt + (i <= leftover and 1 or 0)
-                        game.init_smoke(curr_x, this.divebomb_slam_hb.y + 4)
+                    local curr_x = (hb_x - 5)
+                    for i = 1, sprite_count - 1 do
+                        curr_x = curr_x + base_width + (i <= extra_width and 1 or 0)
+                        this.init_dust_cloud(curr_x + 4, this.divebomb_slam_hb.y - 2, 0)
                     end
                 end
                 if this.vy < 0 then
@@ -1102,7 +1101,7 @@ roundelie = {
         if this.prev_facing ~= this.facing then
             if this.current_anim == "roll" and anim_on_ground and math.abs(this.vx) > 0 and math.abs(this.prev_vx) > 0 and v_input ~= 1 then
                 -- draw dust cloud after changing direction mid-roll
-                this.init_dust_cloud(this.x, this.y + 1, -1 * this.facing)
+                this.init_dust_cloud(this.x, this.y + 2, -1 * this.facing)
             end
             
             if this.orientation == this.directions.RIGHT then

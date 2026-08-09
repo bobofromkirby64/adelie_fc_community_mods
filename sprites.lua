@@ -64,7 +64,8 @@ local spriteList = {
     "characters/roundelie_3_base_default",
     "characters/roundelie_3_base_crouch",
     {"characters/roundelie_4", 16, 1},
-    {"characters/roundelie_dust_cloud", 3, 1},
+    {"characters/roundelie_dust_cloud_A", 3, 1},  -- right/left
+    {"characters/roundelie_dust_cloud_B", 3, 1},  -- up
     {"characters/roundelie_shockwave", 4, 1},
     {"objects/goldstool_1", 4, 1},
     {"objects/goldstool_2", 4, 1},
