@@ -1007,12 +1007,13 @@ roundelie = {
                 this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1  -- needs to be kept updated for snowball logic
                 
                 -- dive -> bounce off of a wall
-                if (this:is_solid(-3,0) or this:is_solid(3,0)) then
+                local wall_dir = this:is_solid(-3, 0) and 1 or (this:is_solid(3, 0) and -1 or 0)
+                if wall_dir ~= 0 then
                     is_wall_bounce = true
                     this.conk = 8
                     this.dive_smoketrail = 0
                     this.vy = -2.7
-                    game.init_smoke(this.x - this.conkdir * 6, this.y)  -- same as maddy wall-jump
+                    game.init_smoke(this.x - wall_dir * 6, this.y)  -- same as maddy wall-jump
                 end
             else
                 this.down_attack = false
