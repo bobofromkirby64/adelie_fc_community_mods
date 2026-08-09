@@ -73,9 +73,6 @@ TODO: ((?) => "maybe", (*) => "high priority")
         (could also use the "tears" effect for this, in addition to the sweat drops)
 
 (other)
-    - * audio bugs
-        - diving when on the ground shouldn't play a sound effect, and similarly sound effects should only play when the action is performed
-        - sfx should play on action, not queue when there's multiple sound effects in a row e.g. when dribbling
     - * sfx pass (shockwave/ground-slam, teleport, unique sounds for roundelie in general)
     - ...
 ]]--
@@ -1038,9 +1035,8 @@ roundelie = {
                     this.teleport_info.init = true
                     this.teleport_info.horizontal = h_input ~= 0
                     this.teleport_info.on_hit = false
+                    love.audio.play("maddy_dash", "static")  -- TODO: placeholder
                 end
-                
-                love.audio.play("maddy_dash", "static")
             end
             this.was_on_ground = on_ground
             this.prev_x = this.x  -- need to keep track of original position for some visual effects drawn after movement/collision is calculated
