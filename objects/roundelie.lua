@@ -533,8 +533,7 @@ roundelie = {
         --
         this.init_dust_cloud = function(x, y, direction)
             table.insert(particles_fg, {
-                -- TODO: very messy!! try shifting the sprites around to make the logic a bit cleaner
-                x = x + (direction ~= 0 and (direction == 1 and 5 or 4) or 0),
+                x = x,
                 y = y + (direction ~= 0 and (love.math.random() * 2 - 1) or 0),
                 vx = (direction ~= 0) and (0.18 * direction) or (love.math.random() * 0.3 - 0.15),
                 vy = -0.1 - love.math.random() * 0.2,
@@ -552,9 +551,10 @@ roundelie = {
                 draw = function(p)
                     local frame = math.floor(p.timer / p.duration * 3) + 1
                     if frame > 3 then frame = 3 end
+                    local cx = 4
                     local dx, dy = math.floor(p.x), math.floor(p.y)
                     local spr = (direction ~= 0) and sprites["characters/roundelie_dust_cloud_A"] or sprites["characters/roundelie_dust_cloud_B"]
-                    sprites.draw(spr[frame], dx, dy, 0, p.flipX, 1, 4, 0)
+                    sprites.draw(spr[frame], dx + cx, dy, 0, p.flipX, 1, cx, 0)
                 end,
             })
         end
@@ -567,7 +567,7 @@ roundelie = {
                 -- initially particle vx/y was determined using start and dest(ination) xy pos but rn it's mostly magic numbers, lol
                 --  .. start_x + vx + (drag * vx) = dest_x  =>  vx = (dest_x - start_x) / (1 + drag)
                 vx = (dest_x - start_x),
-                vy = (dest_y - start_y) * 0.35,  -- TODO: messy
+                vy = (dest_y - start_y) * 0.35,
                 drag = 0.415, -- lower to *increase*
                 min_vx = 0,
                 
@@ -818,13 +818,21 @@ roundelie = {
             if jump then this.jbuffer = 4 elseif this.jbuffer > 0 then this.jbuffer = this.jbuffer - 1 end
             
             if on_ground then
+                
+                if this.vy < 0 then
+                    this.bump_cooldown = 0;
+                    love.audio.play("maddy_clip", "static")
+                end
+                this.grace = 6
+                this.bjump = 2
+                
                 -- dive -> bounce off of the ground
                 if this.down_attack then
                     this.dive_smoketrail = 0
                     this.down_attack = false
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     
-                    -- dive-bomb ground-slam attack and follow-up shockwave ...
+                    -- diving into the ground also results in a "ground-slam" attack and can also result in a follow-up "shockwave" attack
                     local check_is_big_slam = this.prev_vy == MAX_DIVE_SPEED and this.dive_start == 0
                     local cx = this.hurtbox.x + (this.hurtbox.w / 2)
                     local hb_x, hb_w, hb_offset
@@ -847,12 +855,13 @@ roundelie = {
                     -- ground can be composed of multiple platforms
                     --   => we need to find the left-most and right-most platforms within the attack range
                     local platform_left, platform_right = ground_hit, ground_hit
-                    -- find left-most platform
+                    
+                    -- find the left-most platform
                     while hb_x < platform_left.x do
                         local new_platform = this:is_solid((platform_left.x - this.x - this.hurtbox.w - this.hurtbox.x), 1)
                         if new_platform and new_platform.y == platform_left.y then platform_left = new_platform; else break; end
                     end
-                    -- find right-most platform
+                    -- find the right-most platform
                     while (hb_x + hb_w) > (platform_right.x + platform_right.w) do
                         local new_platform = this:is_solid((platform_right.x + platform_right.w - this.x - this.hurtbox.x), 1)
                         if new_platform and new_platform.y == platform_right.y then platform_right = new_platform; else break; end
@@ -863,7 +872,7 @@ roundelie = {
                     hb_x = math.max(hb_x, platform_left.x - 4)
                     hb_w = math.min((prev_hb_x + hb_w - hb_x), (platform_right.x + platform_right.w + 4) - hb_x)
                     
-                    -- further constrain hitbox on collision with walls
+                    -- the hitbox is further constrained by walls
                     local hb_right = { x = impact_x, y = this.y + 4, w = (hb_x + hb_w) - impact_x, h = 4 }
                     for _, p in ipairs(stage.platforms) do
                         if p.type == "solid" and this.check_for_collision(hb_right, p, 0, 0) then
@@ -879,6 +888,7 @@ roundelie = {
                         end
                     end
                     
+                    -- create follow-up shockwave(s) if conditions are met
                     if check_is_big_slam then
                         this.dive_ground_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 10)
                         this.dive_ground_slam_hb.big_dive_slam = true
@@ -902,17 +912,19 @@ roundelie = {
                         this.shockwave_info.create = this.shockwave_info.left or this.shockwave_info.right
                         this.shockwave_delay_timer = 2
                         
-                        -- draw visual for shockwaves
+                        -- draw visual effects for the shockwave(s)
                         if this.shockwave_info.create then
                             if this.shockwave_info.left  then this.init_shockwave(this.shockwave_info, -1); end
                             if this.shockwave_info.right then this.init_shockwave(this.shockwave_info,  1); end
                         end
                     end
                     
-                    -- draw visual for ground-slam: chunks of the ground fly out on impact
+                    -- draw visual effects for the ground-slam (dust clouds & ground chunks)
+                    
+                    -- (1) draw chunks of the ground that fly out on impact
                     if check_is_big_slam then
                         
-                        -- (1) find the most common color in a selection of pixels near the impact position
+                        -- find the most common color in a selection of pixels near the impact position
                         local temp_canvas = love.graphics.newCanvas(stage.fgImage:getWidth(), stage.fgImage:getHeight())
                         love.graphics.setCanvas(temp_canvas)
                         love.graphics.clear()
@@ -943,23 +955,21 @@ roundelie = {
                         end
                         if most_common_color == nil then most_common_color = {r = 0, g = 0, b = 0, a = 1}; end
                         
-                        -- (2) distribute ground chunks within the area of the hitbox
+                        -- distribute ground chunks within the area of the hitbox
                         local init_x, a_x, b_x, temp = impact_x - 4, nil, nil, nil  -- ground chunks travel from pt a -> b
                         
                         this.init_ground_chunk(init_x, impact_y + 4, init_x, impact_y - 5, most_common_color)
-                        
-                        b_x = hb_x - 0 -- - 2
+                        b_x = hb_x - 0
                         a_x = init_x - ((init_x - b_x) / 2)
-                        this.init_ground_chunk(a_x, impact_y + 4, b_x, impact_y - 5, most_common_color)
-                        
-                        b_x = hb_x + hb_w - 8 -- - 6
+                        this.init_ground_chunk(a_x, impact_y + 4, b_x, impact_y - 5, most_common_color)  -- marks left edge of the hitbox
+                        b_x = hb_x + hb_w - 8
                         a_x = init_x + ((b_x - init_x) / 2)
-                        this.init_ground_chunk(a_x, impact_y + 4, b_x, impact_y - 5, most_common_color)
+                        this.init_ground_chunk(a_x, impact_y + 4, b_x, impact_y - 5, most_common_color)  -- marks right edge of the hitbox
                         
                         local rem_hb_width = (hb_x + hb_w - 6) - (hb_x + 6)
-                        local slot_count = math.floor(rem_hb_width / 6)
-                        local base_width = math.floor(rem_hb_width / slot_count)
-                        local extra_width = rem_hb_width % slot_count
+                        local slot_count = math.floor(rem_hb_width / 6)           -- # of "slots" where a ground chunk can be placed
+                        local base_width = math.floor(rem_hb_width / slot_count)  -- portion of the total width allocated for each slot
+                        local extra_width = rem_hb_width % slot_count             -- leftover space is evenly distributed between the slots
                         
                         b_x = hb_x - 2
                         for i = 1, slot_count do
@@ -968,28 +978,22 @@ roundelie = {
                             this.init_ground_chunk(a_x, impact_y + 4, b_x, impact_y - 6, most_common_color)
                         end
                     end
-                    
-                    -- draw dust clouds over ground-slam hitbox
-                    -- TODO: messy...
+                
+                    -- (2) draw dust clouds over the ground-slam hitbox
                     this.init_dust_cloud(hb_x, this.dive_ground_slam_hb.y - 1, -1)
-                    this.init_dust_cloud(hb_x + hb_w - 9, this.dive_ground_slam_hb.y - 1, 1)
+                    this.init_dust_cloud(hb_x + hb_w - 8, this.dive_ground_slam_hb.y - 1, 1)
                     
-                    local slot_count = math.floor((hb_w + 1) / 8)           -- # of "slots" where a sprite can be drawn; the dust cloud sprite is ~6px wide, +2px for padding
-                    local base_width = math.floor((hb_w + 1) / slot_count)  -- portion of the total width allocated to each sprite slot
-                    local extra_width  = (hb_w + 1) % slot_count            -- leftover space is evenly distributed between the slots
+                    local slot_count = math.floor(hb_w / 8)  -- the dust cloud sprite is ~6px wide, +2px for padding
+                    local base_width = math.floor(hb_w / slot_count)
+                    local extra_width  = hb_w % slot_count
                     
-                    local curr_x = (hb_x - 5)
+                    local curr_x = hb_x - 4
                     for i = 1, slot_count - 1 do
                         curr_x = curr_x + base_width + (i <= extra_width and 1 or 0)
-                        this.init_dust_cloud(curr_x + 4, this.dive_ground_slam_hb.y - 2, 0)
+                        this.init_dust_cloud(curr_x, this.dive_ground_slam_hb.y - 2, 0)
                     end
                 end
-                if this.vy < 0 then
-                    this.bump_cooldown = 0;
-                    love.audio.play("maddy_clip", "static")
-                end
-                this.grace = 6
-                this.bjump = 2
+                
             elseif this.grace > 0 then
                 this.grace = this.grace - 1
             end
@@ -1164,7 +1168,7 @@ roundelie = {
         if this.prev_facing ~= this.facing then
             if this.current_anim == "roll" and anim_on_ground and math.abs(this.vx) > 0 and math.abs(this.prev_vx) > 0 and v_input ~= 1 then
                 -- draw dust cloud after changing direction mid-roll
-                this.init_dust_cloud(this.x, this.y + 2, -1 * this.facing)
+                this.init_dust_cloud(this.x + (this.facing == 1 and 1 or 0), this.y + 2, -1 * this.facing)
             end
             
             if this.orientation == this.directions.RIGHT then
