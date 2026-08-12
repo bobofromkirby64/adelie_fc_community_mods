@@ -561,13 +561,11 @@ roundelie = {
         
         --
         this.init_ground_chunk = function(start_x, start_y, dest_x, dest_y, color)
-            -- dest xy correspond to a point on the upper bound of the big ground-slam hitbox after it expands
-            --   => particle vx/y is calculated using the start and dest xy pos
             table.insert(particles_fg, {
-
                 x = start_x + love.math.random() * 2 - 1,
                 y = start_y + love.math.random() * 2 - 1,
-                -- start_x + vx + (drag * vx) = dest_x  =>  vx = (dest_x - start_x) / (1 + drag)
+                -- initially particle vx/y was determined using start and dest(ination) xy pos but rn it's mostly magic numbers, lol
+                --  .. start_x + vx + (drag * vx) = dest_x  =>  vx = (dest_x - start_x) / (1 + drag)
                 vx = (dest_x - start_x),
                 vy = (dest_y - start_y) * 0.35,  -- TODO: messy
                 drag = 0.415, -- lower to *increase*
@@ -602,15 +600,16 @@ roundelie = {
                     
                     local fade = (p.duration - p.timer > 3) and 1.0 or (1.0 - (3 - (p.duration - p.timer)) * 0.25)
                     local tint = (p.color.r < 150 and p.color.g < 150 and p.color.b < 150) and 20 or 0
-                    local sprite_ndx = p.anim_frame == 1 and 3 or p.anim_frame
-                    local dx, dy = math.floor(p.x), math.floor(p.y)
+                    local sprite_ndx = p.anim_frame > 2 and 2 or p.anim_frame
+                    local cx, cy = 4, 4
+                    local dx, dy = math.floor(p.x) + cx, math.floor(p.y) + cy
                     
                     love.graphics.setShader(paletteSwapShader)
                     paletteSwapShader:send("color_find", {255/255, 255/255, 255/255, 1.0})
                     paletteSwapShader:send("color_replace", {(p.color.r + tint)/255, (p.color.g + tint)/255, (p.color.b + tint)/255, 1.0})
                     love.graphics.setColor(1, 1, 1, fade)
                     
-                    sprites.draw(sprites.ground_chunk[sprite_ndx], p.flipX == -1 and dx + 8 or dx, p.flipY == -1 and dy + 8 or dy, 0, p.flipX, p.flipY, 0, 0)
+                    sprites.draw(sprites["characters/roundelie_ground_chunk"][sprite_ndx], dx, dy, 0, p.flipX, p.flipY, cx, cy)
                     
                     love.graphics.setShader()
                     love.graphics.setColor(1, 1, 1)
