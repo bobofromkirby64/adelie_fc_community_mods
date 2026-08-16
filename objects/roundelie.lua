@@ -50,8 +50,6 @@ TODO: ((?) => "maybe", (*) => "high priority")
  
 (visual)
     - * rosetta skin rework
-    - * ground chunk color picking doesn't work with objects e.g. ancient trench cloud, puzzle mod block ...
-            => holding off since a clean fix would prooobably recquire edits to every object to add its sprite as an accessible variable?
     - flip doesn't handle direction changes well
         i.e. roundelie shouldn't change rotation in midair, and flip should at most take 3 rotations
             (could add new upside-down midair poses to help mitigate this?)
@@ -924,25 +922,48 @@ roundelie = {
                     if check_is_big_slam then
                         
                         -- find the most common color in a selection of pixels near the impact position
-                        local stage_w, stage_h = stage.fgImage:getWidth(), stage.fgImage:getHeight()
-                        local temp_canvas = love.graphics.newCanvas(stage_w, stage_h)
-                        love.graphics.setCanvas(temp_canvas)
-                        love.graphics.clear()
-                        love.graphics.draw(stage.fgImage, 0, 0)
-                        love.graphics.setCanvas()  -- reset
-                        local data = temp_canvas:newImageData()
+                        local temp_canvas, img_data, img_x_a, img_x_b, img_y, img_w, img_h
+                        
+                        if ground_hit.type == "solid" or ground_hit.type == "semisolid" then
+                            -- "ground" is a platform
+                            img_w, img_h = stage.fgImage:getPixelDimensions()
+                            temp_canvas = love.graphics.newCanvas(img_w, img_h)
+                            
+                            -- TODO: imageData should be created once and then referenced, since repeated calls to create imageData from a canvas can be slow
+                            --  (see warning here: https://love2d.org/wiki/Canvas:newImageData)
+                            love.graphics.setCanvas(temp_canvas)
+                            love.graphics.clear()
+                            love.graphics.draw(stage.fgImage, 0, 0)
+                            love.graphics.setCanvas()  -- reset
+                            img_data = temp_canvas:newImageData()
+                            
+                            img_x_a = math.max( 0, math.min(this.dive_ground_slam_hb.x + 4, impact_x - 5) )
+                            img_x_b = math.min( img_w, math.max(this.dive_ground_slam_hb.x + this.dive_ground_slam_hb.w - 4, impact_x + 5) )
+                            img_y = impact_y + 9  -- => second row of pixels from the top
+                        else
+                            -- "ground" is an object
+                            local obj_name = "objects/" .. ground_hit.type.name
+                            img_w, img_h = sprites[obj_name]:getPixelDimensions()
+                            temp_canvas = love.graphics.newCanvas(img_w, img_h)
+                            
+                            love.graphics.setCanvas(temp_canvas)
+                            love.graphics.clear()
+                            love.graphics.draw(sprites[obj_name], 0, 0)
+                            love.graphics.setCanvas()  -- reset
+                            img_data = temp_canvas:newImageData()
+
+                            img_x_a = 0
+                            img_x_b = img_w - 1
+                            img_y = (img_h / 2) - 1
+                        end
                         
                         local counts = {}
-                        local most_common_color = nil
+                        local most_common_color = {r = 1, g = 0, b = 1, a = 1}
                         local max_count = 0
                         
-                        -- TODO: breaks on puzzle mod stage
-                        --      => need to create a stageFg image on stage load by combining all of the different fg images, rather than add them all as separate particles
-                        local x_a = math.max( 0, math.min(this.dive_ground_slam_hb.x + 4, impact_x - 5) )
-                        local x_b = math.min( stage_w, math.max(this.dive_ground_slam_hb.x + this.dive_ground_slam_hb.w - 4, impact_x + 5) )
-                        for i = 1, (x_b - x_a) do
-                            local r, g, b, a = data:getPixel(x_a + i, impact_y + 9)  -- => 2 pixels below the surface
-                            if (r ~= nil and g ~= nil and b ~= nil and a ~= nil and a ~= 0) then
+                        for i = 1, (img_x_b - img_x_a) do
+                            local r, g, b, a = img_data:getPixel(img_x_a + i, img_y)
+                            if (a ~= 0 and r ~= nil and g ~= nil and b ~= nil and a ~= nil) then
                                 local color = {r = (r*255), g = (g*255), b = (b*255), a = a}
                                 local color_key = color.r .. "_" .. color.g .. "_" .. color.b .. "_" .. color.a
                                 counts[color_key] = (counts[color_key] or 0) + 1
@@ -952,7 +973,6 @@ roundelie = {
                                 end
                             end
                         end
-                        if most_common_color == nil then most_common_color = {r = 0, g = 0, b = 0, a = 1}; end
                         
                         -- distribute ground chunks within the area of the hitbox
                         local init_x, a_x, b_x, temp = impact_x - 4, nil, nil, nil  -- ground chunks travel from pt a -> b
