@@ -925,11 +925,12 @@ roundelie = {
                     if check_is_big_slam then
                         
                         -- find the most common color in a selection of pixels near the impact position
-                        local temp_canvas = love.graphics.newCanvas(stage.fgImage:getWidth(), stage.fgImage:getHeight())
+                        local stage_w, stage_h = stage.fgImage:getWidth(), stage.fgImage:getHeight()
+                        local temp_canvas = love.graphics.newCanvas(stage_w, stage_h)
                         love.graphics.setCanvas(temp_canvas)
                         love.graphics.clear()
                         love.graphics.draw(stage.fgImage, 0, 0)
-                        love.graphics.setCanvas()
+                        love.graphics.setCanvas()  -- reset
                         local data = temp_canvas:newImageData()
                         
                         local counts = {}
@@ -938,11 +939,10 @@ roundelie = {
                         
                         -- TODO: breaks on puzzle mod stage
                         --      => need to create a stageFg image on stage load by combining all of the different fg images, rather than add them all as separate particles
-                        -- TODO: crash on level boundary
-                        -- TODO: breaks when diving on the very edge of a platform
-                        --      => getPixel pos args needs to be relative to the bounds of the platform that roundelie is diving into
-                        for i = 1, 10 do
-                            local r, g, b, a = data:getPixel(impact_x - 6 + i, impact_y + 9)
+                        local x_a = math.max( 0, math.min(this.dive_ground_slam_hb.x + 4, impact_x - 5) )
+                        local x_b = math.min( stage_w, math.max(this.dive_ground_slam_hb.x + this.dive_ground_slam_hb.w - 4, impact_x + 5) )
+                        for i = 1, (x_b - x_a) do
+                            local r, g, b, a = data:getPixel(x_a + i, impact_y + 9)  -- => 2 pixels below the surface
                             if (r ~= nil and g ~= nil and b ~= nil and a ~= nil and a ~= 0) then
                                 local color = {r = (r*255), g = (g*255), b = (b*255), a = a}
                                 local color_key = color.r .. "_" .. color.g .. "_" .. color.b .. "_" .. color.a
