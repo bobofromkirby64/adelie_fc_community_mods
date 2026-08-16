@@ -50,6 +50,8 @@ TODO: ((?) => "maybe", (*) => "high priority")
  
 (visual)
     - * rosetta skin rework
+    - * ground chunk color picking doesn't work with objects e.g. ancient trench cloud, puzzle mod block ...
+            => holding off since a clean fix would prooobably recquire edits to every object to add its sprite as an accessible variable?
     - flip doesn't handle direction changes well
         i.e. roundelie shouldn't change rotation in midair, and flip should at most take 3 rotations
             (could add new upside-down midair poses to help mitigate this?)
@@ -294,11 +296,6 @@ roundelie = {
         end
         
         this.update_dynamic_hitboxes = function(this)
-            -- NOTE: these hitboxes are inactive after roundelie is frozen or in hitstun, but freeze can also occur when roundelie hits the opponent
-            --        or when roundelie teleports, and the visual effects for the hitboxes rely on the updates made in this logic block ...
-            --   => this logic needs to be separated out so that these updates are always performed, regardless of roundelie's state,
-            --       to handle any cases where the hitboxes are still active while roundelie is not
-            
             -- update the dive ground-slam hitbox ..
             --     the dive ground-slam hitbox is active near the ground for the first 2 frames,
             --     and then chunks of the ground shoot out for the next 7 frames, while the hitbox moves with the chunks
@@ -307,15 +304,15 @@ roundelie = {
                 -- hb.duration is decremented *after* this, so e.g. tick 3 is at `hb.duration == 8` (with initial duration of 10)
                 -- also hitbox is *actually* active for (duration - 1), currently (10 - 1) => 9 ticks
                 if hb.duration == 8 then
-                    hb.y = hb.y - 3  -- hitbox suddenly expands to the height of a full tile on tick 3
+                    hb.y = hb.y - 3  -- hitbox suddenly expands to the height of a full tile on the third tick
                     hb.h = hb.h + 3
                 elseif hb.duration == 7 then
-                    hb.y = hb.y - 1
+                    hb.y = hb.y - 3
                     hb.h = hb.h - 4
+                    hb.kx = hb.kx * 0.66  -- knockback for the ground chunks is much weaker after the third tick
+                    hb.ky = hb.ky * 0.66
                 elseif hb.duration == 6 then
                     hb.y = hb.y - 2
-                    hb.kx = hb.kx * 0.66  -- knockback is much weaker after the first few ticks
-                    hb.ky = hb.ky * 0.66
                 elseif hb.duration <= 5 then
                     hb.y = hb.y - 1
                 end
@@ -375,7 +372,7 @@ roundelie = {
             if this.shockwave_info.create and this.shockwave_delay_timer == 0 then
                 this.shockwave_info.create = false
                 
-                local x_init, y_init, cx, w, h, duration = this.shockwave_info.x_init, this.shockwave_info.y_init, this.shockwave_info.cx, 3, 4, 6
+                local x_init, y_init, cx, w, h, duration = this.shockwave_info.x_init, this.shockwave_info.y_init, this.shockwave_info.cx, 3, 4, 7
                 if this.shockwave_info.left then
                     local hb = {x = x_init - (w/2) - cx, y = y_init + (8 - h), w = w, h = h}
                     local is_wall = false
@@ -629,7 +626,7 @@ roundelie = {
                 prev_vx = info.vx,
                 
                 timer = -1,
-                duration = 12,
+                duration = 10,
                 
                 update = function(p)
                     if p.is_active and p.direction == -1 and p.shockwave_info.left == false then
