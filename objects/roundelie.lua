@@ -626,12 +626,12 @@ roundelie = {
                 
                 x = info.x_init + (direction == -1 and 4 or -3),
                 y = info.y_init,
+                prev_vx = info.vx,
                 
                 timer = -1,
                 duration = 12,
                 
                 update = function(p)
-                    p.x = p.x + (p.shockwave_info.vx * p.direction)
                     if p.is_active and p.direction == -1 and p.shockwave_info.left == false then
                         p.timer = p.duration - 3
                         p.is_active = false
@@ -641,6 +641,8 @@ roundelie = {
                     else
                         p.timer = p.timer + 1
                     end
+                    p.x = p.x + (p.direction * (p.is_active and p.shockwave_info.vx or p.prev_vx))
+                    p.prev_vx = p.is_active and p.shockwave_info.vx or p.prev_vx
                     return p.timer >= p.duration
                 end,
                 
