@@ -39,7 +39,6 @@ local spriteList = {
     "heart",
     "adelie",
     {"smoke", 3, 1},
-    {"ground_chunk", 3, 1},
     {"characters/maddy_1", 7, 1},
     {"characters/maddy_2", 7, 1},
     {"characters/maddy_3", 7, 1},
@@ -64,7 +63,10 @@ local spriteList = {
     "characters/roundelie_3_base_default",
     "characters/roundelie_3_base_crouch",
     {"characters/roundelie_4", 16, 1},
-    {"characters/roundelie_dust_cloud", 3, 1},
+    {"characters/roundelie_dust_cloud_A", 3, 1},  -- right/left
+    {"characters/roundelie_dust_cloud_B", 3, 1},  -- up
+    {"characters/roundelie_ground_chunk", 2, 1},
+    {"characters/roundelie_shockwave", 4, 1},
     {"objects/goldstool_1", 4, 1},
     {"objects/goldstool_2", 4, 1},
     {"objects/goldstool_3", 4, 1},

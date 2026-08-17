@@ -1,5 +1,5 @@
 -- objects/roundelie.lua
--- v0.8.0
+-- v0.8.1
 
 -- Movement Documentation:
 -- Z to jump, left and right arrow keys to move
@@ -73,9 +73,6 @@ TODO: ((?) => "maybe", (*) => "high priority")
         (could also use the "tears" effect for this, in addition to the sweat drops)
 
 (other)
-    - * audio bugs
-        - diving when on the ground shouldn't play a sound effect, and similarly sound effects should only play when the action is performed
-        - sfx should play on action, not queue when there's multiple sound effects in a row e.g. when dribbling
     - * sfx pass (shockwave/ground-slam, teleport, unique sounds for roundelie in general)
     - ...
 ]]--
@@ -126,7 +123,7 @@ roundelie = {
             on_hit = false      -- true if teleport has hit the opponent
         }
         -- hitboxes created by diving (down+x) into the ground
-        this.divebomb_slam_hb  = nil
+        this.dive_ground_slam_hb  = nil
         this.shockwave_left_hb = nil
         this.shockwave_right_hb = nil
         this.shockwave_info = {
@@ -189,7 +186,7 @@ roundelie = {
         this.dribble_window = 0
         this.falling_timer = 0
         this.invis_timer = 0
-        this.shockwave_delay = 0
+        this.shockwave_delay_timer = 0
         
         this.prev_x = 0
         this.prev_y = 0
@@ -222,11 +219,11 @@ roundelie = {
                         this.y = temp_y
                     end
                     
-                    if (this.divebomb_slam_hb and this.divebomb_slam_hb.active and
-                        this.divebomb_slam_hb.x < o:right() and o:left() < this.divebomb_slam_hb.x + this.divebomb_slam_hb.w and
-                        this.divebomb_slam_hb.y < o:bottom() and o:top() < this.divebomb_slam_hb.y + this.divebomb_slam_hb.h) then
+                    if (this.dive_ground_slam_hb and this.dive_ground_slam_hb.active and
+                        this.dive_ground_slam_hb.x < o:right() and o:left() < this.dive_ground_slam_hb.x + this.dive_ground_slam_hb.w and
+                        this.dive_ground_slam_hb.y < o:bottom() and o:top() < this.dive_ground_slam_hb.y + this.dive_ground_slam_hb.h) then
                         -- dive-bomb quake launches snowball
-                        o.vy = this.divebomb_slam_hb.big_dive_slam and -2.75 or -2.0
+                        o.vy = this.dive_ground_slam_hb.big_dive_slam and -2.75 or -2.0
                         o.throwerID = this.connectionID
                         o.thrown_timer = 10
                         o.stop = true
@@ -296,8 +293,116 @@ roundelie = {
             end
         end
         
-        -- (( honestly this was a whole lot of work for a not-very-interesting effect LOL ))
-        -- (( granted it was a fun learning experience for working with particles but I won't be sad if it's replaced ))
+        this.update_dynamic_hitboxes = function(this)
+            -- update the dive ground-slam hitbox ..
+            --     the dive ground-slam hitbox is active near the ground for the first 2 frames,
+            --     and then chunks of the ground shoot out for the next 7 frames, while the hitbox moves with the chunks
+            local hb = this.dive_ground_slam_hb
+            if hb and hb.active and hb.big_dive_slam and hb.duration <= 8 then
+                -- hb.duration is decremented *after* this, so e.g. tick 3 is at `hb.duration == 8` (with initial duration of 10)
+                -- also hitbox is *actually* active for (duration - 1), currently (10 - 1) => 9 ticks
+                if hb.duration == 8 then
+                    hb.y = hb.y - 3  -- hitbox suddenly expands to the height of a full tile on the third tick
+                    hb.h = hb.h + 3
+                elseif hb.duration == 7 then
+                    hb.y = hb.y - 3
+                    hb.h = hb.h - 4
+                    hb.kx = hb.kx * 0.66  -- knockback for the ground chunks is much weaker after the third tick
+                    hb.ky = hb.ky * 0.66
+                elseif hb.duration == 6 then
+                    hb.y = hb.y - 2
+                elseif hb.duration <= 5 then
+                    hb.y = hb.y - 1
+                end
+            end
+            
+            -- shockwave position and velocity are updated before the hitbox is created and continue to be updated so long as a shockwave exists
+            if this.shockwave_info.create or ((not this.shockwave_info.create) and (this.shockwave_info.left or this.shockwave_info.right)) then
+                this.shockwave_info.cx = this.shockwave_info.cx + this.shockwave_info.vx
+                this.shockwave_info.vx = util.appr(this.shockwave_info.vx, 0.5, 0.6)
+            end
+            
+            -- shockwave hitboxes travel out from the center of the ground-slam hitbox (=> the impact of the dive)
+            if (this.shockwave_left_hb and this.shockwave_left_hb.active) or (this.shockwave_right_hb and this.shockwave_right_hb.active) then
+                
+                if this.shockwave_info.left and (not this.shockwave_info.create) and (not (this.shockwave_left_hb and this.shockwave_left_hb.active)) then
+                    -- left shockwave was created but is now no longer active
+                    this.shockwave_info.left = false
+                end
+                if this.shockwave_info.right and (not this.shockwave_info.create) and (not (this.shockwave_right_hb and this.shockwave_right_hb.active)) then
+                    -- right shockwave was created but is now no longer active
+                    this.shockwave_info.right = false
+                end
+                
+                if this.shockwave_left_hb and this.shockwave_left_hb.active then
+                    -- update left shockwave
+                    local hb = this.shockwave_left_hb
+                    hb.x = hb.x - this.shockwave_info.vx
+                    hb.y = 6 - hb.h > 1.2 and hb.y - 1.2 or hb.y - (6 - hb.h)
+                    hb.h = util.appr(hb.h, 6, 1.2)
+                    -- check for collision with walls
+                    for _, p in ipairs(stage.platforms) do
+                        if p.type == "solid" and this.check_for_collision(hb, p, -3, 0) then
+                            hb.duration = 1
+                            this.shockwave_info.left = false
+                            break
+                        end
+                    end
+                end
+                if this.shockwave_right_hb and this.shockwave_right_hb.active then
+                    -- update right shockwave
+                    local hb = this.shockwave_right_hb
+                    hb.x = hb.x + this.shockwave_info.vx
+                    hb.y = 6 - hb.h > 1.2 and hb.y - 1.2 or hb.y - (6 - hb.h)
+                    hb.h = util.appr(hb.h, 6, 1.2)
+                    -- check for collision with walls
+                    for _, p in ipairs(stage.platforms) do
+                        if p.type == "solid" and this.check_for_collision(hb, p, 3, 0) then
+                            hb.duration = 1
+                            this.shockwave_info.right = false
+                            break
+                        end
+                    end
+                end
+            end
+            
+             -- create shockwave hitboxes after an initial delay
+            if this.shockwave_info.create and this.shockwave_delay_timer == 0 then
+                this.shockwave_info.create = false
+                
+                local x_init, y_init, cx, w, h, duration = this.shockwave_info.x_init, this.shockwave_info.y_init, this.shockwave_info.cx, 3, 4, 7
+                if this.shockwave_info.left then
+                    local hb = {x = x_init - (w/2) - cx, y = y_init + (8 - h), w = w, h = h}
+                    local is_wall = false
+                    -- check for collision with walls
+                    for _, p in ipairs(stage.platforms) do
+                        if p.type == "solid" and this.check_for_collision(hb, p, -3, 0) then
+                            is_wall = true
+                            break
+                        end
+                    end
+                    if (not is_wall) then
+                        this.shockwave_left_hb = hitbox.create(this.connectionID, hb.x, hb.y, hb.w, hb.h, 1, -2.0, -1.75, duration)
+                    end
+                end
+                if this.shockwave_info.right then
+                    local hb = {x = x_init - (w/2) + cx, y = y_init + (8 - h), w = w, h = h}
+                    local is_wall = false
+                    -- check for collision with walls
+                    for _, p in ipairs(stage.platforms) do
+                        if p.type == "solid" and this.check_for_collision(hb, p, 3, 0) then
+                            is_wall = true
+                            break
+                        end
+                    end
+                    if (not is_wall) then
+                        this.shockwave_right_hb = hitbox.create(this.connectionID, hb.x, hb.y, hb.w, hb.h, 1, 2.0, -1.75, duration)
+                    end
+                end
+            end
+        end
+        
+        -- (( honestly this was a whole lot of work for a not-very-interesting effect LOL and I won't be sad if it's replaced ))
         -- TODO: experiment with a new effect using sprites for the particles (similar to how smoke is drawn)
         this.draw_teleport_vfx = function(this)
             
@@ -405,17 +510,9 @@ roundelie = {
                     
                     draw = function(p)
                         -- smoke
-                        if p.draw_smoke and p.timer >= 2 then -- slight delay before drawing smoke so that the smoke at the startpoint dissipates first
-                            -- TODO: probably shouldn't have particles creating other particles?
-                            local d = 2  -- base distance to draw smoke from the center of the circle
-                            local n = 2  -- split circle into `n` partitions
-                            local r = 2 * math.pi / n  -- radians
-                            
-                            for i = 1, n do
-                                local angle = (i * r)  + (2 * math.pi * math.random()) * 0.3
-                                game.init_smoke(p.x + math.sin(angle) * d, p.y + math.cos(angle) * d + 1)
-                            end
+                        if p.draw_smoke and p.timer >= 2 then
                             p.draw_smoke = false
+                            game.init_smoke(p.x, p.y)
                         end
                         
                         -- initial burst
@@ -428,18 +525,16 @@ roundelie = {
                 })
         end
         
-        -- 
+        --
         this.init_dust_cloud = function(x, y, direction)
             table.insert(particles_fg, {
-                -- TODO: shift sprites over by a pixel to make the logic cleaner
-                -- TODO: implement improved check to draw turnaround dust cloud
-                x = x + (direction == -1 and 4 or 5),
-                y = y,
-                vx = 0.18 * direction,
+                x = x,
+                y = y + (direction ~= 0 and (love.math.random() * 2 - 1) or 0),
+                vx = (direction ~= 0) and (0.18 * direction) or (love.math.random() * 0.3 - 0.15),
                 vy = -0.1 - love.math.random() * 0.2,
-                timer = -1,
-                duration = 12,  -- animated on 4s
-                flipX = direction,
+                timer = 0,  -- start @ -1 => animated on 4s, start @ 0 => 1st frame of animation is only held for 3f
+                duration = 12,
+                flipX = (direction ~= 0) and direction or (love.math.random() > 0.5 and -1 or 1),
                 update = function(p)
                     p.x = p.x + p.vx
                     p.y = p.y + p.vy
@@ -451,43 +546,34 @@ roundelie = {
                 draw = function(p)
                     local frame = math.floor(p.timer / p.duration * 3) + 1
                     if frame > 3 then frame = 3 end
+                    local cx = 4
                     local dx, dy = math.floor(p.x), math.floor(p.y)
-                    sprites.draw(sprites["characters/roundelie_dust_cloud"][frame], dx, dy, 0, p.flipX, 1, 4, 0)
+                    local spr = (direction ~= 0) and sprites["characters/roundelie_dust_cloud_A"] or sprites["characters/roundelie_dust_cloud_B"]
+                    sprites.draw(spr[frame], dx + cx, dy, 0, p.flipX, 1, cx, 0)
                 end,
             })
         end
         
         --
-        this.init_ground_chunk = function(start_x, start_y, dest_x, dest_y)
-            -- dest xy correspond to a point on the upper bound of the big ground-slam hitbox after it expands
-            --   => particle vx/y is calculated using the start and dest xy pos
-            --[[
-            TODO: ...
-                - pick color(s?) for the sprites from the stage fg
-                    - 1) for initial implementation, just pick the color from stage fg a couple pixels under the dive impact pos
-                    - 2) (maybe?) sample two colors, one from top two rows of pixels, and one from middle two rows of pixels
-                           (if feasible, could determine the "most common" color in the range, rather than just picking at random)
-                           then color the top of the chunks with the "top" color, and the bottom of the chunks with the "bottom" color
-                - experiment with drawing black outline around sprites (think it prooobably makes sense to do since these are projectiles, so long as it's not too busy)
-                    - and also with the shockwaves
-            ]]
+        this.init_ground_chunk = function(start_x, start_y, dest_x, dest_y, color)
             table.insert(particles_fg, {
-                drag = 0.415,  -- deceleration (lower to *increase*)
                 x = start_x + love.math.random() * 2 - 1,
                 y = start_y + love.math.random() * 2 - 1,
-                -- start_x + vx + (drag * vx) = dest_x  =>  vx = (dest_x - start_x) / (1 + drag)
-                vx = (dest_x - start_x), -- / (1 + drag),
-                vy = (dest_y - start_y), -- / (1 + drag),
+                -- initially particle vx/y was determined using start and dest(ination) xy pos but rn it's mostly magic numbers, lol
+                --  .. start_x + vx + (drag * vx) = dest_x  =>  vx = (dest_x - start_x) / (1 + drag)
+                vx = (dest_x - start_x),
+                vy = (dest_y - start_y) * 0.35,
+                drag = 0.415, -- lower to *increase*
+                min_vx = 0,
                 
                 init_delay = 1,  -- bit of a hack, but, ehh
                 timer = 0,
-                duration = 17,       -- max duration before the particle is destroyed
-                anim_duration = 10,  -- 3 frames, animated on 3s => 1f buffer ensures every sprite before the ending sprite is drawn for 3f
-                hitbox_active_window = 4,  -- window for particles to ignore gravity (corresponding to window where hitbox is active)
+                duration = 18,
                 
+                anim_frame = math.random(3),
                 flipX = love.math.random() > 0.5 and -1 or 1,
                 flipY = love.math.random() > 0.5 and -1 or 1,
-                color = { r = 255, g = 255, b = 255, a = 1.0 },
+                color = color,
 
                 update = function(p)
                     if (p.init_delay > 0) then
@@ -495,41 +581,71 @@ roundelie = {
                         return
                     end
                     
-                    if (p.timer == 0) then
-                        -- init
-                        p.vx = p.vx / (1 + p.drag)
-                        p.vy = p.vy / (1 + p.drag)
-                    else
-                        p.x = p.x + p.vx
-                        p.y = p.y + p.vy
-                        p.vx = p.vx * p.drag
-                        if (p.timer < p.hitbox_active_window) then
-                            p.vy = p.vy * p.drag
-                        else
-                            p.vx = util.appr(p.vx, 0, 0.157)
-                            p.vy = util.appr(p.vy, 3.0, math.abs(p.vy) > 0.2 and 0.274 or 0.137)  -- meant to hang a bit at the top of the arc
-                        end
-                    end
+                    p.x = p.x + p.vx
+                    p.y = p.y + p.vy
+                    p.vx = util.appr(math.abs(p.vx * p.drag), p.min_vx, 0.157) * util.sign(p.vx)
+                    p.vy = util.appr(p.vy, 3.0, math.abs(p.vy) > 0.2 and 0.4 or 0.24) -- meant to hang a bit at the top of the arc
+                    
                     p.timer = p.timer + 1
                     return p.timer > p.duration
                 end,
                 
                 draw = function(p)
+                    if p.init_delay ~= 0 then return; end
+                    
                     local fade = (p.duration - p.timer > 3) and 1.0 or (1.0 - (3 - (p.duration - p.timer)) * 0.25)
-                    local dim = (p.timer <= p.hitbox_active_window) and 0 or 40  -- slightly darken color(s) when hitbox is no longer active
-                    local frame = math.floor(p.timer / p.anim_duration * 3) + 1
-                    if frame > 3 then frame = 3 end
-                    local dx, dy = math.floor(p.x), math.floor(p.y)
+                    local tint = (p.color.r < 150 and p.color.g < 150 and p.color.b < 150) and 20 or 0
+                    local sprite_ndx = p.anim_frame > 2 and 2 or p.anim_frame
+                    local cx, cy = 4, 4
+                    local dx, dy = math.floor(p.x) + cx, math.floor(p.y) + cy
                     
                     love.graphics.setShader(paletteSwapShader)
                     paletteSwapShader:send("color_find", {255/255, 255/255, 255/255, 1.0})
-                    paletteSwapShader:send("color_replace", {(p.color.r - dim)/255, (p.color.g - dim)/255, (p.color.b - dim)/255, 1.0})
+                    paletteSwapShader:send("color_replace", {(p.color.r + tint)/255, (p.color.g + tint)/255, (p.color.b + tint)/255, 1.0})
                     love.graphics.setColor(1, 1, 1, fade)
                     
-                    sprites.draw(sprites.ground_chunk[frame], p.flipX == -1 and dx + 8 or dx, p.flipY == -1 and dy + 8 or dy, 0, p.flipX, p.flipY, 0, 0)
+                    sprites.draw(sprites["characters/roundelie_ground_chunk"][sprite_ndx], dx, dy, 0, p.flipX, p.flipY, cx, cy)
                     
                     love.graphics.setShader()
                     love.graphics.setColor(1, 1, 1)
+                end,
+            })
+        end
+        
+        --
+        this.init_shockwave = function(info, direction)
+            table.insert(particles_fg, {
+                shockwave_info = info,
+                direction = direction,
+                is_active = true,
+                
+                x = info.x_init + (direction == -1 and 4 or -3),
+                y = info.y_init,
+                prev_vx = info.vx,
+                
+                timer = -1,
+                duration = 10,
+                
+                update = function(p)
+                    if p.is_active and p.direction == -1 and p.shockwave_info.left == false then
+                        p.timer = p.duration - 3
+                        p.is_active = false
+                    elseif p.is_active and p.direction == 1 and p.shockwave_info.right == false then
+                        p.timer = p.duration - 3
+                        p.is_active = false
+                    else
+                        p.timer = p.timer + 1
+                    end
+                    p.x = p.x + (p.direction * (p.is_active and p.shockwave_info.vx or p.prev_vx))
+                    p.prev_vx = p.is_active and p.shockwave_info.vx or p.prev_vx
+                    return p.timer >= p.duration
+                end,
+                
+                draw = function(p)
+                    local frame = math.floor(p.timer / p.duration * 4) + 1
+                    if frame > 4 then frame = 4 end
+                    local dx, dy = math.floor(p.x), math.floor(p.y)
+                    sprites.draw(sprites["characters/roundelie_shockwave"][frame], dx, dy, 0, p.direction, 1, 4, 0)
                 end,
             })
         end
@@ -545,8 +661,14 @@ roundelie = {
             this.invis_timer = this.invis_timer - 1
         end
         
+        -- initial delay before a shockwave is created
+        if this.shockwave_delay_timer > 0 then
+            this.shockwave_delay_timer = this.shockwave_delay_timer - 1
+        end
+        
         if this.freeze > 0 then
             this.freeze = this.freeze - 1
+            this:update_dynamic_hitboxes()
             if this.freeze == 0 then
                 this:move(this.vx, this.vy)
                 this:check_snowballs()
@@ -578,11 +700,6 @@ roundelie = {
         -- dive vfx
         if this.dive_smoketrail > 0 then
             this.dive_smoketrail = this.dive_smoketrail - 1
-        end
-        
-        -- initial delay before shockwave hitbox is created
-        if this.shockwave_delay > 0 then
-            this.shockwave_delay = this.shockwave_delay - 1
         end
         
         -- iframes
@@ -622,128 +739,17 @@ roundelie = {
                 this.anim_timer = 0
                 
                 if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
-                if this.divebomb_slam_hb then this.divebomb_slam_hb.active = false; this.divebomb_slam_hb = nil end
+                if this.dive_ground_slam_hb then this.dive_ground_slam_hb.active = false; this.dive_ground_slam_hb = nil end
                 if this.shockwave_left_hb then this.shockwave_left_hb.active = false; this.shockwave_left_hb = nil end
                 if this.shockwave_right_hb then this.shockwave_right_hb.active = false; this.shockwave_right_hb = nil end
             end
             return
         end
         
+        -- update dynamic hitboxes
+        this:update_dynamic_hitboxes()
         
-        -- update dynamic hitboxes ::
-        
-        -- dive ground-slam hitbox is active near the ground for the first 2 frames,
-        --   then chunks of the ground shoot out for the next 3 frames, and the hitbox travels upward with the chunks
-        local hb = this.divebomb_slam_hb
-        if hb and hb.active and hb.big_dive_slam and hb.duration <= 4 then
-            -- hb.duration is decremented *after* this, so e.g. tick 3 is at `hb.duration == 4` (with initial duration of 6)
-            -- also hitbox is *actually* active for (duration - 1), currently (6 - 1) => 5 ticks
-            if hb.duration == 4 then
-                hb.y = hb.y - 5  -- hitbox suddenly expands to the height of a full tile on tick 3
-                hb.h = hb.h + 4
-            elseif hb.duration == 3 then
-                hb.y = hb.y - 3
-                hb.h = hb.h - 4
-                hb.kx = hb.kx * 0.66  -- knockback is much weaker on ticks 4 and 5
-                hb.ky = hb.ky * 0.66
-            elseif hb.duration == 2 then
-                hb.y = hb.y - 2
-            end
-        end
-        -- shockwave hitboxes travel out from the center of the ground-slam hitbox (=> the impact of the dive)
-        if (this.shockwave_left_hb and this.shockwave_left_hb.active) or (this.shockwave_right_hb and this.shockwave_right_hb.active) then
-            this.shockwave_info.vx = util.appr(this.shockwave_info.vx, 0.5, 0.6)
-            
-            if this.shockwave_left_hb and this.shockwave_left_hb.active then
-                local hb = this.shockwave_left_hb
-                hb.x = hb.x - this.shockwave_info.vx
-                hb.y = 8 - hb.h > 1.2 and hb.y - 1.2 or hb.y - (8 - hb.h)
-                hb.h = util.appr(hb.h, 8, 1.2)
-                -- check for collision with walls
-                for _, p in ipairs(stage.platforms) do
-                    if p.type == "solid" and this.check_for_collision(hb, p, -3, 0) then
-                        hb.duration = 1
-                        break
-                    end
-                end
-            end
-            if this.shockwave_right_hb and this.shockwave_right_hb.active then
-                local hb = this.shockwave_right_hb
-                hb.x = hb.x + this.shockwave_info.vx
-                hb.y = 8 - hb.h > 1.2 and hb.y - 1.2 or hb.y - (8 - hb.h)
-                hb.h = util.appr(hb.h, 8, 1.2)
-                -- check for collision with walls
-                for _, p in ipairs(stage.platforms) do
-                    if p.type == "solid" and this.check_for_collision(hb, p, 3, 0) then
-                        hb.duration = 1
-                        break
-                    end
-                end
-            end
-        end
-        -- shockwave hitboxes are only created after an initial delay
-        if this.shockwave_info.create then
-            this.shockwave_info.cx = this.shockwave_info.cx + this.shockwave_info.vx
-            this.shockwave_info.vx = util.appr(this.shockwave_info.vx, 0.5, 0.6)
-            
-            if this.shockwave_delay == 0 then
-                this.shockwave_info.create = false
-                local x_init, y_init, cx, w, h, duration = this.shockwave_info.x_init, this.shockwave_info.y_init, this.shockwave_info.cx, 3, 4, 6
-                if this.shockwave_info.left then
-                    local hb = {x = x_init - (w/2) - cx, y = y_init + (8 - h), w = w, h = h}
-                    local is_wall = false
-                    -- check for collision with walls
-                    for _, p in ipairs(stage.platforms) do
-                        if p.type == "solid" and this.check_for_collision(hb, p, -3, 0) then
-                            is_wall = true
-                            break
-                        end
-                    end
-                    if (not is_wall) then
-                        this.shockwave_left_hb = hitbox.create(this.connectionID, hb.x, hb.y, hb.w, hb.h, 1, -2.0, -1.75, duration)
-                    end
-                end
-                if this.shockwave_info.right then
-                    local hb = {x = x_init - (w/2) + cx, y = y_init + (8 - h), w = w, h = h}
-                    local is_wall = false
-                    -- check for collision with walls
-                    for _, p in ipairs(stage.platforms) do
-                        if p.type == "solid" and this.check_for_collision(hb, p, 3, 0) then
-                            is_wall = true
-                            break
-                        end
-                    end
-                    if (not is_wall) then
-                        this.shockwave_right_hb = hitbox.create(this.connectionID, hb.x, hb.y, hb.w, hb.h, 1, 2.0, -1.75, duration)
-                    end
-                end
-            end
-            -- placeholder visual for shockwave(s)
-            table.insert(
-                particles_fg, {
-                    hb_l = this.shockwave_left_hb,   -- ref to table -> particle has access to updated values
-                    hb_r = this.shockwave_right_hb,  -- ^
-                    
-                    update = function(p)
-                        return (not (p.hb_l and p.hb_l.active)) and (not (p.hb_r and p.hb_r.active))
-                    end,
-                    
-                    draw = function(p)
-                        love.graphics.setColor(1, 1, 0, 0.6)
-                        if p.hb_l and p.hb_l.active then
-                            love.graphics.rectangle("fill", p.hb_l.x, p.hb_l.y, p.hb_l.w, p.hb_l.h)
-                        end
-                        if p.hb_r and p.hb_r.active then
-                            love.graphics.rectangle("fill", p.hb_r.x, p.hb_r.y, p.hb_r.w, p.hb_r.h)
-                        end
-                        love.graphics.setColor(1, 1, 1, 1)
-                    end
-                })
-        end
-        
-        
-        -- update roundelie ::
-        
+        -- update roundelie
         this.prev_facing = this.facing
         this.is_start_of_jump = false
         this.is_first_frame_jump = false
@@ -763,7 +769,7 @@ roundelie = {
             this.vx = util.appr(this.vx, 0, 0.143)
             
             if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
-            if this.divebomb_slam_hb then this.divebomb_slam_hb.active = false; this.divebomb_slam_hb = nil end
+            if this.dive_ground_slam_hb then this.dive_ground_slam_hb.active = false; this.dive_ground_slam_hb = nil end
             if this.shockwave_left_hb then this.shockwave_left_hb.active = false; this.shockwave_left_hb = nil end
             if this.shockwave_right_hb then this.shockwave_right_hb.active = false; this.shockwave_right_hb = nil end
         else
@@ -809,13 +815,21 @@ roundelie = {
             if jump then this.jbuffer = 4 elseif this.jbuffer > 0 then this.jbuffer = this.jbuffer - 1 end
             
             if on_ground then
+                
+                if this.vy < 0 then
+                    this.bump_cooldown = 0;
+                    love.audio.play("maddy_clip", "static")
+                end
+                this.grace = 6
+                this.bjump = 2
+                
                 -- dive -> bounce off of the ground
                 if this.down_attack then
                     this.dive_smoketrail = 0
                     this.down_attack = false
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     
-                    -- dive-bomb ground-slam attack and follow-up shockwave ...
+                    -- diving into the ground also results in a "ground-slam" attack and can also result in a follow-up "shockwave" attack
                     local check_is_big_slam = this.prev_vy == MAX_DIVE_SPEED and this.dive_start == 0
                     local cx = this.hurtbox.x + (this.hurtbox.w / 2)
                     local hb_x, hb_w, hb_offset
@@ -838,12 +852,13 @@ roundelie = {
                     -- ground can be composed of multiple platforms
                     --   => we need to find the left-most and right-most platforms within the attack range
                     local platform_left, platform_right = ground_hit, ground_hit
-                    -- find left-most platform
+                    
+                    -- find the left-most platform
                     while hb_x < platform_left.x do
                         local new_platform = this:is_solid((platform_left.x - this.x - this.hurtbox.w - this.hurtbox.x), 1)
                         if new_platform and new_platform.y == platform_left.y then platform_left = new_platform; else break; end
                     end
-                    -- find right-most platform
+                    -- find the right-most platform
                     while (hb_x + hb_w) > (platform_right.x + platform_right.w) do
                         local new_platform = this:is_solid((platform_right.x + platform_right.w - this.x - this.hurtbox.x), 1)
                         if new_platform and new_platform.y == platform_right.y then platform_right = new_platform; else break; end
@@ -854,7 +869,7 @@ roundelie = {
                     hb_x = math.max(hb_x, platform_left.x - 4)
                     hb_w = math.min((prev_hb_x + hb_w - hb_x), (platform_right.x + platform_right.w + 4) - hb_x)
                     
-                    -- further constrain hitbox on collision with walls
+                    -- the hitbox is further constrained by walls
                     local hb_right = { x = impact_x, y = this.y + 4, w = (hb_x + hb_w) - impact_x, h = 4 }
                     for _, p in ipairs(stage.platforms) do
                         if p.type == "solid" and this.check_for_collision(hb_right, p, 0, 0) then
@@ -870,16 +885,17 @@ roundelie = {
                         end
                     end
                     
+                    -- create follow-up shockwave(s) if conditions are met
                     if check_is_big_slam then
-                        this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 6)
-                        this.divebomb_slam_hb.big_dive_slam = true
+                        this.dive_ground_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 10)
+                        this.dive_ground_slam_hb.big_dive_slam = true
                         --
                         this.shockwave_info.vx = 5.0
                         this.shockwave_info.left = true
                         this.shockwave_info.right = true
                     else
-                        this.divebomb_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 3)
-                        this.divebomb_slam_hb.small_dive_slam = true
+                        this.dive_ground_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 3)
+                        this.dive_ground_slam_hb.small_dive_slam = true
                         --
                         this.shockwave_info.vx = 3.75
                         this.shockwave_info.left = (h_input == -1)
@@ -891,40 +907,112 @@ roundelie = {
                         this.shockwave_info.y_init = impact_y
                         this.shockwave_info.cx = 0
                         this.shockwave_info.create = this.shockwave_info.left or this.shockwave_info.right
-                        this.shockwave_delay = 2
+                        this.shockwave_delay_timer = 2
+                        
+                        -- draw visual effects for the shockwave(s)
+                        if this.shockwave_info.create then
+                            if this.shockwave_info.left  then this.init_shockwave(this.shockwave_info, -1); end
+                            if this.shockwave_info.right then this.init_shockwave(this.shockwave_info,  1); end
+                        end
                     end
                     
-                    -- [wip] draw visual for ground-slam: chunks of the ground fly out on impact
-                    --  TODO: colors for the chunks will be picked from the stage fg
-                    --        (see https://love2d.org/wiki/ImageData:getPixel)
+                    -- draw visual effects for the ground-slam (dust clouds & ground chunks)
+                    
+                    -- (1) draw chunks of the ground that fly out on impact
                     if check_is_big_slam then
-                        this.init_ground_chunk(impact_x - 4 - 6, impact_y + 3, hb_x - 2,        impact_y - 6)
-                        this.init_ground_chunk(impact_x - 4,     impact_y + 3, impact_x - 4,    impact_y - 6)
-                        this.init_ground_chunk(impact_x - 4 + 6, impact_y + 3, hb_x + hb_w - 6, impact_y - 6)
+                        
+                        -- find the most common color in a selection of pixels near the impact position
+                        local temp_canvas, img_data, img_x_a, img_x_b, img_y, img_w, img_h
+                        
+                        if ground_hit.type == "solid" or ground_hit.type == "semisolid" then
+                            -- "ground" is a platform
+                            img_w, img_h = stage.fgImage:getPixelDimensions()
+                            temp_canvas = love.graphics.newCanvas(img_w, img_h)
+                            
+                            -- TODO: imageData should be created once and then referenced, since repeated calls to create imageData from a canvas can be slow
+                            --  (see warning here: https://love2d.org/wiki/Canvas:newImageData)
+                            love.graphics.setCanvas(temp_canvas)
+                            love.graphics.clear()
+                            love.graphics.draw(stage.fgImage, 0, 0)
+                            love.graphics.setCanvas()  -- reset
+                            img_data = temp_canvas:newImageData()
+                            
+                            img_x_a = math.max( 0, math.min(this.dive_ground_slam_hb.x + 4, impact_x - 5) )
+                            img_x_b = math.min( img_w, math.max(this.dive_ground_slam_hb.x + this.dive_ground_slam_hb.w - 4, impact_x + 5) )
+                            img_y = impact_y + 9  -- => second row of pixels from the top
+                        else
+                            -- "ground" is an object
+                            local obj_name = "objects/" .. ground_hit.type.name
+                            img_w, img_h = sprites[obj_name]:getPixelDimensions()
+                            temp_canvas = love.graphics.newCanvas(img_w, img_h)
+                            
+                            love.graphics.setCanvas(temp_canvas)
+                            love.graphics.clear()
+                            love.graphics.draw(sprites[obj_name], 0, 0)
+                            love.graphics.setCanvas()  -- reset
+                            img_data = temp_canvas:newImageData()
+
+                            img_x_a = 0
+                            img_x_b = img_w - 1
+                            img_y = (img_h / 2) - 1
+                        end
+                        
+                        local counts = {}
+                        local most_common_color = {r = 1, g = 0, b = 1, a = 1}
+                        local max_count = 0
+                        
+                        for i = 1, (img_x_b - img_x_a) do
+                            local r, g, b, a = img_data:getPixel(img_x_a + i, img_y)
+                            if (a ~= 0 and r ~= nil and g ~= nil and b ~= nil and a ~= nil) then
+                                local color = {r = (r*255), g = (g*255), b = (b*255), a = a}
+                                local color_key = color.r .. "_" .. color.g .. "_" .. color.b .. "_" .. color.a
+                                counts[color_key] = (counts[color_key] or 0) + 1
+                                if counts[color_key] > max_count then
+                                    max_count = counts[color_key]
+                                    most_common_color = color
+                                end
+                            end
+                        end
+                        
+                        -- distribute ground chunks within the area of the hitbox
+                        local init_x, a_x, b_x, temp = impact_x - 4, nil, nil, nil  -- ground chunks travel from pt a -> b
+                        
+                        this.init_ground_chunk(init_x, impact_y + 4, init_x, impact_y - 5, most_common_color)
+                        b_x = hb_x - 0
+                        a_x = init_x - ((init_x - b_x) / 2)
+                        this.init_ground_chunk(a_x, impact_y + 4, b_x, impact_y - 5, most_common_color)  -- marks left edge of the hitbox
+                        b_x = hb_x + hb_w - 8
+                        a_x = init_x + ((b_x - init_x) / 2)
+                        this.init_ground_chunk(a_x, impact_y + 4, b_x, impact_y - 5, most_common_color)  -- marks right edge of the hitbox
+                        
+                        local rem_hb_width = (hb_x + hb_w - 6) - (hb_x + 6)
+                        local slot_count = math.floor(rem_hb_width / 6)           -- # of "slots" where a ground chunk can be placed
+                        local base_width = math.floor(rem_hb_width / slot_count)  -- portion of the total width allocated for each slot
+                        local extra_width = rem_hb_width % slot_count             -- leftover space is evenly distributed between the slots
+                        
+                        b_x = hb_x - 2
+                        for i = 1, slot_count do
+                            b_x = b_x + base_width + (i <= extra_width and 1 or 0)
+                            a_x = init_x + ((b_x - init_x) / 2)
+                            this.init_ground_chunk(a_x, impact_y + 4, b_x, impact_y - 6, most_common_color)
+                        end
                     end
+                
+                    -- (2) draw dust clouds over the ground-slam hitbox
+                    this.init_dust_cloud(hb_x, this.dive_ground_slam_hb.y - 1, -1)
+                    this.init_dust_cloud(hb_x + hb_w - 8, this.dive_ground_slam_hb.y - 1, 1)
                     
-                    -- draw smoke over ground-slam hitbox
-                    -- TODO: might want to replace this with something that 1) covers a smaller area and 2) doesn't linger for as long
-                    --      e.g. "dust" more constrained to the surface of the platform, or a "reduced" smoke effect
-                    game.init_smoke(hb_x - 1, this.divebomb_slam_hb.y + 4)
-                    game.init_smoke(hb_x + hb_w - 6, this.divebomb_slam_hb.y + 4)
+                    local slot_count = math.floor(hb_w / 8)  -- the dust cloud sprite is ~6px wide, +2px for padding
+                    local base_width = math.floor(hb_w / slot_count)
+                    local extra_width  = hb_w % slot_count
                     
-                    local step_count = math.floor((hb_w - 4) / 8)
-                    local base_amt = math.floor((hb_w - 4) / step_count)
-                    local leftover = (hb_w - 4) % step_count
-                    
-                    local curr_x = (hb_x - 1)
-                    for i = 1, step_count - 1 do
-                        curr_x = curr_x + base_amt + (i <= leftover and 1 or 0)
-                        game.init_smoke(curr_x, this.divebomb_slam_hb.y + 4)
+                    local curr_x = hb_x - 4
+                    for i = 1, slot_count - 1 do
+                        curr_x = curr_x + base_width + (i <= extra_width and 1 or 0)
+                        this.init_dust_cloud(curr_x, this.dive_ground_slam_hb.y - 2, 0)
                     end
                 end
-                if this.vy < 0 then
-                    this.bump_cooldown = 0;
-                    love.audio.play("maddy_clip", "static")
-                end
-                this.grace = 6
-                this.bjump = 2
+                
             elseif this.grace > 0 then
                 this.grace = this.grace - 1
             end
@@ -1005,12 +1093,13 @@ roundelie = {
                 this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1  -- needs to be kept updated for snowball logic
                 
                 -- dive -> bounce off of a wall
-                if (this:is_solid(-3,0) or this:is_solid(3,0)) then
+                local wall_dir = this:is_solid(-3, 0) and 1 or (this:is_solid(3, 0) and -1 or 0)
+                if wall_dir ~= 0 then
                     is_wall_bounce = true
                     this.conk = 8
                     this.dive_smoketrail = 0
                     this.vy = -2.7
-                    game.init_smoke(this.x - this.conkdir * 6, this.y)  -- same as maddy wall-jump
+                    game.init_smoke(this.x - wall_dir * 6, this.y)  -- same as maddy wall-jump
                 end
             else
                 this.down_attack = false
@@ -1035,9 +1124,8 @@ roundelie = {
                     this.teleport_info.init = true
                     this.teleport_info.horizontal = h_input ~= 0
                     this.teleport_info.on_hit = false
+                    love.audio.play("maddy_dash", "static")  -- TODO: placeholder
                 end
-                
-                love.audio.play("maddy_dash", "static")
             end
             this.was_on_ground = on_ground
             this.prev_x = this.x  -- need to keep track of original position for some visual effects drawn after movement/collision is calculated
@@ -1085,7 +1173,7 @@ roundelie = {
         
         -- dive vfx
         if this.should_draw_dive_vfx then
-            this.dive_smoketrail = 3
+            this.dive_smoketrail = 2
             game.init_smoke(this.prev_x, this.prev_y - 4)
             love.audio.play("maddy_downdash", "static")  -- TODO: placeholder
             this.should_draw_dive_vfx = false
@@ -1099,7 +1187,7 @@ roundelie = {
         if this.prev_facing ~= this.facing then
             if this.current_anim == "roll" and anim_on_ground and math.abs(this.vx) > 0 and math.abs(this.prev_vx) > 0 and v_input ~= 1 then
                 -- draw dust cloud after changing direction mid-roll
-                this.init_dust_cloud(this.x, this.y + 1, -1 * this.facing)
+                this.init_dust_cloud(this.x + (this.facing == 1 and 1 or 0), this.y + 2, -1 * this.facing)
             end
             
             if this.orientation == this.directions.RIGHT then
@@ -1272,7 +1360,7 @@ roundelie = {
             this.rem.y = 0
             
             if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
-            if this.divebomb_slam_hb then this.divebomb_slam_hb.active = false; this.divebomb_slam_hb = nil end
+            if this.dive_ground_slam_hb then this.dive_ground_slam_hb.active = false; this.dive_ground_slam_hb = nil end
             if this.shockwave_left_hb then this.shockwave_left_hb.active = false; this.shockwave_left_hb = nil end
             if this.shockwave_right_hb then this.shockwave_right_hb.active = false; this.shockwave_right_hb = nil end
             
