@@ -816,7 +816,7 @@ roundelie = {
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     
                     -- dive-bomb ground-slam attack and follow-up shockwave ...
-                    local check_is_big_slam = this.prev_vy == MAX_DIVE_SPEED and this.dive_start == 0 then
+                    local check_is_big_slam = this.prev_vy == MAX_DIVE_SPEED and this.dive_start == 0
                     local cx = this.hurtbox.x + (this.hurtbox.w / 2)
                     local hb_x, hb_w, hb_offset
                     if check_is_big_slam then
