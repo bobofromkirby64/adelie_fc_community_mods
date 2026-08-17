@@ -35,37 +35,48 @@
 --   Roundelie can stop a snowball from rolling either by diving into it or by knocking it into the air with the ground-slam
 
 --[[
-TODO: ((?) => "maybe")
+TODO: ((?) => "maybe", (*) => "high priority")
 
 (core/moveset)
-    - the combination of being able to cancel jump momentum with dive and being able to grace jump after cancelling out of jump with dive makes for some very silly movement; maybe experiment with having roundelie unable to interrupt a dive for the first few frames after input? or if we like the silly movement, we should at least make it so it's less of a mess of smoke when you press the dive button over and over
-    - experiment with teleport knockback (imo current knockback doesn't really fit with the concept of a teleport, it should be a bit more chaotic or at least have variance relative to roundelie's position?)
+    - add min delay between bjump uses
+        (spamming input should still work to buffer bjumps, but it'll feel better if every bjump gains some height)
+    - experiment with preventing roundelie from cancelling out of dive for first few frames
+        (mainly I think this will make the dive feel a bit better and sell it more as an "action")
+    - (?) experiment with teleport knockback (imo current knockback doesn't really fit with the concept of a teleport, it should be a bit more chaotic or at least have variance relative to roundelie's position?)
     - (?) let roundelie influence horizontal speed slightly (but still not dive, teleport, or bjump) during conk state
+    - (?) small speed boost when starting a roll or when changing roll direction
+    - (?) slight bounce off of the ground after landing a midair roll at max fall-speed
     - ...
  
 (visual)
-    - redraw portraits for the other skins in the new style
-    - experiment with alternative "teleport is on cooldown" effects
-    - take another pass at the rosetta skin but more in the style of the gold skin (=> ball of stone that doesn't change shape) (and also experiment with the "square" idea)
-    - sprite adjustments (mainly the idle poses, the "look up" pose, and the middle/transitional jump pose have been bugging me)
-    - implement the first-frame roll anim for jump explicitly (atm it's just a side-effect of the current midair roll anim logic)
-    - add skid/turn-around effect for roll
-    - use inflate pose when grace jumping out of a dive bounce
-    - (?) for the statue/gold skin, idle1 sprite looks strange after ending a roll => use the upright roll sprite instead of idle1 out of a roll, or have idle poses for diff orientations that aren't just the roll poses
-    - (?) take another pass at the teleport vfx (mainly want to experiment with replacing the bulk of the "single-pixel" particles with sprites)
-    - (?) clean up spritesheets
-    - (?) add a "tumble" anim after a long enough fall
-        - mainly because the "falling" jump pose looks strange when it's been out for too long
-        - could try reusing the roll but a transition pose might be needed? but could also maybe reuse a different sprite for that, like of the jump sprites and just rotate it, maybe?
-        - NOTE: roll looks strange, for this; can revisit later
-    - (?) experiment with adding alternate/random conk poses (could reuse the roll sprites...)
-    - (?) experiment with adding fill color to sprites for sadface/tears/sroundelie during hitstun
-    - (?) upside-down crouch :3
-    - (?) sweat drops for empty bjump (out of uses)
-    - ...
+    - * rosetta skin rework
+    - flip doesn't handle direction changes well
+        i.e. roundelie shouldn't change rotation in midair, and flip should at most take 3 rotations
+            (could add new upside-down midair poses to help mitigate this?)
+            (could also experiment with speeding up the flip anim the longer it's out, to avoid excessively long flips)
+    - gold skin needs SOMETHING for inflate equivalent effect
+        (and probably something for transitioning <-> crouch, also?)
+    - hitstun changes
+        - flip is default pose; animations play out to get into flip if needed
+        - orientation is based on knockback
+            - e.g. knockback to the right, roundelie will be oriented to the right
+            - (?) can have roundelie flip into the new direction (new animation 'flip_hitstun')
+        - bouncing off of the floor or wall changes orientation and causes roundelie to flip into new orientation
+        - (?) experiment with tears/sroundelie face during hitstun
+    - (?) fall duration check maybe should be a distance check instead? e.g. should diving through top plat on lava fields be considered a "big" fall
+    - (?) experiment with adding an anim to transition to the look up pose from different orientations
+    - (?) more changes to teleport vfx
+            experiment drawing sparks with energy shooting between them for on-hit effect
+                + a more explicit poof of smoke for the standard/non-hit effect
+            (can also experiment with drawing an after-image in the origin point smoke, again, but this time using stencil?)
+    - (?) experiment with sweat drops for empty bjump (out of uses)
+        (could also use the "tears" effect for this, in addition to the sweat drops)
 
 (other)
-    - sfx pass (shockwave/ground-slam, teleport, unique sounds for roundelie in general)
+    - * audio bugs
+        - diving when on the ground shouldn't play a sound effect, and similarly sound effects should only play when the action is performed
+        - sfx should play on action, not queue when there's multiple sound effects in a row e.g. when dribbling
+    - * sfx pass (shockwave/ground-slam, teleport, unique sounds for roundelie in general)
     - ...
 ]]--
 
@@ -75,13 +86,14 @@ roundelie = {
         this.connectionID = nil
         
         local player_skins = {
-            {sprites["characters/roundelie_1"], {1,1,1,1}}, -- roundelie (default)
-            {sprites["characters/roundelie_2"], {1,1,1,1}}, -- delaughter (purple/red)
-            {sprites["characters/roundelie_3"], {1,1,1,1}}, -- statue (golden)
-            {sprites["characters/roundelie_4"], {1,1,1,1}}, -- ancient monument (from rosetta)
+            {sprites["characters/roundelie_1"], { 29/255,  43/255,  83/255, 1}}, -- roundelie (default)
+            {sprites["characters/roundelie_2"], {126/255,  37/255,  83/255, 1}}, -- delaughter (purple/red)
+            {sprites["characters/roundelie_3"], {255/255,  29/255,   0/255, 1}}, -- statue (golden)
+            -- TODO: rosetta skin is temporarily disabled until it's reworked
+            -- {sprites["characters/roundelie_4"], {1,1,1,1}}, -- ancient monument (from rosetta)
         }
         
-        this.spritesheet, this.nothing = unpack(player_skins[tonumber(skin)]) --TODO: using this.nothing as a placeholder since this is what the stools do
+        this.spritesheet, this.base_color = unpack(player_skins[tonumber(skin)])
         this.skin = tonumber(skin)
         this.spr = this.spritesheet[7]
         this.damage = 0
@@ -100,9 +112,11 @@ roundelie = {
         
         this.p_jump = false
         this.p_dash = false
-        this.is_start_of_jump = false  -- => is roundelie starting a jump or bjump (up+x)
+        this.is_start_of_jump = false     -- true if roundelie is starting a jump or bjump (up+x)
+        this.is_first_frame_jump = false  -- true if roundelie is jumping off the ground on the first possible tick after landing
         this.was_on_ground = false
         this.was_big_conk = false
+        this.was_big_fall = false
         this.should_draw_dive_vfx = false
         
         this.teleport_hb  = nil  -- hitbox created by left/right+x and neutral+x attacks
@@ -128,25 +142,40 @@ roundelie = {
         }
         
         this.animations = {
-            idle1 = {frames = {1},  speed = 1},  -- upright
-            idle2 = {frames = {14}, speed = 1},  -- right (CW 90 degrees)
-            idle3 = {frames = {15}, speed = 1},  -- upside-down
-            idle4 = {frames = {16}, speed = 1},  -- left (CW 270 degrees)
-            roll = {frames = {10, 2, 3, 4}, speed = 3}, -- up -> right -> down -> left ...
-            jump1 = {frames = {11}, speed = 1},  -- inflate
-            jump2 = {frames = {12}, speed = 1},  --
-            jump3 = {frames = {5}, speed = 1},   --
-            dive1 = {frames = {9}, speed = 1},   -- down+x pose
-            dive2 = {frames = {13}, speed = 1},  -- down+x pose *when large shockwave will be created upon landing
-            crouch = {frames = {6}, speed = 1},
-            up = {frames = {7}, speed = 1},
-            conk = {frames = {8}, speed = 1},    -- disoriented used for after down+x collides with ground and creates a large shockwave
+            idle1 =  {frames = {1}, speed = 1},  -- upright
+            idle2 =  {frames = {2}, speed = 1},  -- oriented right (CW 90)
+            idle3 =  {frames = {3}, speed = 1},  -- upside-down
+            idle4 =  {frames = {4}, speed = 1},  -- oriented left (CCW 90)
+            crouch = {frames = {5}, speed = 1},  --
+            up =     {frames = {6}, speed = 1},  -- looking up
+            -- sprite is rotated by frame_idx * 90 degrees, and base sprite is oriented left, so animation => oriented up -> right -> down -> left
+            roll  =  {frames = {7, 7, 7, 7}, speed = 3},
+            flip =   {frames = {7, 7, 7, 7}, speed = 3},  -- used to correct orientation in midair
+            jump1 =  {frames = {8}, speed = 1},  -- rising
+            jump2 =  {frames = {9}, speed = 1},  --
+            jump3 =  {frames = {10}, speed = 1}, -- falling
+            dive1 =  {frames = {11}, speed = 1}, --
+            dive2 =  {frames = {12}, speed = 1}, -- "fast" dive; used when landing will cause a big ground-slam
+            conk =   {frames = {13}, speed = 1}, -- disoriented; used during big bounce
+            crouch_up = {frames = {14}, speed = 3, has_ending = true},  --
+            squash_small_fall = {frames = {5, 14}, speed = 3, has_ending = true},  --
+            squash_big_fall   = {frames = {5, 14}, speed = 4, has_ending = true},  --
+            inflate_start = {frames = {8}, speed = 2, has_ending = true, next_anim = "inflate"},       --
+            inflate       = {frames = {8}, speed = 7, has_ending = true, next_anim = "inflate_exit"},  --
+            inflate_exit  = {frames = {9}, speed = 3, has_ending = true},                              --
+            inflate_quick = {frames = {8}, speed = 1, has_ending = true, next_anim = "inflate_start"}, -- inflate for 1f and then start another inflate, to handle edge case of multiple jumps in quick succession
+            teleport_start   = {frames = {8}, speed = 1},                                                 --
+            teleport_inflate = {frames = {9}, speed = 6, has_ending = true, next_anim = "inflate_exit"},  --
+            -- flip_start = {...}  -- TODO: implement
+                -- mainly to handle edge cases, e.g. cancel out of first-frame flip jump into standard inflate jump
         }
+        this.directions = { UP = 1, RIGHT = 2, DOWN = 3, LEFT = 4 }
+        this.orientation = this.directions.UP
         this.idle_poses = { "idle1", "idle2", "idle3", "idle4" }
-        this.idle_poses_idx = 1
-        this.current_anim = "idle1"
+        this.current_anim = this.idle_poses[1]
         this.anim_frame = 1
         this.anim_timer = 0
+        this.is_squishy = not ((this.skin == 3) or (this.skin == 4))
         
         this.respawn_timer = 0
         this.invincible_timer = 0
@@ -159,6 +188,8 @@ roundelie = {
         this.dive_smoketrail = 0
         this.dribble_window = 0
         this.shockwave_delay = 0
+        this.falling_timer = 0
+        this.invis_timer = 0
         
         this.prev_x = 0
         this.prev_y = 0
@@ -275,46 +306,10 @@ roundelie = {
             
             -- (1) poof out / start-point
             if this.teleport_info.horizontal then
-                -- (( commented out the entire effect for now since it's a bit of a mess ))
                 -- TODO: either rework the afterimage sprites to behave more like the existing smoke, OR
-                --  experiment with "stencil" to have the afterimage smoke effect and existing smoke combine a bit more neatly
+                --     experiment with "stencil" to have the afterimage smoke effect and existing smoke combine a bit more neatly
                 game.init_smoke(prev_x, prev_y)
             end
-            -- if this.teleport_info.horizontal then
-                -- local d = 3--5  -- base distance to draw smoke from the center of the circle
-                -- local n = 2--3  -- split circle into `n` partitions
-                -- local r = 2 * math.pi / n  -- radians
-                
-                -- for i = 1, n do
-                    -- local angle = (i * r)  + (2 * math.pi * math.random()) * 0.3
-                    -- game.init_smoke(prev_x + math.sin(angle) * d, prev_y + math.cos(angle) * d + 1)
-                -- end
-            
-                -- -- after-image formed in smoke
-                -- table.insert(
-                    -- particles_fg, {
-                        -- x = prev_x,
-                        -- y = prev_y,
-                        -- cx = this.hurtbox.x + (this.hurtbox.w / 2),
-                        -- facing = this.facing,
-                        -- timer = 0,
-                        -- duration = 15,
-                        
-                        -- update = function(p)
-                            -- p.timer = p.timer + 1
-                            -- return p.timer >= p.duration
-                        -- end,
-                        
-                        -- draw = function(p)
-                            -- local frame = math.floor(p.timer / p.duration * 3 - 0.4) + 1
-                            -- if frame < 1 then frame = 1 end
-                            -- if frame > 3 then frame = 3 end
-                            -- love.graphics.setColor(1, 1, 1)
-                            -- -- TODO: might be able to use a stencil to prevent the standard smoke from covering the after-image on the first two frames?
-                            -- sprites.draw(sprites["characters/roundelie_teleport_afterimage"][frame], p.x + p.cx, p.y, 0, p.facing, 1, p.cx, 0)
-                        -- end
-                    -- })
-            -- end
             
             -- (2) pop in / end-point
             local cx = this.hurtbox.x + (this.hurtbox.w / 2)
@@ -424,7 +419,7 @@ roundelie = {
                         end
                         
                         -- initial burst
-                        if p.timer <= 2 then
+                        if p.timer <= 1 then
                             love.graphics.setColor(1, 1, 1)
                             -- hitbox is size 10x10 and centered on roundelie => 12-diameter circle fits well enough
                             love.graphics.circle("fill", p.x + p.cx, p.y + p.cy, 6)
@@ -509,10 +504,46 @@ roundelie = {
                 end,
             })
         end
+
+        -- 
+        this.init_dust_cloud = function(x, y, direction)
+            table.insert(particles_fg, {
+                -- TODO: shift sprites over by a pixel to make the logic cleaner
+                -- TODO: implement improved check to draw turnaround dust cloud
+                x = x + (direction == -1 and 4 or 5),
+                y = y,
+                vx = 0.18 * direction,
+                vy = -0.1 - love.math.random() * 0.2,
+                timer = -1,
+                duration = 12,  -- animated on 4s
+                flipX = direction,
+                update = function(p)
+                    p.x = p.x + p.vx
+                    p.y = p.y + p.vy
+                    p.timer = p.timer + 1
+                    if p.timer >= p.duration then
+                        return true
+                    end
+                end,
+                draw = function(p)
+                    local frame = math.floor(p.timer / p.duration * 3) + 1
+                    if frame > 3 then frame = 3 end
+                    local dx, dy = math.floor(p.x), math.floor(p.y)
+                    sprites.draw(sprites["characters/roundelie_dust_cloud"][frame], dx, dy, 0, p.flipX, 1, 4, 0)
+                end,
+            })
+        end
     end,
     
     update = function(this)
         local id = this.connectionID
+        
+        -- # of ticks that roundelie disappears (=> sprite is not drawn) after a teleport
+        if this.invis_timer > 0 then
+            -- roundelie is invulnerable while invisible
+            -- timer continues to decrement during freeze
+            this.invis_timer = this.invis_timer - 1
+        end
         
         if this.freeze > 0 then
             this.freeze = this.freeze - 1
@@ -523,14 +554,16 @@ roundelie = {
             return
         end
         
-        
-        -- update timers ::
+        -- # of ticks since roundelie has started falling
+        if this.falling_timer > 0 then
+            this.falling_timer = this.falling_timer + 1
+        end
         
         --
         if this.dribble_window > 0 then
             this.dribble_window = this.dribble_window - 1
         end
-        if this.conk > 1 then this.dribble_window = 0; elseif this.conk == 1 then this.dribble_window = 8; end  -- messy?
+        if this.conk > 1 then this.dribble_window = 0; elseif this.conk == 1 then this.dribble_window = 8; end  -- TODO: messy
         
         -- # of ticks until roundelie is able to act after bouncing
         if this.conk > 0 then
@@ -582,6 +615,11 @@ roundelie = {
                 this.invincible_timer = 60
                 this.dash_cooldown = 0
                 this.bump_cooldown = 0
+                -- idk how much of this is needed ...
+                this.current_anim = this.idle_poses[1]
+                this.orientation = this.directions.UP
+                this.anim_frame = 1
+                this.anim_timer = 0
                 
                 if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
                 if this.divebomb_slam_hb then this.divebomb_slam_hb.active = false; this.divebomb_slam_hb = nil end
@@ -707,14 +745,21 @@ roundelie = {
         -- update roundelie ::
         
         this.prev_facing = this.facing
+        this.is_start_of_jump = false
+        this.is_first_frame_jump = false
         
         local h_input = (inputSource.getKeyDown(id, "right") and 1 or 0) - (inputSource.getKeyDown(id, "left") and 1 or 0)
         local v_input = (inputSource.getKeyDown(id, "down") and 1 or 0) - (inputSource.getKeyDown(id, "up") and 1 or 0)
+        
+        local MAX_RUN_SPEED  = 2.0  -- different from ra2, but the speed building doesn't fit well with the character and is overcomplicated
+        local MAX_FALL_SPEED = 3.0
+        local MAX_DIVE_SPEED = 4.5
+        
         -- hitstun (set by hitbox.lua)
         if this.hitstun > 0 then
             this.dash_time = 0
             this.hitstun = this.hitstun - 1
-            this.vy = util.appr(this.vy, 3, 0.15)
+            this.vy = util.appr(this.vy, MAX_FALL_SPEED, 0.15)
             this.vx = util.appr(this.vx, 0, 0.143)
             
             if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
@@ -731,16 +776,10 @@ roundelie = {
             local bump = dash_btn and (not this.p_dash) and this.bump_cooldown == 0
             this.p_jump = jump_btn
             this.p_dash = dash_btn
-            this.is_start_of_jump = jump or bump
             
             local ground_hit = this:is_solid(0, 1)
             local on_ground = ground_hit ~= false
             local on_semisolid = ground_hit and (ground_hit.type == "semisolid" or ground_hit.semisolid)
-            
-            if on_ground and not this.was_on_ground and not this.down_attack then
-                -- down_attack (dive) already creates smoke when it lands, so no need to draw extra
-                game.init_smoke(this.x, this.y + 4)
-            end
             
             -- weird semisolid fall through
             if on_semisolid and v_input == 1 and not (this.was_on_ground) and jump_btn then --very hacky fix and I don't like it but I don't want to edit the move function since it breaks interoperability (would be very easy though). Maybe better fix? Or at least a hacky fix that's identical to the ideal case
@@ -777,7 +816,7 @@ roundelie = {
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     
                     -- dive-bomb ground-slam attack and follow-up shockwave ...
-                    local check_is_big_slam = this.prev_vy == 4.5 and this.dive_start == 0
+                    local check_is_big_slam = this.prev_vy == MAX_DIVE_SPEED and this.dive_start == 0 then
                     local cx = this.hurtbox.x + (this.hurtbox.w / 2)
                     local hb_x, hb_w, hb_offset
                     if check_is_big_slam then
@@ -906,20 +945,22 @@ roundelie = {
                     this.teleport_hb = nil
                 end
             end
-            local maxrun = 2 -- different from ra2, but the speed building doesn't fit well with the character and is overcomplicated
             local accel = on_ground and 0.93 or 0.80
             local deccel = 0.16
             
-            this.vx = math.abs(this.vx) <= maxrun and util.appr(this.vx, h_input * maxrun, accel) or util.appr(this.vx, util.sign(this.vx) * maxrun, deccel)
+            this.vx = math.abs(this.vx) <= MAX_RUN_SPEED and util.appr(this.vx, h_input * MAX_RUN_SPEED, accel) or util.appr(this.vx, util.sign(this.vx) * MAX_RUN_SPEED, deccel)
             if this.vx ~= 0 then this.facing = util.sign(this.vx) end
             
-            local maxfall = 3
             if not on_ground then
-                this.vy = util.appr(this.vy, maxfall, math.abs(this.vy) > 0.124 and 0.334 or 0.167)
+                this.vy = util.appr(this.vy, MAX_FALL_SPEED, math.abs(this.vy) > 0.124 and 0.334 or 0.167)
             end
             
             if this.jbuffer > 0 then
                 if this.grace > 0 then
+                    this.is_start_of_jump = true
+                    
+                    if (not this.was_on_ground) and this:is_solid(0, 1) then this.is_first_frame_jump = true; end
+                    
                     this.jbuffer = 0
                     -- this.grace = 0
                     this.vy = -3.36
@@ -938,11 +979,13 @@ roundelie = {
             local hb_x = cx - (hb_w / 2)
             local hb_y = cy - (hb_h / 2)
             
+            local is_wall_bounce = false
+            
             if v_input == 1 and dash_btn and not on_ground and this.conk < 1 then
                 if not this.down_attack then 
                     -- dive has a 1f delay before the hitbox comes out and an initial burst of speed after the delay
                     this.freeze = 1
-                    this.vy = util.appr(this.vy, 4.5, 1.95)
+                    this.vy = util.appr(this.vy, MAX_DIVE_SPEED, 1.95)
                     
                     -- a bit hacky, but this helps prevent the smoke-trail effect from being drawn when roundelie starts diving right before bouncing (e.g., while dribbling or wall-climbing)
                     this.should_draw_dive_vfx = this.dribble_window == 0 or
@@ -953,7 +996,7 @@ roundelie = {
                 else
                     -- the dive hitbox remains active as long as the input (down+x) is held
                     hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx), 4.5, 2)
-                    this.vy = util.appr(this.vy, 4.5, 0.60)
+                    this.vy = util.appr(this.vy, MAX_DIVE_SPEED, 0.60)
                     if this.dive_smoketrail > 0 then game.init_smoke(this.x, this.y) end
                 end
 
@@ -963,18 +1006,20 @@ roundelie = {
                 
                 -- dive -> bounce off of a wall
                 if (this:is_solid(-3,0) or this:is_solid(3,0)) then
+                    is_wall_bounce = true
                     this.conk = 8
                     this.dive_smoketrail = 0
-                    this.vy = -2.0
+                    this.vy = -2.7
                     game.init_smoke(this.x - this.conkdir * 6, this.y)  -- same as maddy wall-jump
                 end
             else
                 this.down_attack = false
             end
             if this.conk > 0 then
-                this.vx = 0.15 * this.conk * this.conkdir
+                this.vx = 0.15 * this.conk * this.conkdir * (is_wall_bounce and 2 or 1)
             elseif v_input == -1 and bump and this.bjump > 0 then
-                this.bump_cooldown = 0 --TODO: different from main branch, update documentation and code neatness if you want to keep
+                this.is_start_of_jump = true
+                this.bump_cooldown = 0  --TODO: different from main branch, update documentation and code neatness if you want to keep
                 this.vy = -3.0
                 love.audio.play("maddy_nodash", "static")
                 if this.bjump >= 1 then
@@ -1002,17 +1047,41 @@ roundelie = {
         end
         
         
-        -- apply updates to roundelie ::
+        -- apply updates ::
         
         this:move(this.vx, this.vy)
         this:check_snowballs()
         
         
-        -- update visuals ::
+        -- check if roundelie has landed on a platform
+        -- (this is done after movement is calculated so that animations are more accurate)
+        local anim_on_ground, anim_is_landing = false, false
+        if this.hitstun == 0 and this.vy >= 0 and this:is_solid(0, 1) then
+            anim_on_ground = true
+            if (not this.was_on_ground) then
+                game.init_smoke(this.x, this.y + 4)
+                anim_is_landing = true
+                
+                if this.prev_vy > 3 or (this.prev_vy == 3 and this.falling_timer >= 15) then
+                    this.was_big_fall = true
+                else
+                    this.was_big_fall = false
+                end
+                this.falling_timer = 0
+            end
+        else
+            if this.vy < 0 and this.falling_timer > 0 then
+                this.falling_timer = 0
+            elseif this.falling_timer == 0 then
+                this.falling_timer = 1
+            end
+        end
         
         -- teleport vfx
         if this.teleport_info.init then
             this:draw_teleport_vfx()
+            this.current_anim = "teleport_start"  -- bit hacky
+            this.invis_timer = 3
         end
         
         -- dive vfx
@@ -1023,81 +1092,158 @@ roundelie = {
             this.should_draw_dive_vfx = false
         end
         
-        -- sprite stuff
-        local anim_on_ground = this.vy >= 0 and this:is_solid(0, 1)
-        local next_anim = this.idle_poses[this.idle_poses_idx]
-        
-        -- TODO: I have a feeling putting this here is making it messier but I need to look into it a bit more
-        if this.current_anim == "roll" then
-           
-            if this.prev_facing ~= this.facing then
-                -- when roundelie's direction changes mid-roll, the flipped sprite makes the "right" rolling pose becomes "left", and vice versa
-                -- i.e. [up->right->down->left] becomes [up->left->down->right]
-                if this.anim_frame == 2 then this.anim_frame = 4 elseif this.anim_frame == 4 then this.anim_frame = 2 end  -- TODO: messy
-            end
-            this.idle_poses_idx = this.anim_frame
-            next_anim = this.idle_poses[this.idle_poses_idx]
-            
-        elseif this.prev_facing ~= this.facing and (this.current_anim == "idle2" or this.current_anim == "idle4") then
-            -- also need to account for current pose being idle for the roll orientation issue (related `TODO` at the start of this conditional block)
-            if this.idle_poses_idx == 2 then this.idle_poses_idx = 4 elseif this.idle_poses_idx == 4 then this.idle_poses_idx = 2 end   -- TODO: messy
+        -- update sprite / animation orientation
+        if this.current_anim == "roll" or this.current_anim == "flip" then
+            this.orientation = this.anim_frame
         end
+        
+        if this.prev_facing ~= this.facing then
+            if this.current_anim == "roll" and anim_on_ground and math.abs(this.vx) > 0 and math.abs(this.prev_vx) > 0 and v_input ~= 1 then
+                -- draw dust cloud after changing direction mid-roll
+                this.init_dust_cloud(this.x, this.y + 1, -1 * this.facing)
+            end
+            
+            if this.orientation == this.directions.RIGHT then
+                this.orientation = this.directions.LEFT
+                this.anim_frame = this.anim_frame + 2
+            elseif this.orientation == this.directions.LEFT then
+                this.orientation = this.directions.RIGHT
+                this.anim_frame = this.anim_frame - 2
+            end
+        end
+        
+        -- update roll speed
+        local prev_anim_speed, new_anim_speed = this.animations.roll.speed, 4
+        if ((math.abs(this.vx) + math.abs(this.vy)) / 2) >= ((MAX_RUN_SPEED + MAX_FALL_SPEED) / 2) then
+            new_anim_speed = 2
+        elseif (math.abs(this.vx) >= MAX_RUN_SPEED) or (this.vy <= -1.0) then
+            new_anim_speed = 3
+        end
+        this.animations.roll.speed = new_anim_speed
+        
+        -- determine next sprite / animation
+        local anim = this.animations[this.current_anim]
+        local anim_is_finished = anim.has_ending and ((anim.speed * #anim.frames) <= (this.anim_timer + 1))
+        local anim_is_loop = (not anim.has_ending)
+        local next_anim
         
         if this.hitstun > 0 then
-            -- animations are paused during hitstun
-            next_anim = this.current_anim
-        elseif this.conk > 0 then
-            if this.was_big_conk then next_anim = "conk" else next_anim = "jump2" end
-        elseif not anim_on_ground then
-            if this.down_attack then 
-                next_anim = (this.vy == 4.5 and "dive2" or "dive1")
-            elseif (this.is_start_of_jump or this.current_anim == "jump1") and this.vy <= -0.7 then
-                -- "inflate" pose is only drawn after a jump or bjump (up+x)
-                next_anim = "jump1"
-            -- roll continues in midair, but stops if roundelie isn't moving quickly enough in the same direction
-            elseif this.current_anim == "roll" and ((this.prev_facing == 1 and this.vx >= 1.0) or (this.prev_facing == -1 and this.vx <= -1.0)) then
-                -- TODO: buffer/first-frame jump => roll animation plays instead of inflate for the jump
-                --       need to implement this explicitly rather than have it exist as a side-effect of the current midair roll logic
-                next_anim = "roll"
-            elseif this.vy >= 0.3 then
-                next_anim = "jump3"
+            this.animations.flip.speed = math.min(this.animations.roll.speed, 3)
+            if (not anim_on_ground) then
+                next_anim = "flip"
             else
-                -- bit hacky? point is to avoid getting knocked into the air and have sprites quickly change from jump3->jump2->jump3 after hitstun ends
-                next_anim = this.current_anim ~= "jump3" and "jump2" or "jump3"
+                -- animations are paused during hitstun
+                next_anim = this.current_anim
             end
-        elseif v_input == -1 then
-            next_anim = "up"
-        elseif v_input == 1 then
-            next_anim = "crouch"
-        elseif (this.current_anim == roll and math.abs(this.vx) >= 1.2) or (this.current_anim ~= roll and math.abs(this.vx) > 0.1) then
-            next_anim = "roll"
+        elseif this.current_anim == "teleport_start" then
+            -- roundelie is inflated when reappearing after a teleport
+            this.orientation = this.directions.UP
+            next_anim = "teleport_inflate"
+        elseif not anim_on_ground then
+            if this.is_start_of_jump then
+                --
+                this.orientation = this.directions.UP
+                if (not (this.current_anim == "inflate_start" or this.current_anim == "inflate")) and this.is_first_frame_jump and math.abs(this.vx) >= 1.5 then
+                    next_anim = "roll"
+                elseif this.current_anim == "inflate_start" and anim_is_finished then
+                    next_anim = "inflate_quick"
+                else
+                    next_anim = "inflate_start"
+                end
+            elseif (not (this.current_anim == "inflate_start" or this.current_anim == "inflate")) and this.conk > 0 and this.was_big_conk then
+                -- during big bounce
+                next_anim = "conk"
+            elseif this.down_attack and this.dribble_window == 0 then
+                -- dive / down attack
+                this.orientation = this.directions.UP
+                next_anim = (this.vy == MAX_DIVE_SPEED) and "dive2" or "dive1"
+            -- handle sequences of animations
+            elseif (not anim_is_loop) and (not anim_is_finished) then
+                --
+                next_anim = this.current_anim
+            elseif (not anim_is_loop) and anim_is_finished and anim.next_anim then
+                --
+                next_anim = anim.next_anim
+            elseif this.current_anim == "roll" then
+                -- roll (midair)
+                if math.abs(this.vx) < MAX_RUN_SPEED then  -- more strict than the check for the grounded roll
+                    this.animations.flip.speed = math.min(this.animations.roll.speed, 3)
+                    next_anim = (this.orientation == this.directions.UP) and "jump2" or "flip"
+                else
+                    next_anim = "roll"
+                end
+            elseif this.current_anim == "flip" then
+                -- roundelie continues rotating until it's upright
+                -- TODO: flip rotation shouldn't change if roundelie changes the direction its facing
+                --      i.e. if the flip rotation is CW, rotation after turning around should still be CW
+                --      (maybe also experiment with speeding up anim if facing direction changes?)
+                next_anim = (this.orientation == this.directions.UP) and "jump2" or "flip"
+            else
+                if this.orientation ~= this.directions.UP then
+                    this.animations.flip.speed = math.min(this.animations.roll.speed, 3)
+                    next_anim = "flip"
+                else
+                    -- default midair pose (jump/fall)
+                    next_anim = this.vy < 0.3 and "jump2" or "jump3"
+                end
+            end
+        --
+        else
+            -- handle crouch animations
+            if this.is_squishy and this.current_anim == "crouch" and v_input ~= 1 then
+                next_anim = "crouch_up"
+            elseif v_input == 1 then
+                this.orientation = this.directions.UP
+                next_anim = "crouch"
+            -- handle sequences of animations
+            elseif (not anim_is_loop) and (not anim_is_finished) then
+                --
+                next_anim = this.current_anim
+            elseif (not anim_is_loop) and anim_is_finished and anim.next_anim then
+                next_anim = anim.next_anim
+            elseif this.is_squishy and this.current_anim == "inflate_exit" then
+                -- handle inflate animation ending when on the ground, e.g. after teleport
+                next_anim = "crouch_up"
+            elseif anim_is_landing and this.is_squishy and this.current_anim ~= "roll" and (not (math.abs(this.vx) >= 1.0 and this.current_anim == "flip")) then
+                -- roundelie squashes from the impact of landing
+                this.orientation = this.directions.UP
+                next_anim = (this.was_big_fall or this.current_anim == "squash_big_fall") and "squash_big_fall" or "squash_small_fall"
+            elseif (this.current_anim == "roll" and (math.abs(this.vx) >= 1.0 or (h_input ~= 0 and math.abs(this.vx) > 0))) or (this.current_anim ~= "roll" and math.abs(this.vx) > 0.5) then
+                --
+                next_anim = "roll"
+            elseif v_input == -1 and this.orientation == this.directions.UP then
+                --
+                next_anim = "up"
+            else
+                next_anim = this.idle_poses[this.orientation]
+            end
         end
-
+        
+        -- update current animation
         if next_anim ~= this.current_anim then
-            if next_anim ~= "roll" and next_anim ~= "idle2" and next_anim ~= "idle3" and next_anim ~= "idle4" then  -- TODO: messy
-                -- `idle_poses_idx` is used to keep track of roundelie's orientation
-                -- but whenever a sprite that is NOT an idle or rolling pose is drawn, then the current orientation resets to the default (upright) position
-                this.idle_poses_idx = 1
-                
-            end
-            
-            this.current_anim = next_anim
-            
-            if next_anim == "roll" then
-                this.anim_frame = this.idle_poses_idx  -- starting frame of the roll anim is determined by roundelie's orientation
-                -- speeding up the animation immediately after direction changes helps the roll appear more natural
-                this.anim_timer = (this.prev_facing ~= this.facing) and math.floor(this.animations[next_anim].speed / 2) or 0
+            if (next_anim == "roll" or next_anim == "flip") then
+                this.anim_frame = this.orientation
+                if this.current_anim == "roll" or this.current_anim == "flip" then
+                    this.anim_timer = this.anim_timer % anim.speed
+                else
+                    -- roll/flip animation is sped up at the start to appear more natural
+                    this.anim_timer = 0
+                end
             else
                 this.anim_frame = 1
-                this.anim_timer = 0
+                -- e.g. if anim.speed is 3, then anim_frame will increment when anim_timer == 3
+                --   => if anim_timer is initialized to 0, the first frame of the animation will only be drawn for 2 frames
+                this.anim_timer = -1
             end
+            this.current_anim = next_anim
         end
-
-        local anim = this.animations[this.current_anim]
-        -- animations are paused during hitstun
-        if this.hitstun == 0 then this.anim_timer = this.anim_timer + 1 end
         
-        if this.anim_timer >= anim.speed then
+        if this.hitstun == 0 then this.anim_timer = this.anim_timer + 1; end  -- animations are paused during hitstun
+        
+        local anim = this.animations[this.current_anim]
+        if (not anim_is_loop) and (this.anim_timer > 0) and (this.anim_timer % anim.speed == 0) then
+            this.anim_frame = this.anim_frame + 1
+        elseif anim_is_loop and this.anim_timer >= anim.speed then
             this.anim_timer = 0
             this.anim_frame = this.anim_frame + 1
             if this.anim_frame > #anim.frames then
@@ -1174,56 +1320,75 @@ roundelie = {
             
             this.freeze = 6
             target.freeze = 6
+            
+            if this.invis_timer > 0 then this.invis_timer = this.invis_timer + 2; end
+            
             camera.shake(3, 3, 5)
         end
     end,
     
     draw = function(this)
-        if not this.active and this.stocks <= 0 then return end
-        if this.respawn_timer > 0 then return end
+        if not this.active and this.stocks <= 0 then return; end
+        if this.respawn_timer > 0 or this.invis_timer > 0 then return; end
         
         local isBlinking = this.invincible_timer > 0 and (math.floor(this.invincible_timer / 4) % 2 == 0 or debugEnabled)
+        local isInflate  = this.current_anim == "inflate" or this.current_anim == "teleport_inflate" or this.current_anim == "inflate_quick"
+        local isRotating = this.current_anim == "roll" or this.current_anim == "flip"
         
-        -- sprite hitstun tint
+        local anim = this.animations[this.current_anim]
+        local frame_idx = anim.frames[this.anim_frame]
+        local rotation = isRotating and math.rad(this.facing * this.anim_frame * 90) or 0
+        local cx, cy = this.hurtbox.x + (this.hurtbox.w / 2), 4
+        
+        this.spr = this.spritesheet[frame_idx]
+        
+        -- apply tints and shaders
         if this.hitstun > 0 then
             love.graphics.setColor(255 / 255, 119 / 255, 168 / 255)
         else
             love.graphics.setColor(1, 1, 1)
         end
         
-        local anim = this.animations[this.current_anim]
-        local frame_idx = anim.frames[this.anim_frame]
-        this.spr = this.spritesheet[frame_idx]
-        local cx = this.hurtbox.x + (this.hurtbox.w / 2)
-        
-        -- apply pal swaps
         if isBlinking then
             love.graphics.setShader(whiteShader)
             love.graphics.setColor(1, 1, 1)
         elseif this.dash_cooldown > 0 then
             love.graphics.setShader(paletteSwapShader)
             if this.skin == 3 then
-                -- eyes swap from default (gold) -> "deactivated" (dark blue)
-                paletteSwapShader:send("color_find", {203/255, 136/255, 4/255, 1.0})
-                paletteSwapShader:send("color_replace", {29/255, 43/255, 83/255, 1.0})    
+                -- eyes swap from default (gold) -> "activated" (white)
+                paletteSwapShader:send("color_find",    {203/255, 136/255,   4/255, 1.0})
+                paletteSwapShader:send("color_replace", {255/255, 255/255, 255/255, 1.0})
             elseif this.skin == 4 then
-                -- ...
-                paletteSwapShader:send("color_find", {171/255, 82/255, 54/255, 1.0})
+                -- TODO: replace placeholder effect
+                paletteSwapShader:send("color_find",    {171/255,  82/255,  54/255, 1.0})
                 paletteSwapShader:send("color_replace", {255/255, 119/255, 168/255, 1.0})
             else
-                -- TODO: swap out placeholder effect
-                paletteSwapShader:send("color_find", {255/255, 163/255, 0/255, 1.0})
-                paletteSwapShader:send("color_replace", {95/255, 87/255, 79/255, 1.0})
+                local r, g, b = unpack(this.base_color)
+                local tint = this.skin == 1 and 1.25 or 0.95
+                r, g, b = r * tint, g * tint, b * tint
+                -- ref: https://stackoverflow.com/questions/13328029/how-to-desaturate-a-color
+                --      https://en.wikipedia.org/wiki/Grayscale#Luma_coding_in_video_systems
+                local L = 0.299 * r + 0.587 * g + 0.114 * b  -- calculate luma using standard human-eye luminance weights (BT.601)
+                local f = 0.20  -- => 20% desaturation
+                paletteSwapShader:send("color_find", this.base_color)
+                paletteSwapShader:send("color_replace", {(r + f * (L - r)), (g + f * (L - g)), (b + f * (L - b)), 1.0})
             end
-            
         end
         
+        -- draw sprite(s)
         if this.skin == 3 then
-            -- roundelie's face and belly for the statue (gold) skin are drawn on top of a "base" sprite that does not flip
+            -- roundelie's face and belly for the statue/gold skin are drawn on top of "base" sprites that aren't flipped
             local base_spr = sprites[ this.current_anim == "crouch" and "characters/roundelie_3_base_crouch" or "characters/roundelie_3_base_default" ]
             sprites.draw(base_spr, this.x + cx, this.y, 0, 1, 1, cx, 0)
         end
-        sprites.draw(this.spr, this.x + cx, this.y, 0, this.facing, 1, cx, 0)
+        
+        if this.is_squishy and isInflate then
+            -- the inflate pose uses a larger sprite that's separate from the rest of the spritesheet
+            local spr_inflate = (this.skin == 1 and "characters/roundelie_1_inflate" or "characters/roundelie_2_inflate")
+            sprites.draw(sprites[spr_inflate], this.x + cx, this.y + cy, rotation, this.facing, 1, cx + 1, cy + 1)
+        else
+            sprites.draw(this.spr, this.x + cx, this.y + cy, rotation, this.facing, 1, cx, cy)
+        end
         
         if this.connectionID == connectionID then
             local px = math.floor(this.x)
