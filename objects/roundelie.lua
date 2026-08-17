@@ -702,11 +702,6 @@ roundelie = {
             this.dive_smoketrail = this.dive_smoketrail - 1
         end
         
-        -- initial delay before shockwave hitbox is created
-        if this.shockwave_delay > 0 then
-            this.shockwave_delay = this.shockwave_delay - 1
-        end
-        
         -- iframes
         if this.invincible_timer > 0 then
             this.invincible_timer = this.invincible_timer - 1
