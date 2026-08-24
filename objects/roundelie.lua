@@ -370,7 +370,7 @@ roundelie = {
             if this.shockwave_info.create and this.shockwave_delay_timer == 0 then
                 this.shockwave_info.create = false
                 
-                local x_init, y_init, cx, w, h, duration = this.shockwave_info.x_init, this.shockwave_info.y_init, this.shockwave_info.cx, 3, 4, 7
+                local x_init, y_init, cx, w, h, duration = this.shockwave_info.x_init, this.shockwave_info.y_init, this.shockwave_info.cx, 3, 4, 6
                 if this.shockwave_info.left then
                     local hb = {x = x_init - (w/2) - cx, y = y_init + (8 - h), w = w, h = h}
                     local is_wall = false
@@ -619,14 +619,14 @@ roundelie = {
                 direction = direction,
                 is_active = true,
                 
-                x = info.x_init + (direction == -1 and 4 or -3),
+                x = info.x_init + (direction == -1 and 3 or -2),
                 y = info.y_init,
                 vx = info.vx,
                 prev_vx = info.vx,
                 
                 shockwave_delay_timer = 2,
                 timer = -1,
-                duration = 10,
+                duration = 10, --9, --10,
                 
                 update = function(p)
                     if p.is_active and p.direction == -1 and p.shockwave_info.left == false then
@@ -647,7 +647,7 @@ roundelie = {
                 end,
                 
                 draw = function(p)
-                    local frame = math.floor(p.timer / p.duration * 4) + 1
+                    local frame = math.floor((p.timer + 1) / p.duration * 4) + 1
                     if frame > 4 then frame = 4 end
                     local dx, dy = math.floor(p.x), math.floor(p.y)
                     sprites.draw(sprites["characters/roundelie_shockwave"][frame], dx, dy, 0, p.direction, 1, 4, 0)
@@ -895,14 +895,14 @@ roundelie = {
                         this.dive_ground_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 10)
                         this.dive_ground_slam_hb.big_dive_slam = true
                         --
-                        this.shockwave_info.vx = 5.0
+                        this.shockwave_info.vx = 4.75
                         this.shockwave_info.left = true
                         this.shockwave_info.right = true
                     else
                         this.dive_ground_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 3)
                         this.dive_ground_slam_hb.small_dive_slam = true
                         --
-                        this.shockwave_info.vx = 3.75
+                        this.shockwave_info.vx = 4.0 --3.75
                         this.shockwave_info.left = (h_input == -1)
                         this.shockwave_info.right = (h_input == 1)
                     end
@@ -1004,14 +1004,14 @@ roundelie = {
                     end
                 
                     -- (2) draw dust clouds over the ground-slam hitbox
-                    this.init_dust_cloud(hb_x, this.dive_ground_slam_hb.y - 1, -1)
+                    this.init_dust_cloud(hb_x + 1, this.dive_ground_slam_hb.y - 1, -1)
                     this.init_dust_cloud(hb_x + hb_w - 8, this.dive_ground_slam_hb.y - 1, 1)
                     
                     local slot_count = math.floor(hb_w / 8)  -- the dust cloud sprite is ~6px wide, +2px for padding
                     local base_width = math.floor(hb_w / slot_count)
                     local extra_width  = hb_w % slot_count
                     
-                    local curr_x = hb_x - 4
+                    local curr_x = hb_x - 4 + 1
                     for i = 1, slot_count - 1 do
                         curr_x = curr_x + base_width + (i <= extra_width and 1 or 0)
                         this.init_dust_cloud(curr_x, this.dive_ground_slam_hb.y - 2, 0)
