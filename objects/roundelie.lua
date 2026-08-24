@@ -296,22 +296,22 @@ roundelie = {
         this.update_dynamic_hitboxes = function(this)
             -- update the dive ground-slam hitbox ..
             --     the dive ground-slam hitbox is active near the ground for the first 2 frames,
-            --     and then chunks of the ground shoot out for the next 7 frames, while the hitbox moves with the chunks
+            --     and then chunks of the ground shoot out for the next 5 frames, while the hitbox moves with the chunks
             local hb = this.dive_ground_slam_hb
-            if hb and hb.active and hb.big_dive_slam and hb.duration <= 8 then
-                -- hb.duration is decremented *after* this, so e.g. tick 3 is at `hb.duration == 8` (with initial duration of 10)
-                -- also hitbox is *actually* active for (duration - 1), currently (10 - 1) => 9 ticks
-                if hb.duration == 8 then
+            if hb and hb.active and hb.big_dive_slam and hb.duration <= 6 then
+                -- hb.duration is decremented *after* this, so e.g. tick 3 is at `hb.duration == 6` (with initial duration of 8)
+                -- also hitbox is *actually* active for (duration - 1), currently (8 - 1) => 7 ticks
+                if hb.duration == 6 then
                     hb.y = hb.y - 3  -- hitbox suddenly expands to the height of a full tile on the third tick
                     hb.h = hb.h + 3
-                elseif hb.duration == 7 then
+                elseif hb.duration == 5 then
                     hb.y = hb.y - 3
                     hb.h = hb.h - 4
                     hb.kx = hb.kx * 0.66  -- knockback for the ground chunks is much weaker after the third tick
                     hb.ky = hb.ky * 0.66
-                elseif hb.duration == 6 then
+                elseif hb.duration == 4 then
                     hb.y = hb.y - 2
-                elseif hb.duration <= 5 then
+                elseif hb.duration <= 3 then
                     hb.y = hb.y - 1
                 end
             end
@@ -563,12 +563,12 @@ roundelie = {
                 --  .. start_x + vx + (drag * vx) = dest_x  =>  vx = (dest_x - start_x) / (1 + drag)
                 vx = (dest_x - start_x),
                 vy = (dest_y - start_y) * 0.35,
-                drag = 0.415, -- lower to *increase*
+                drag = 0.375, -- lower to *increase*
                 min_vx = 0,
                 
                 init_delay = 1,  -- bit of a hack, but, ehh
                 timer = 0,
-                duration = 18,
+                duration = 16,
                 
                 anim_frame = math.random(3),
                 flipX = love.math.random() > 0.5 and -1 or 1,
@@ -584,7 +584,7 @@ roundelie = {
                     p.x = p.x + p.vx
                     p.y = p.y + p.vy
                     p.vx = util.appr(math.abs(p.vx * p.drag), p.min_vx, 0.157) * util.sign(p.vx)
-                    p.vy = util.appr(p.vy, 3.0, math.abs(p.vy) > 0.2 and 0.4 or 0.24) -- meant to hang a bit at the top of the arc
+                    p.vy = util.appr(p.vy, 3.0, math.abs(p.vy) > 0.2 and 0.45 or 0.30) -- meant to hang a bit at the top of the arc
                     
                     p.timer = p.timer + 1
                     return p.timer > p.duration
@@ -892,7 +892,7 @@ roundelie = {
                     
                     -- create follow-up shockwave(s) if conditions are met
                     if check_is_big_slam then
-                        this.dive_ground_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 10)
+                        this.dive_ground_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 8)
                         this.dive_ground_slam_hb.big_dive_slam = true
                         --
                         this.shockwave_info.vx = 4.75
