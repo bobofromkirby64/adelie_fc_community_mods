@@ -621,8 +621,10 @@ roundelie = {
                 
                 x = info.x_init + (direction == -1 and 4 or -3),
                 y = info.y_init,
+                vx = info.vx,
                 prev_vx = info.vx,
                 
+                shockwave_delay_timer = 2,
                 timer = -1,
                 duration = 10,
                 
@@ -636,8 +638,11 @@ roundelie = {
                     else
                         p.timer = p.timer + 1
                     end
-                    p.x = p.x + (p.direction * (p.is_active and p.shockwave_info.vx or p.prev_vx))
-                    p.prev_vx = p.is_active and p.shockwave_info.vx or p.prev_vx
+                    p.shockwave_delay_timer = p.shockwave_delay_timer - 1
+                    p.vx = p.shockwave_delay_timer > 0 and p.vx or util.appr(p.vx, 0.5, 0.6)
+                    
+                    p.x = p.x + (p.direction * (p.is_active and p.vx or p.prev_vx))
+                    p.prev_vx = p.is_active and p.vx or p.prev_vx
                     return p.timer >= p.duration
                 end,
                 
