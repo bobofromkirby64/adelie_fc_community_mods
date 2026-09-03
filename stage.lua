@@ -779,7 +779,7 @@ stage = {
             p.movement_smoothing = true
             
             stage.spawnDist = 32
-            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.blastZone = {l=0-8,r=240+8,t=-30,b=151}  -- blastzones are pushed out by 1 tile on each side
             stage.bgImage = nil --love.graphics.newImage("resources/graphics/stages/bf_bg.png")
             stage.fgImage = nil --love.graphics.newImage("resources/graphics/stages/bf_fg.png")
             
@@ -828,7 +828,7 @@ stage = {
             -- layout based on p+ green hill zone / roa2 aetherian forest
             stage.name = "cc_hillzone"
             
-            stage.addPlatform(80, 100, 80, 32, "solid")
+            stage.addPlatform(80, 100, 80, 48, "solid")
             
             -- a single platform swings in an arc (half circle) above the main stage
             -- https://help.altair.com/2023/panopticon/authoring/onlinehelp/DrawingaCirclewithCubicBzierCurves.htm
