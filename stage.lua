@@ -772,9 +772,8 @@ stage = {
             
             -- a single platform moves between the left and right side of the stage, stopping past the edge of the main stage
             -- // the platform is 24 units (3 tiles) above the main stage
-            
             p = objectSystem.createObject(moving_platform, 32, 76, 32)
-            p.bx, p.by = 32 + 144, 76
+            p.ptB = {x = 32 + 144, y = 76}
             p.movement_duration = 210  -- 7 sec travel time
             p.movement_delay = 30      -- 1 sec pause
             p.movement_smoothing = true
@@ -790,6 +789,7 @@ stage = {
             stage.music = nil;
         end,
         
+        --
         function()
             -- layout based on smash4 town & city / p+ luigi's mansion v2 / roa2 air armada
             stage.name = "cc_t&c"
@@ -801,15 +801,15 @@ stage = {
             --
             -- left platform
             p1 = objectSystem.createObject(moving_platform, 96 - 48 + 12, 76, 24)
-            p1.bx, p1.by = 96, 76
+            p1.ptB = {x = 96, y = 76}
             p1.movement_duration = 30 * 2    -- 2 sec travel time
             p1.movement_delay = 30 * 12      -- 12 sec pause
             p1.movement_smoothing = true
             -- right platform
             p2 = objectSystem.createObject(moving_platform, 120 + 48 - 12, 76, 24)
-            p2.bx, p2.by = 120, 76
-            p2.movement_duration = 30 * 2    --
-            p2.movement_delay = 30 * 12      --
+            p2.ptB = {x = 120, y = 76}
+            p2.movement_duration = 30 * 2
+            p2.movement_delay = 30 * 12
             p2.movement_smoothing = true
             
             stage.spawnDist = 24
@@ -822,6 +822,39 @@ stage = {
             
             stage.music = nil;
         end,
+        
+        --
+        function()
+            -- layout based on p+ green hill zone / roa2 aetherian forest
+            stage.name = "cc_hillzone"
+            
+            stage.addPlatform(80, 100, 80, 32, "solid")
+            
+            -- a single platform swings in an arc (half circle) above the main stage
+            -- https://help.altair.com/2023/panopticon/authoring/onlinehelp/DrawingaCirclewithCubicBzierCurves.htm
+            -- // at highest pt, the platform is 40 units (5 tiles) above the main stage
+            -- // at lowest pt, the platform is approx 20 units (2.5 tiles) above the main stage
+            p = objectSystem.createObject(moving_platform, 84, 60, 16)
+            p.ptA =  {x = 84, y = 100 - 40}
+            p.ptC1 = {x = 84 + (56 * 0.05), y = 100 - (40 * 0.334)}
+            p.ptC2 = {x = 84 + (56 * 0.95), y = 100 - (40 * 0.334)}
+            p.ptB =  {x = 84 + 56, y = 100 - 40}
+            p.movement_duration = 150  -- 5 sec travel time
+            p.movement_delay = 0       -- // the platform naturally pauses at the top of the arc
+            p.movement_smoothing = true
+            p.movement_path_type = "curved"
+            
+            stage.spawnDist = 28
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = nil --love.graphics.newImage("resources/graphics/stages/bf_bg.png")
+            stage.fgImage = nil --love.graphics.newImage("resources/graphics/stages/bf_fg.png")
+            
+            stage.bgColor = nil
+            stage.bgShader = nil --lavaShader
+            
+            stage.music = nil;
+        end,
+        
         
         
         -- scrapped puzzlemod stage, too messy
