@@ -1,5 +1,7 @@
 -- stage.lua
 require("objects/cloud")
+require("objects/moving_platform")
+
 cc_clouds = function(r, g, b)
     for i = 1, 32 do
         table.insert(particles_bg, {
@@ -438,6 +440,9 @@ stage = {
             stage.music = nil;
             -- TODO: this is also called in the stage select screen
             objectSystem.createObject(cloud, -60, 128, 1)
+            -- test test test
+            temp = objectSystem.createObject(moving_platform, 40, 64, 16)
+            -- test test test
         end,
         -- the lonely island from amazon
         function()
