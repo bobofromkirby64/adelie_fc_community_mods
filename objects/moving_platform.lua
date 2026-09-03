@@ -5,12 +5,12 @@ local function lerp(a, b, t) return (1 - t) * a + t * b end
 
 --[[
 TODO: ((?) => "maybe", (*) => "high priority")
-    - * modify all characters to improve interactions with moving platforms
-        - stepstools will need to be updated later, after slimeguy pushes his changes
     - * add option for curved path (=> cubic bezier func)
         - blocking for cc_hillzone
         - might need alternate ease in/out calc for this?
+    - don't draw black outline around moving platforms
     - cleaner init
+    - (?) support for arbitrary starting location (e.g. roa2 tempest peak, stormswept pillar)
     - (?) support for arbitrary # of waypoints
     - ...
 --]]

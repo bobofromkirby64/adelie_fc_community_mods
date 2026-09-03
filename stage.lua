@@ -768,11 +768,15 @@ stage = {
             stage.name = "cc_ville"
             
             stage.addPlatform(80, 100, 80, 16, "solid")
+            stage.addPlatform(88, 116, 64, 8, "solid")
             
-            p = objectSystem.createObject(moving_platform, 32, 75, 32)
-            p.bx, p.by = 32 + 144, 75
-            p.movement_duration = 210  -- 7 sec movement
-            p.movement_delay = 30      -- 1 sec delay
+            -- a single platform moves between the left and right side of the stage, stopping past the edge of the main stage
+            -- // the platform is 24 units (3 tiles) above the main stage
+            
+            p = objectSystem.createObject(moving_platform, 32, 76, 32)
+            p.bx, p.by = 32 + 144, 76
+            p.movement_duration = 210  -- 7 sec travel time
+            p.movement_delay = 30      -- 1 sec pause
             p.movement_smoothing = true
             
             stage.spawnDist = 32
@@ -793,12 +797,13 @@ stage = {
             stage.addPlatform(72, 100, 96, 48, "solid")
             
             -- platforms start joined together at the center of the stage and then move out to hover above the edges
+            -- // platforms are 20 units (2.5 tiles) above the main stage
             --
             -- left platform
             p1 = objectSystem.createObject(moving_platform, 96 - 48 + 12, 76, 24)
             p1.bx, p1.by = 96, 76
-            p1.movement_duration = 30 * 2    -- 2 sec movement
-            p1.movement_delay = 30 * 12      -- 12 sec delay
+            p1.movement_duration = 30 * 2    -- 2 sec travel time
+            p1.movement_delay = 30 * 12      -- 12 sec pause
             p1.movement_smoothing = true
             -- right platform
             p2 = objectSystem.createObject(moving_platform, 120 + 48 - 12, 76, 24)
