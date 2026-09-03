@@ -440,9 +440,6 @@ stage = {
             stage.music = nil;
             -- TODO: this is also called in the stage select screen
             objectSystem.createObject(cloud, -60, 128, 1)
-            -- test test test
-            temp = objectSystem.createObject(moving_platform, 40, 64, 16)
-            -- test test test
         end,
         -- the lonely island from amazon
         function()
@@ -764,6 +761,64 @@ stage = {
             make_flag_custom(125, 103, false, util.color(11)).secret = enable_secret
             cc_snowflakes_custom(10, util.color(0))
         end,
+        
+        --
+        function()
+            -- layout based on brawl smashville
+            stage.name = "cc_ville"
+            
+            stage.addPlatform(80, 100, 80, 16, "solid")
+            
+            p = objectSystem.createObject(moving_platform, 32, 75, 32)
+            p.bx, p.by = 32 + 144, 75
+            p.movement_duration = 210  -- 7 sec movement
+            p.movement_delay = 30      -- 1 sec delay
+            p.movement_smoothing = true
+            
+            stage.spawnDist = 32
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = nil --love.graphics.newImage("resources/graphics/stages/bf_bg.png")
+            stage.fgImage = nil --love.graphics.newImage("resources/graphics/stages/bf_fg.png")
+            
+            stage.bgColor = nil
+            stage.bgShader = nil --lavaShader
+            
+            stage.music = nil;
+        end,
+        
+        function()
+            -- layout based on smash4 town & city / p+ luigi's mansion v2 / roa2 air armada
+            stage.name = "cc_t&c"
+            
+            stage.addPlatform(72, 100, 96, 48, "solid")
+            
+            -- platforms start joined together at the center of the stage and then move out to hover above the edges
+            --
+            -- left platform
+            p1 = objectSystem.createObject(moving_platform, 96 - 48 + 12, 76, 24)
+            p1.bx, p1.by = 96, 76
+            p1.movement_duration = 30 * 2    -- 2 sec movement
+            p1.movement_delay = 30 * 12      -- 12 sec delay
+            p1.movement_smoothing = true
+            -- right platform
+            p2 = objectSystem.createObject(moving_platform, 120 + 48 - 12, 76, 24)
+            p2.bx, p2.by = 120, 76
+            p2.movement_duration = 30 * 2    --
+            p2.movement_delay = 30 * 12      --
+            p2.movement_smoothing = true
+            
+            stage.spawnDist = 24
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = nil --love.graphics.newImage("resources/graphics/stages/bf_bg.png")
+            stage.fgImage = nil --love.graphics.newImage("resources/graphics/stages/bf_fg.png")
+            
+            stage.bgColor = nil
+            stage.bgShader = nil --lavaShader
+            
+            stage.music = nil;
+        end,
+        
+        
         -- scrapped puzzlemod stage, too messy
         --[[
         function()

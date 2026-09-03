@@ -3,6 +3,18 @@
 local function clamp(low, n, high) return math.min(math.max(low, n), high) end
 local function lerp(a, b, t) return (1 - t) * a + t * b end
 
+--[[
+TODO: ((?) => "maybe", (*) => "high priority")
+    - * modify all characters to improve interactions with moving platforms
+        - stepstools will need to be updated later, after slimeguy pushes his changes
+    - * add option for curved path (=> cubic bezier func)
+        - blocking for cc_hillzone
+        - might need alternate ease in/out calc for this?
+    - cleaner init
+    - (?) support for arbitrary # of waypoints
+    - ...
+--]]
+
 moving_platform = {
     name = "moving_platform",
     
@@ -14,16 +26,15 @@ moving_platform = {
         --
         this.sprite = nil
         
-        -- TODO: actual support for waypoints
         -- platform moves from a -> b -> a ... on repeat
         this.ax, this.ay = this.x, this.y
-        this.bx, this.by = this.x + 32, this.y + 32
+        this.bx, this.by = this.x, this.y
         
         this.movement_duration = 60     -- time (in ticks) for platform to move between pts
         this.movement_timer = 0         -- tracks # ticks for duration
         this.movement_delay = 30        -- time (in ticks) for platform to pause at destination before resuming movement
         this.movement_delay_timer = 0   -- tracks # ticks for delay
-        this.movement_smoothing = true  -- if true, apply smoothstep calc to ease in and out of movement
+        this.movement_smoothing = false -- if true, apply smoothstep calc to ease in and out of movement
         
     end,
     update = function(this)
