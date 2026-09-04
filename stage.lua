@@ -776,6 +776,7 @@ stage = {
             p.ptB = {x = 32 + 144, y = 76}
             p.movement_duration = 210  -- 7 sec travel time
             p.movement_delay = 30      -- 1 sec pause
+            p.movement_timer = 30      -- // init mid-movement so that it's closer to center stage at match start
             p.movement_smoothing = true
             p.sprite = love.graphics.newImage("resources/graphics/stages/cc_ville_platform.png")
             
@@ -795,7 +796,7 @@ stage = {
             -- layout based on smash4 town & city / p+ luigi's mansion v2 / roa2 air armada
             stage.name = "secret of the pyramid"
             
-            stage.addPlatform(72, 100, 96, 48, "solid")
+            stage.addPlatform(72, 100, 96, 56, "solid")
             
             -- platforms start joined together at the center of the stage and then move out to hover above the edges
             -- // platforms are 20 units (2.5 tiles) above the main stage
@@ -838,20 +839,21 @@ stage = {
             
             -- a single platform swings in an arc (half circle) above the main stage
             -- https://help.altair.com/2023/panopticon/authoring/onlinehelp/DrawingaCirclewithCubicBzierCurves.htm
-            -- // at highest pt, the platform is 40 units (5 tiles) above the main stage
-            -- // at lowest pt, the platform is approx 20 units (2.5 tiles) above the main stage
+            -- // at highest pt, the platform is 36 units (4.5 tiles) above the main stage
+            -- // at lowest pt, the platform is approx 16 units (2 tiles) above the main stage
             p = objectSystem.createObject(moving_platform, 84, 60, 16)
-            p.ptA =  {x = 84, y = 100 - 40}
-            p.ptC1 = {x = 84 + (56 * 0.05), y = 100 - (40 * 0.334)}
-            p.ptC2 = {x = 84 + (56 * 0.95), y = 100 - (40 * 0.334)}
-            p.ptB =  {x = 84 + 56, y = 100 - 40}
+            p.ptA =  {x = 84, y = 100 - 36}
+            p.ptC1 = {x = 84 + (56 * 0.05), y = 100 - (36 * 0.334)}
+            p.ptC2 = {x = 84 + (56 * 0.95), y = 100 - (36 * 0.334)}
+            p.ptB =  {x = 84 + 56, y = 100 - 36}
             p.movement_duration = 150  -- 5 sec travel time
             p.movement_delay = 0       -- // the platform naturally pauses at the top of the arc
+            p.movement_timer = 90      -- // init mid-movement to avoid characters spawning on the platform
             p.movement_smoothing = true
             p.movement_path_type = "curved"
             p.sprite = love.graphics.newImage("resources/graphics/stages/cc_hillzone_platform.png")
             
-            stage.spawnDist = 28
+            stage.spawnDist = 32
             stage.blastZone = {l=0,r=240,t=-30,b=151}
             stage.bgImage = love.graphics.newImage("resources/graphics/stages/cc_hillzone_bg.png")
             stage.fgImage = love.graphics.newImage("resources/graphics/stages/cc_hillzone_fg.png")
