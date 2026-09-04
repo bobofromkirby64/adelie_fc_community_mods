@@ -777,11 +777,12 @@ stage = {
             p.movement_duration = 210  -- 7 sec travel time
             p.movement_delay = 30      -- 1 sec pause
             p.movement_smoothing = true
+            p.sprite = love.graphics.newImage("resources/graphics/stages/cc_ville_platform.png")
             
             stage.spawnDist = 32
             stage.blastZone = {l=0-8,r=240+8,t=-30,b=151}  -- blastzones are pushed out by 1 tile on each side
-            stage.bgImage = nil --love.graphics.newImage("resources/graphics/stages/bf_bg.png")
-            stage.fgImage = nil --love.graphics.newImage("resources/graphics/stages/bf_fg.png")
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/cc_ville_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/cc_ville_fg.png")
             
             stage.bgColor = nil
             stage.bgShader = nil --lavaShader
@@ -848,18 +849,18 @@ stage = {
             p.movement_delay = 0       -- // the platform naturally pauses at the top of the arc
             p.movement_smoothing = true
             p.movement_path_type = "curved"
+            p.sprite = love.graphics.newImage("resources/graphics/stages/cc_hillzone_platform.png")
             
             stage.spawnDist = 28
             stage.blastZone = {l=0,r=240,t=-30,b=151}
-            stage.bgImage = nil --love.graphics.newImage("resources/graphics/stages/bf_bg.png")
-            stage.fgImage = nil --love.graphics.newImage("resources/graphics/stages/bf_fg.png")
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/cc_hillzone_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/cc_hillzone_fg.png")
             
             stage.bgColor = nil
             stage.bgShader = nil --lavaShader
             
             stage.music = nil;
         end,
-        
         
         
         -- scrapped puzzlemod stage, too messy
