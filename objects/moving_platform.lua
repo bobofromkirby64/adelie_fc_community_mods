@@ -22,10 +22,9 @@ local path_type = { LINEAR = "linear", CURVED = "curved" }
 
 --[[
 TODO: ((?) => "maybe", (*) => "high priority")
-    - don't draw black outline around moving platforms
-    - support for more complex platform sprites
+    - (?) don't draw black outline around moving platforms
+    - (?) support for more complex platform sprites
         - optional separate bg and fg
-        - optional sprite offset
     - (?) cleaner init
     - (?) support for arbitrary starting location (e.g. roa2 tempest peak, stormswept pillar)
         - would also be useful for making adjustments to balance spawn positions (at the start of the match)
@@ -44,6 +43,8 @@ moving_platform = {
         this.semisolid = true
         --
         this.sprite = nil
+        this.sprite_ox = 0  -- optional sprite offset
+        this.sprite_oy = 0  --
         
         -- platform moves from a -> b -> a ... on repeat
         this.ptA = {x = this.x,      y = this.y}
@@ -133,7 +134,7 @@ moving_platform = {
     draw = function(this)
         
         if this.sprite then
-            sprites.draw(this.sprite, math.floor(this.x), math.floor(this.y))
+            sprites.draw(this.sprite, math.floor(this.x) + this.sprite_ox, math.floor(this.y) + this.sprite_oy)
         else
             love.graphics.setColor(0.6, 0.6, 0.6)
             love.graphics.rectangle("fill", math.floor(this.x), math.floor(this.y), this.w, 3)

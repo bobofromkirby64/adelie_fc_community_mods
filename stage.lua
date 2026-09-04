@@ -789,10 +789,10 @@ stage = {
             stage.music = nil;
         end,
         
-        --
+        -- squaredelie chamber from rosetta
         function()
             -- layout based on smash4 town & city / p+ luigi's mansion v2 / roa2 air armada
-            stage.name = "cc_t&c"
+            stage.name = "secret of the pyramid"
             
             stage.addPlatform(72, 100, 96, 48, "solid")
             
@@ -805,17 +805,22 @@ stage = {
             p1.movement_duration = 30 * 2    -- 2 sec travel time
             p1.movement_delay = 30 * 12      -- 12 sec pause
             p1.movement_smoothing = true
+            p1.sprite = love.graphics.newImage("resources/graphics/stages/pyramid_platform.png")
+            p1.sprite_ox = -1
+            
             -- right platform
             p2 = objectSystem.createObject(moving_platform, 120 + 48 - 12, 76, 24)
             p2.ptB = {x = 120, y = 76}
             p2.movement_duration = 30 * 2
             p2.movement_delay = 30 * 12
             p2.movement_smoothing = true
+            p2.sprite = love.graphics.newImage("resources/graphics/stages/pyramid_platform.png")
+            p2.sprite_ox = -1
             
             stage.spawnDist = 24
             stage.blastZone = {l=0,r=240,t=-30,b=151}
-            stage.bgImage = nil --love.graphics.newImage("resources/graphics/stages/bf_bg.png")
-            stage.fgImage = nil --love.graphics.newImage("resources/graphics/stages/bf_fg.png")
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/pyramid_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/pyramid_fg.png")
             
             stage.bgColor = nil
             stage.bgShader = nil --lavaShader
