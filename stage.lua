@@ -717,6 +717,112 @@ stage = {
     },
 
     modded_layouts = {
+        --
+        function()
+            -- layout based on brawl smashville
+            stage.name = "cc_ville"
+            
+            stage.addPlatform(80, 100, 80, 16, "solid")
+            stage.addPlatform(88, 116, 64, 8, "solid")
+            
+            -- a single platform moves between the left and right side of the stage, stopping past the edge of the main stage
+            -- // the platform is 24 units (3 tiles) above the main stage
+            p = objectSystem.createObject(moving_platform, 32, 76, 32)
+            p.ptB = {x = 32 + 144, y = 76}
+            p.movement_duration = 210  -- 7 sec travel time
+            p.movement_delay = 30      -- 1 sec pause
+            p.movement_timer = 30      -- // init mid-movement so that it's closer to center stage at match start
+            p.movement_smoothing = true
+            p.sprite = love.graphics.newImage("resources/graphics/stages/cc_ville_platform.png")
+            
+            stage.spawnDist = 32
+            stage.blastZone = {l=0-8,r=240+8,t=-30,b=151}  -- blastzones are pushed out by 1 tile on each side
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/cc_ville_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/cc_ville_fg.png")
+            
+            stage.bgColor = nil
+            stage.bgShader = nil --lavaShader
+            
+            stage.music = nil;
+        end,
+        
+        --
+        function()
+            -- layout based on p+ green hill zone / roa2 aetherian forest
+            stage.name = "cc_hillzone"
+            
+            stage.addPlatform(80, 100, 80, 48, "solid")
+            
+            -- a single platform swings in an arc (half circle) above the main stage
+            -- https://help.altair.com/2023/panopticon/authoring/onlinehelp/DrawingaCirclewithCubicBzierCurves.htm
+            -- // at highest pt, the platform is 36 units (4.5 tiles) above the main stage
+            -- // at lowest pt, the platform is approx 16 units (2 tiles) above the main stage
+            p = objectSystem.createObject(moving_platform, 84, 60, 16)
+            p.ptA =  {x = 84, y = 100 - 36}
+            p.ptC1 = {x = 84 + (56 * 0.05), y = 100 - (36 * 0.334)}
+            p.ptC2 = {x = 84 + (56 * 0.95), y = 100 - (36 * 0.334)}
+            p.ptB =  {x = 84 + 56, y = 100 - 36}
+            p.movement_duration = 150  -- 5 sec travel time
+            p.movement_delay = 0       -- // the platform naturally pauses at the top of the arc
+            p.movement_timer = 90      -- // init mid-movement to avoid characters spawning on the platform
+            p.movement_smoothing = true
+            p.movement_path_type = "curved"
+            p.sprite = love.graphics.newImage("resources/graphics/stages/cc_hillzone_platform.png")
+            
+            stage.spawnDist = 32
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/cc_hillzone_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/cc_hillzone_fg.png")
+            
+            stage.bgColor = nil
+            stage.bgShader = nil --lavaShader
+            
+            stage.music = nil;
+        end,
+        
+        -- squaredelie chamber from rosetta
+        function()
+            -- layout based on smash4 town & city / p+ luigi's mansion v2 / roa2 air armada
+            stage.name = "[wip] secret of the pyramid"
+            
+            stage.addPlatform(72, 100, 96, 56, "solid")
+            
+            -- platforms start joined together at the center of the stage and then move out to hover above the edges
+            -- // platforms are 20 units (2.5 tiles) above the main stage
+            --
+            -- left platform
+            p1 = objectSystem.createObject(moving_platform, 96 - 48 + 12, 76, 24)
+            p1.ptB = {x = 96, y = 76}
+            p1.movement_duration = 30 * 2    -- 2 sec travel time
+            p1.movement_delay = 30 * 12      -- 12 sec pause
+            p1.movement_smoothing = true
+            p1.sprite = love.graphics.newImage("resources/graphics/stages/pyramid_platform.png")
+            p1.sprite_ox = -1
+            
+            -- right platform
+            p2 = objectSystem.createObject(moving_platform, 120 + 48 - 12, 76, 24)
+            p2.ptB = {x = 120, y = 76}
+            p2.movement_duration = 30 * 2
+            p2.movement_delay = 30 * 12
+            p2.movement_smoothing = true
+            p2.sprite = love.graphics.newImage("resources/graphics/stages/pyramid_platform.png")
+            p2.sprite_ox = -1
+            
+            stage.spawnDist = 24
+            stage.blastZone = {l=0,r=240,t=-30,b=147}--b=151}  -- bottom blastzone raised up by 1/2 tile
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/pyramid_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/pyramid_fg.png")
+            
+            stage.bgColor = {}
+            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(1)
+            stage.bgShader = nil
+            
+            stage.music = nil
+            
+            rosetta_sandstorm()
+            rosetta_clouds()
+        end,
+        
         -- 500m from arielle
         function()
             stage.name = "arielle 500 m"
@@ -828,112 +934,6 @@ stage = {
 
             make_flag_custom(125, 103, false, util.color(11)).secret = enable_secret
             cc_snowflakes_custom(10, util.color(0))
-        end,
-        
-        --
-        function()
-            -- layout based on brawl smashville
-            stage.name = "cc_ville"
-            
-            stage.addPlatform(80, 100, 80, 16, "solid")
-            stage.addPlatform(88, 116, 64, 8, "solid")
-            
-            -- a single platform moves between the left and right side of the stage, stopping past the edge of the main stage
-            -- // the platform is 24 units (3 tiles) above the main stage
-            p = objectSystem.createObject(moving_platform, 32, 76, 32)
-            p.ptB = {x = 32 + 144, y = 76}
-            p.movement_duration = 210  -- 7 sec travel time
-            p.movement_delay = 30      -- 1 sec pause
-            p.movement_timer = 30      -- // init mid-movement so that it's closer to center stage at match start
-            p.movement_smoothing = true
-            p.sprite = love.graphics.newImage("resources/graphics/stages/cc_ville_platform.png")
-            
-            stage.spawnDist = 32
-            stage.blastZone = {l=0-8,r=240+8,t=-30,b=151}  -- blastzones are pushed out by 1 tile on each side
-            stage.bgImage = love.graphics.newImage("resources/graphics/stages/cc_ville_bg.png")
-            stage.fgImage = love.graphics.newImage("resources/graphics/stages/cc_ville_fg.png")
-            
-            stage.bgColor = nil
-            stage.bgShader = nil --lavaShader
-            
-            stage.music = nil;
-        end,
-        
-        --
-        function()
-            -- layout based on p+ green hill zone / roa2 aetherian forest
-            stage.name = "cc_hillzone"
-            
-            stage.addPlatform(80, 100, 80, 48, "solid")
-            
-            -- a single platform swings in an arc (half circle) above the main stage
-            -- https://help.altair.com/2023/panopticon/authoring/onlinehelp/DrawingaCirclewithCubicBzierCurves.htm
-            -- // at highest pt, the platform is 36 units (4.5 tiles) above the main stage
-            -- // at lowest pt, the platform is approx 16 units (2 tiles) above the main stage
-            p = objectSystem.createObject(moving_platform, 84, 60, 16)
-            p.ptA =  {x = 84, y = 100 - 36}
-            p.ptC1 = {x = 84 + (56 * 0.05), y = 100 - (36 * 0.334)}
-            p.ptC2 = {x = 84 + (56 * 0.95), y = 100 - (36 * 0.334)}
-            p.ptB =  {x = 84 + 56, y = 100 - 36}
-            p.movement_duration = 150  -- 5 sec travel time
-            p.movement_delay = 0       -- // the platform naturally pauses at the top of the arc
-            p.movement_timer = 90      -- // init mid-movement to avoid characters spawning on the platform
-            p.movement_smoothing = true
-            p.movement_path_type = "curved"
-            p.sprite = love.graphics.newImage("resources/graphics/stages/cc_hillzone_platform.png")
-            
-            stage.spawnDist = 32
-            stage.blastZone = {l=0,r=240,t=-30,b=151}
-            stage.bgImage = love.graphics.newImage("resources/graphics/stages/cc_hillzone_bg.png")
-            stage.fgImage = love.graphics.newImage("resources/graphics/stages/cc_hillzone_fg.png")
-            
-            stage.bgColor = nil
-            stage.bgShader = nil --lavaShader
-            
-            stage.music = nil;
-        end,
-        
-        -- squaredelie chamber from rosetta
-        function()
-            -- layout based on smash4 town & city / p+ luigi's mansion v2 / roa2 air armada
-            stage.name = "[wip] secret of the pyramid"
-            
-            stage.addPlatform(72, 100, 96, 56, "solid")
-            
-            -- platforms start joined together at the center of the stage and then move out to hover above the edges
-            -- // platforms are 20 units (2.5 tiles) above the main stage
-            --
-            -- left platform
-            p1 = objectSystem.createObject(moving_platform, 96 - 48 + 12, 76, 24)
-            p1.ptB = {x = 96, y = 76}
-            p1.movement_duration = 30 * 2    -- 2 sec travel time
-            p1.movement_delay = 30 * 12      -- 12 sec pause
-            p1.movement_smoothing = true
-            p1.sprite = love.graphics.newImage("resources/graphics/stages/pyramid_platform.png")
-            p1.sprite_ox = -1
-            
-            -- right platform
-            p2 = objectSystem.createObject(moving_platform, 120 + 48 - 12, 76, 24)
-            p2.ptB = {x = 120, y = 76}
-            p2.movement_duration = 30 * 2
-            p2.movement_delay = 30 * 12
-            p2.movement_smoothing = true
-            p2.sprite = love.graphics.newImage("resources/graphics/stages/pyramid_platform.png")
-            p2.sprite_ox = -1
-            
-            stage.spawnDist = 24
-            stage.blastZone = {l=0,r=240,t=-30,b=147}--b=151}  -- bottom blastzone raised up by 1/2 tile
-            stage.bgImage = love.graphics.newImage("resources/graphics/stages/pyramid_bg.png")
-            stage.fgImage = love.graphics.newImage("resources/graphics/stages/pyramid_fg.png")
-            
-            stage.bgColor = {}
-            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(1)
-            stage.bgShader = nil
-            
-            stage.music = nil
-            
-            rosetta_sandstorm()
-            rosetta_clouds()
         end,
         
         -- scrapped puzzlemod stage, too messy
