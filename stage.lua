@@ -783,7 +783,7 @@ stage = {
         -- squaredelie chamber from rosetta
         function()
             -- layout based on smash4 town & city / p+ luigi's mansion v2 / roa2 air armada
-            stage.name = "[wip] secret of the pyramid"
+            stage.name = "[wip] pyramid stage"
             
             stage.addPlatform(72, 100, 96, 56, "solid")
             
@@ -1018,8 +1018,6 @@ stage = {
             local snowflakeColors = {}
             
             local temp_canvas_fg, temp_canvas_bg = love.graphics.newCanvas(240, 135), love.graphics.newCanvas(240, 135)
-            love.graphics.setCanvas(temp_canvas_fg)
-            love.graphics.clear()
 
             for i, v in pairs(topPoslist) do
                 local cx, cy = v[1], v[2]
