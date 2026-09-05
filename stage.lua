@@ -718,6 +718,29 @@ stage = {
             cc_clouds(util.color(1))
             cc_snowflakes()
         end,
+        -- Memorial from Fuji
+        function()
+            stage.name = "memorial"
+
+            stage.addPlatform(56, 88, 128, 16, "solid")
+            stage.addPlatform(64, 104, 112, 8, "solid")
+            stage.addPlatform(72, 112, 96, 24, "solid")
+            stage.addPlatform(76, 64, 24, 4, "semisolid")
+            stage.addPlatform(140, 64, 24, 4, "semisolid")
+
+
+            stage.spawnDist = nil
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/memorial_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/memorial_fg.png")
+
+            stage.bgColor = nil
+            stage.bgShader = nil
+
+            stage.music = nil;
+            cc_clouds (util.color(2))
+            cc_snowflakes()
+        end,
         -- Depths of Hell (Normal Route Summit) from SNEK mod
         function()
             stage.name = "depths of hell"
