@@ -863,49 +863,6 @@ stage = {
             stage.music = nil;
         end,
         
-        -- squaredelie chamber from rosetta
-        function()
-            -- layout based on smash4 town & city / p+ luigi's mansion v2 / roa2 air armada
-            stage.name = "secret of the pyramid"
-            
-            stage.addPlatform(72, 100, 96, 56, "solid")
-            
-            -- platforms start joined together at the center of the stage and then move out to hover above the edges
-            -- // platforms are 20 units (2.5 tiles) above the main stage
-            --
-            -- left platform
-            p1 = objectSystem.createObject(moving_platform, 96 - 48 + 12, 76, 24)
-            p1.ptB = {x = 96, y = 76}
-            p1.movement_duration = 30 * 2    -- 2 sec travel time
-            p1.movement_delay = 30 * 12      -- 12 sec pause
-            p1.movement_smoothing = true
-            p1.sprite = love.graphics.newImage("resources/graphics/stages/pyramid_platform.png")
-            p1.sprite_ox = -1
-            
-            -- right platform
-            p2 = objectSystem.createObject(moving_platform, 120 + 48 - 12, 76, 24)
-            p2.ptB = {x = 120, y = 76}
-            p2.movement_duration = 30 * 2
-            p2.movement_delay = 30 * 12
-            p2.movement_smoothing = true
-            p2.sprite = love.graphics.newImage("resources/graphics/stages/pyramid_platform.png")
-            p2.sprite_ox = -1
-            
-            stage.spawnDist = 24
-            stage.blastZone = {l=0,r=240,t=-30,b=151}
-            stage.bgImage = love.graphics.newImage("resources/graphics/stages/pyramid_bg.png")
-            stage.fgImage = love.graphics.newImage("resources/graphics/stages/pyramid_fg.png")
-            
-            stage.bgColor = {}
-            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(1)
-            stage.bgShader = nil
-            
-            stage.music = nil
-            
-            rosetta_sandstorm()
-            rosetta_clouds()
-        end,
-        
         --
         function()
             -- layout based on p+ green hill zone / roa2 aetherian forest
@@ -940,6 +897,48 @@ stage = {
             stage.music = nil;
         end,
         
+        -- squaredelie chamber from rosetta
+        function()
+            -- layout based on smash4 town & city / p+ luigi's mansion v2 / roa2 air armada
+            stage.name = "[wip] secret of the pyramid"
+            
+            stage.addPlatform(72, 100, 96, 56, "solid")
+            
+            -- platforms start joined together at the center of the stage and then move out to hover above the edges
+            -- // platforms are 20 units (2.5 tiles) above the main stage
+            --
+            -- left platform
+            p1 = objectSystem.createObject(moving_platform, 96 - 48 + 12, 76, 24)
+            p1.ptB = {x = 96, y = 76}
+            p1.movement_duration = 30 * 2    -- 2 sec travel time
+            p1.movement_delay = 30 * 12      -- 12 sec pause
+            p1.movement_smoothing = true
+            p1.sprite = love.graphics.newImage("resources/graphics/stages/pyramid_platform.png")
+            p1.sprite_ox = -1
+            
+            -- right platform
+            p2 = objectSystem.createObject(moving_platform, 120 + 48 - 12, 76, 24)
+            p2.ptB = {x = 120, y = 76}
+            p2.movement_duration = 30 * 2
+            p2.movement_delay = 30 * 12
+            p2.movement_smoothing = true
+            p2.sprite = love.graphics.newImage("resources/graphics/stages/pyramid_platform.png")
+            p2.sprite_ox = -1
+            
+            stage.spawnDist = 24
+            stage.blastZone = {l=0,r=240,t=-30,b=147}--b=151}  -- bottom blastzone raised up by 1/2 tile
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/pyramid_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/pyramid_fg.png")
+            
+            stage.bgColor = {}
+            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(1)
+            stage.bgShader = nil
+            
+            stage.music = nil
+            
+            rosetta_sandstorm()
+            rosetta_clouds()
+        end,
         
         -- scrapped puzzlemod stage, too messy
         --[[
