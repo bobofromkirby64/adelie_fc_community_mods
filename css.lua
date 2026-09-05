@@ -17,7 +17,7 @@ NUM_PLAYER_SKINS = {
 }
 AVAILABLE_CHARS = {"maddy", "gem_maddy", "heavy_maddy", "lani", "stepstools","roundelie"}
 VANILLA_CHARS = {"maddy", "lani"}
-CPU_CHARS = {"maddy", "gem_maddy", "heavy_maddy", "stepstools"}
+CPU_CHARS = {"maddy", "gem_maddy", "heavy_maddy"}
 
 css = {
     players = {},
