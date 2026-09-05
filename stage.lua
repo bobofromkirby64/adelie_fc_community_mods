@@ -2,6 +2,10 @@
 require("objects/cloud")
 require("objects/moving_platform")
 
+-- TODO: probably should throw this into util?
+local function mid(x, y, z) return math.max(math.min(x, y), math.min(math.max(x, y), z)) end
+--
+
 cc_clouds = function(r, g, b)
     for i = 1, 32 do
         table.insert(particles_bg, {
@@ -180,6 +184,74 @@ cc2_snowflakes = function()
         })
     end
 end
+
+-- particle code ported over from the rosetta p8 cart (by meep)
+rosetta_sandstorm = function()
+    -- the particles are designed around smaller p8 window size (128x128) => adjustments made to compensate
+    for i = 0, math.floor(24 * (1 + (128/240))) do
+        table.insert(particles_fg, {
+            x = math.random() * 240,
+            y = math.random() * 135,
+            s = math.floor(math.random() * 1.25),
+            spd = (0.25 * math.random() * 0.25),
+            off = math.random(),
+            c_rand = math.random(),
+            
+            update = function(p)
+                
+                p.x = (p.x + ((p.spd + 1) * (128/240))) % 240
+                p.y = (p.y + ((0.25 + 0.25 * math.sin(p.off)) * (128/135))) % 135
+                p.off = p.off + 0.0125
+            end,
+            
+            draw = function(p)
+                local r, g, b = (p.c_rand < 0.8) and util.color(15) or util.color(13)
+                local size = (p.s < 1) and 1 or 2
+                
+                local c = {}
+                if p.c_rand < 0.8 then
+                    c[1], c[2], c[3] = util.color(15)
+                else
+                    c[1], c[2], c[3] = 255/255, 157/255, 129/255
+                end
+                love.graphics.setColor(c)
+                love.graphics.rectangle("fill", math.floor(p.x), math.floor(p.y), size, size)
+                love.graphics.setColor(1, 1, 1, 1)
+            end,
+        })
+    end
+end
+
+rosetta_clouds = function()
+-- init ...
+    -- for i=0,16 do
+        -- add(clouds,{ x=rnd"128",
+                     -- y=rnd"64",
+                     -- spd=0.25+rnd"0.75",
+                     -- w=32+rnd"32",
+                     -- c=rnd"1"<0.5 and 2 or 14
+                    -- })
+                    
+-- TODO: need to replicate p8 fillp functionality
+--      probably with a shader? or using stencil
+
+-- function draw_clouds()
+    -- fillp"0b1010010110100101.1"
+    -- foreach(clouds,
+            -- function(c)
+                -- c.x+=c.spd-cam_dx
+                -- for i=0,2 do
+                    -- rectfill(c.x-i,c.y+i,c.x+c.w+i,c.y+16-c.w*0.1875-i,c.c)
+                -- end
+                -- if c.x>128 then
+                    -- c.x=-c.w
+                    -- c.y=rnd"64"
+                -- end
+            -- end)
+    -- fillp()
+-- end
+end
+
 make_cog = function(x, y, flip_x)
     table.insert(particles_fg, {
         x = x - 2,
@@ -824,10 +896,14 @@ stage = {
             stage.bgImage = love.graphics.newImage("resources/graphics/stages/pyramid_bg.png")
             stage.fgImage = love.graphics.newImage("resources/graphics/stages/pyramid_fg.png")
             
-            stage.bgColor = nil
-            stage.bgShader = nil --lavaShader
+            stage.bgColor = {}
+            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(1)
+            stage.bgShader = nil
             
-            stage.music = nil;
+            stage.music = nil
+            
+            rosetta_sandstorm()
+            rosetta_clouds()
         end,
         
         --

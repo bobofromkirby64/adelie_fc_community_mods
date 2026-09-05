@@ -30,6 +30,7 @@ TODO: ((?) => "maybe", (*) => "high priority")
         - would also be useful for making adjustments to balance spawn positions (at the start of the match)
     - (?) support for arbitrary # of waypoints
         - prooobably just for linear paths? e.g. melee yoshi's island
+        - or add a new path type for it (that sounds better I think)
     - ...
 --]]
 
