@@ -135,10 +135,10 @@ cc_snowflakes_puzzlemod = function(r1, g1, b1, r2, g2, b2, r3, g3, b3, r4, g4, b
                 end
             end,
             draw = function(p)
-                if p.x < 120 and p.y >= 87 then love.graphics.setColor(p.c1)
-                elseif p.x > 120 and p.y >= 87 then love.graphics.setColor(p.c2)
-                elseif p.x <= 120 and p.y < 87 then love.graphics.setColor(p.c3)
-                elseif p.x >= 120 and p.y < 87 then love.graphics.setColor(p.c4) end
+                if p.x < 120 and p.y >= 79 then love.graphics.setColor(p.c1)
+                elseif p.x > 120 and p.y >= 79 then love.graphics.setColor(p.c2)
+                elseif p.x <= 120 and p.y < 79 then love.graphics.setColor(p.c3)
+                elseif p.x >= 120 and p.y < 79 then love.graphics.setColor(p.c4) end
                 --love.graphics.setColor(p.c)
                 love.graphics.rectangle("fill", math.floor(p.x), math.floor(p.y), p.s + 1, p.s + 1)
                 love.graphics.setColor(1, 1, 1, 1)
@@ -652,7 +652,7 @@ stage = {
             stage.addPlatform(0, 103, 80, 8, "solid")
             stage.addPlatform(0, 111, 16, 40, "solid")
 
-            stage.addPlatform(8, 71, 40, 8, "solid")
+            stage.addPlatform(16, 71, 32, 8, "solid")
             stage.addPlatform(24, 63, 16, 16, "solid")
 
             stage.addPlatform(48, 111, 32, 8, "solid")
@@ -667,10 +667,10 @@ stage = {
             stage.addPlatform(144, 103, 24, 16, "solid")
             stage.addPlatform(144, 119, 96, 8, "solid")
             stage.addPlatform(144, 127, 16, 24, "solid")
-            stage.addPlatform(177, 127, 16, 24, "solid")
+            stage.addPlatform(176, 127, 16, 24, "solid")
             stage.addPlatform(216, 127, 16, 24, "solid")
 
-            stage.addPlatform(192, 87, 40, 8, "solid")
+            stage.addPlatform(192, 87, 32, 8, "solid")
             stage.addPlatform(200, 79, 16, 16, "solid")
 
             stage.spawnDist = 68
@@ -690,23 +690,20 @@ stage = {
         function()
             stage.name = "perisher 1500 m"
 
-            --left island
-            stage.addPlatform(32, 79, 72, 16, "solid")
-            stage.addPlatform(40, 95, 52, 8, "solid")
-            stage.addPlatform(40, 103, 40, 8, "solid")
-            stage.addPlatform(48, 111, 24, 16, "solid")
-            stage.addPlatform(48, 127, 16, 24, "solid")
+            -- left platform
+            stage.addPlatform(56, 87, 48, 16, "solid")
+            stage.addPlatform(56, 103, 40, 8, "solid")
+            stage.addPlatform(56, 111, 24, 8, "solid")
+            stage.addPlatform(64, 119, 8, 8, "solid")
 
-            --middle island
-            stage.addPlatform(104, 119, 16, 32, "solid")
-            stage.addPlatform(120, 127, 8, 24, "solid")
-            stage.addPlatform(128, 111, 8, 48, "solid")
+            -- center island
+            stage.addPlatform(104, 127, 32, 24, "solid")
+            stage.addPlatform(128, 119, 8, 8, "solid")
 
-            --right island
-            stage.addPlatform(136, 71, 72, 16, "solid")
-            stage.addPlatform(136, 87, 64, 8, "solid")
-            stage.addPlatform(168, 95, 32, 16, "solid")
-            stage.addPlatform(176, 111, 16, 8, "solid")
+            -- right platform
+            stage.addPlatform(136, 79, 48, 24, "solid")
+            stage.addPlatform(168, 103, 16, 16, "solid")
+            stage.addPlatform(176, 119, 8, 8, "solid")
 
             stage.spawnDist = 52
             stage.blastZone = {l=0,r=240,t=-30,b=151}
@@ -730,8 +727,7 @@ stage = {
             stage.addPlatform(96, 111, 64, 48, "solid")
 
             --roof
-            stage.addPlatform(112, 47, 24, 24, "solid")
-            stage.addPlatform(104, 55, 8, 16, "solid")
+            stage.addPlatform(104, 55, 32, 16, "solid")
             stage.addPlatform(96, 63, 8, 8, "solid")
 
             --ledge
@@ -832,14 +828,15 @@ stage = {
         ]]
         -- puzzlemod
         function()
-            stage.name = "2x2 puzzlemod"
+            stage.name = "puzzlemod"
 
-            local poslist = {{72, 87}, {120, 87}, {72, 39}, {120, 39}}
-            local chunkIDs = {1, 2, 3, 4, 5, 6, 7, 8}
-            local numChunks = 8
+            local topPoslist = {{72, 31}, {120, 31}}
+            local bottomPoslist = {{72, 79}, {120, 79}}
+            local chunkIDs = {1, 2, 3, 4}
+            local numChunks = 4
             local snowflakeColors = {}
 
-            for i, v in pairs(poslist) do
+            for i, v in pairs(topPoslist) do
                 local cx, cy = v[1], v[2]
                 
                 local curIndex = localRandom.next() % (numChunks) + 1
@@ -847,8 +844,8 @@ stage = {
 
                 -- Control Center Chunk
                 if(curChunk == 1) then
-                    stage.addPlatform(cx + 16, cy + 32, 32, 16, "solid")
-                    stage.addPlatform(cx + 0, cy + 32, 16, 4, "semisolid")
+                    stage.addPlatform(cx + 32, cy + 32, 16, 16, "solid")
+                    stage.addPlatform(cx + 0, cy + 32, 32, 4, "semisolid")
 
                     table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/control_bg.png"), p.x, p.y) end })
                     table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/control_fg.png"), p.x, p.y) end })
@@ -856,9 +853,8 @@ stage = {
                     table.insert(snowflakeColors, {util.color(6)})
                 -- Falling Brick Chunk
                 elseif(curChunk == 2) then
-                    stage.addPlatform(cx + 0, cy + 16, 16, 16, "solid")
-                    stage.addPlatform(cx + 32, cy + 24, 16, 24, "solid")
-                    stage.addPlatform(cx + 16, cy + 0, 16, 4, "semisolid")
+                    stage.addPlatform(cx + 32, cy + 32, 16, 8, "solid")
+                    stage.addPlatform(cx + 0, cy + 16, 32, 4, "semisolid")
 
                     table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/brick_bg.png"), p.x, p.y) end })
                     table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/brick_fg.png"), p.x, p.y) end })
@@ -866,9 +862,7 @@ stage = {
                     table.insert(snowflakeColors, {util.color(6)})
                 -- Classic Chunk
                 elseif(curChunk == 3) then
-                    stage.addPlatform(cx + 0, cy + 32, 16, 16, "solid")
-                    stage.addPlatform(cx + 32, cy + 16, 16, 16, "solid")
-                    stage.addPlatform(cx + 16, cy + 16, 16, 4, "semisolid")
+                    stage.addPlatform(cx + 16, cy + 32, 32, 4, "semisolid")
 
                     table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/classic_bg.png"), p.x, p.y) end })
                     table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/classic_fg.png"), p.x, p.y) end })
@@ -876,18 +870,34 @@ stage = {
                     table.insert(snowflakeColors, {util.color(7)})
                 -- Lava Chunk
                 elseif(curChunk == 4) then
-                    stage.addPlatform(cx + 0, cy + 32, 32, 16, "solid")
-                    stage.addPlatform(cx + 32, cy + 32, 16, 4, "semisolid")
+                    stage.addPlatform(cx + 0, cy + 0, 16, 4, "semisolid")
+                    stage.addPlatform(cx + 16, cy + 16, 32, 4, "semisolid")
+                    stage.addPlatform(cx + 0, cy + 32, 48, 4, "semisolid")
 
-                    objectSystem.createObject(block, cx + 8, cy + 24, 1)
+                    --objectSystem.createObject(block, cx + 8, cy + 24, 1)
 
                     table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/lava_bg.png"), p.x, p.y) end })
                     table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/lava_fg.png"), p.x, p.y) end })
 
                     table.insert(snowflakeColors, {util.color(5)})
+                end
+                
+                table.remove(chunkIDs, curIndex)
+                numChunks = numChunks - 1
+            end
+
+            chunkIDs = {1, 2, 3, 4}
+            numChunks = 4
+
+            for i, v in pairs(bottomPoslist) do
+                local cx, cy = v[1], v[2]
+                
+                local curIndex = localRandom.next() % (numChunks) + 1
+                local curChunk = chunkIDs[curIndex]
+
                 -- Grey Chunk
-                elseif(curChunk == 5) then
-                    stage.addPlatform(cx + 0, cy + 32, 16, 16, "solid")
+                if(curChunk == 1) then
+                    stage.addPlatform(cx + 0, cy + 32, 48, 16, "solid")
                     stage.addPlatform(cx + 16, cy + 24, 16, 8, "solid")
 
                     table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/grey_bg.png"), p.x, p.y) end })
@@ -895,7 +905,7 @@ stage = {
 
                     table.insert(snowflakeColors, {util.color(6)})
                 -- Sand Chunk
-                elseif(curChunk == 6) then
+                elseif(curChunk == 2) then
                     stage.addPlatform(cx + 16, cy + 32, 16, 16, "solid")
                     stage.addPlatform(cx + 32, cy + 16, 16, 32, "solid")
                     stage.addPlatform(cx + 0, cy + 32, 16, 4, "semisolid")
@@ -915,9 +925,8 @@ stage = {
 
                     table.insert(snowflakeColors, {162/255, 136/255, 121/255})
                 -- Grass Chunk
-                elseif(curChunk == 7) then
+                elseif(curChunk == 3) then
                     stage.addPlatform(cx + 0, cy + 32, 16, 16, "solid")
-                    stage.addPlatform(cx + 16, cy + 0, 16, 8, "solid")
                     stage.addPlatform(cx + 32, cy + 32, 16, 16, "solid")
                     stage.addPlatform(cx + 16, cy + 32, 16, 4, "semisolid")
 
@@ -926,11 +935,11 @@ stage = {
 
                     table.insert(snowflakeColors, {util.color(9)})
                 -- Snow Chunk
-                elseif(curChunk == 8) then
-                    stage.addPlatform(cx + 32, cy + 16, 16, 32, "solid")
-                    stage.addPlatform(cx + 0, cy + 32, 32, 4, "semisolid")
+                elseif(curChunk == 4) then
+                    stage.addPlatform(cx + 0, cy + 32, 48, 16, "solid")
+                    stage.addPlatform(cx + 16, cy + 16, 16, 4, "semisolid")
 
-                    objectSystem.createObject(snowball, cx + 0, cy + 24, 1)
+                    objectSystem.createObject(snowball, cx + 16, cy + 8, 1)
 
                     table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/snow_bg.png"), p.x, p.y) end })
                     table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/snow_fg.png"), p.x, p.y) end })
@@ -951,7 +960,7 @@ stage = {
             stage.bgShader = nil
 
             stage.music = nil
-            --stage.music = "music/puzzlemod.ogg"
+            stage.music = "music/puzzlemod.ogg"
 
             cc_clouds(util.color(1))
             cc_snowflakes_puzzlemod(snowflakeColors[1][1], snowflakeColors[1][2], snowflakeColors[1][3], snowflakeColors[2][1], snowflakeColors[2][2], snowflakeColors[2][3], snowflakeColors[3][1], snowflakeColors[3][2], snowflakeColors[3][3], snowflakeColors[4][1], snowflakeColors[4][2], snowflakeColors[4][3])
