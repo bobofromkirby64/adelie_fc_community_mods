@@ -1,5 +1,11 @@
 -- stage.lua
 require("objects/cloud")
+require("objects/moving_platform")
+
+-- TODO: probably should throw this into util?
+local function mid(x, y, z) return math.max(math.min(x, y), math.min(math.max(x, y), z)) end
+--
+
 cc_clouds = function(r, g, b)
     for i = 1, 32 do
         table.insert(particles_bg, {
@@ -178,6 +184,74 @@ cc2_snowflakes = function()
         })
     end
 end
+
+-- particle code ported over from the rosetta p8 cart (by meep)
+rosetta_sandstorm = function()
+    -- the particles are designed around smaller p8 window size (128x128) => adjustments made to compensate
+    for i = 0, math.floor(24 * (1 + (128/240))) do
+        table.insert(particles_fg, {
+            x = math.random() * 240,
+            y = math.random() * 135,
+            s = math.floor(math.random() * 1.25),
+            spd = (0.25 * math.random() * 0.25),
+            off = math.random(),
+            c_rand = math.random(),
+            
+            update = function(p)
+                
+                p.x = (p.x + ((p.spd + 1) * (128/240))) % 240
+                p.y = (p.y + ((0.25 + 0.25 * math.sin(p.off)) * (128/135))) % 135
+                p.off = p.off + 0.0125
+            end,
+            
+            draw = function(p)
+                local r, g, b = (p.c_rand < 0.8) and util.color(15) or util.color(13)
+                local size = (p.s < 1) and 1 or 2
+                
+                local c = {}
+                if p.c_rand < 0.8 then
+                    c[1], c[2], c[3] = util.color(15)
+                else
+                    c[1], c[2], c[3] = 255/255, 157/255, 129/255
+                end
+                love.graphics.setColor(c)
+                love.graphics.rectangle("fill", math.floor(p.x), math.floor(p.y), size, size)
+                love.graphics.setColor(1, 1, 1, 1)
+            end,
+        })
+    end
+end
+
+rosetta_clouds = function()
+-- init ...
+    -- for i=0,16 do
+        -- add(clouds,{ x=rnd"128",
+                     -- y=rnd"64",
+                     -- spd=0.25+rnd"0.75",
+                     -- w=32+rnd"32",
+                     -- c=rnd"1"<0.5 and 2 or 14
+                    -- })
+                    
+-- TODO: need to replicate p8 fillp functionality
+--      probably with a shader? or using stencil
+
+-- function draw_clouds()
+    -- fillp"0b1010010110100101.1"
+    -- foreach(clouds,
+            -- function(c)
+                -- c.x+=c.spd-cam_dx
+                -- for i=0,2 do
+                    -- rectfill(c.x-i,c.y+i,c.x+c.w+i,c.y+16-c.w*0.1875-i,c.c)
+                -- end
+                -- if c.x>128 then
+                    -- c.x=-c.w
+                    -- c.y=rnd"64"
+                -- end
+            -- end)
+    -- fillp()
+-- end
+end
+
 make_cog = function(x, y, flip_x)
     table.insert(particles_fg, {
         x = x - 2,
@@ -643,6 +717,112 @@ stage = {
     },
 
     modded_layouts = {
+        --
+        function()
+            -- layout based on brawl smashville
+            stage.name = "cc_ville"
+            
+            stage.addPlatform(80, 100, 80, 16, "solid")
+            stage.addPlatform(88, 116, 64, 8, "solid")
+            
+            -- a single platform moves between the left and right side of the stage, stopping past the edge of the main stage
+            -- // the platform is 24 units (3 tiles) above the main stage
+            p = objectSystem.createObject(moving_platform, 32, 76, 32)
+            p.ptB = {x = 32 + 144, y = 76}
+            p.movement_duration = 210  -- 7 sec travel time
+            p.movement_delay = 30      -- 1 sec pause
+            p.movement_timer = 30      -- // init mid-movement so that it's closer to center stage at match start
+            p.movement_smoothing = true
+            p.sprite = love.graphics.newImage("resources/graphics/stages/cc_ville_platform.png")
+            
+            stage.spawnDist = 32
+            stage.blastZone = {l=0-8,r=240+8,t=-30,b=151}  -- blastzones are pushed out by 1 tile on each side
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/cc_ville_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/cc_ville_fg.png")
+            
+            stage.bgColor = nil
+            stage.bgShader = nil --lavaShader
+            
+            stage.music = nil;
+        end,
+        
+        --
+        function()
+            -- layout based on p+ green hill zone / roa2 aetherian forest
+            stage.name = "cc_hillzone"
+            
+            stage.addPlatform(80, 100, 80, 48, "solid")
+            
+            -- a single platform swings in an arc (half circle) above the main stage
+            -- https://help.altair.com/2023/panopticon/authoring/onlinehelp/DrawingaCirclewithCubicBzierCurves.htm
+            -- // at highest pt, the platform is 36 units (4.5 tiles) above the main stage
+            -- // at lowest pt, the platform is approx 16 units (2 tiles) above the main stage
+            p = objectSystem.createObject(moving_platform, 84, 60, 16)
+            p.ptA =  {x = 84, y = 100 - 36}
+            p.ptC1 = {x = 84 + (56 * 0.05), y = 100 - (36 * 0.334)}
+            p.ptC2 = {x = 84 + (56 * 0.95), y = 100 - (36 * 0.334)}
+            p.ptB =  {x = 84 + 56, y = 100 - 36}
+            p.movement_duration = 150  -- 5 sec travel time
+            p.movement_delay = 0       -- // the platform naturally pauses at the top of the arc
+            p.movement_timer = 90      -- // init mid-movement to avoid characters spawning on the platform
+            p.movement_smoothing = true
+            p.movement_path_type = "curved"
+            p.sprite = love.graphics.newImage("resources/graphics/stages/cc_hillzone_platform.png")
+            
+            stage.spawnDist = 32
+            stage.blastZone = {l=0,r=240,t=-30,b=151}
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/cc_hillzone_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/cc_hillzone_fg.png")
+            
+            stage.bgColor = nil
+            stage.bgShader = nil --lavaShader
+            
+            stage.music = nil;
+        end,
+        
+        -- squaredelie chamber from rosetta
+        function()
+            -- layout based on smash4 town & city / p+ luigi's mansion v2 / roa2 air armada
+            stage.name = "[wip] pyramid stage"
+            
+            stage.addPlatform(72, 100, 96, 56, "solid")
+            
+            -- platforms start joined together at the center of the stage and then move out to hover above the edges
+            -- // platforms are 20 units (2.5 tiles) above the main stage
+            --
+            -- left platform
+            p1 = objectSystem.createObject(moving_platform, 96 - 48 + 12, 76, 24)
+            p1.ptB = {x = 96, y = 76}
+            p1.movement_duration = 30 * 2    -- 2 sec travel time
+            p1.movement_delay = 30 * 12      -- 12 sec pause
+            p1.movement_smoothing = true
+            p1.sprite = love.graphics.newImage("resources/graphics/stages/pyramid_platform.png")
+            p1.sprite_ox = -1
+            
+            -- right platform
+            p2 = objectSystem.createObject(moving_platform, 120 + 48 - 12, 76, 24)
+            p2.ptB = {x = 120, y = 76}
+            p2.movement_duration = 30 * 2
+            p2.movement_delay = 30 * 12
+            p2.movement_smoothing = true
+            p2.sprite = love.graphics.newImage("resources/graphics/stages/pyramid_platform.png")
+            p2.sprite_ox = -1
+            
+            stage.spawnDist = 24
+            stage.blastZone = {l=0,r=240,t=-30,b=147}--b=151}  -- bottom blastzone raised up by 1/2 tile
+            stage.bgImage = love.graphics.newImage("resources/graphics/stages/pyramid_bg.png")
+            stage.fgImage = love.graphics.newImage("resources/graphics/stages/pyramid_fg.png")
+            
+            stage.bgColor = {}
+            stage.bgColor[1], stage.bgColor[2], stage.bgColor[3] = util.color(1)
+            stage.bgShader = nil
+            
+            stage.music = nil
+            
+            rosetta_sandstorm()
+            rosetta_clouds()
+        end,
+        
         -- 500m from arielle
         function()
             stage.name = "arielle 500 m"
@@ -778,6 +958,7 @@ stage = {
             make_flag_custom(125, 103, false, util.color(11)).secret = enable_secret
             cc_snowflakes_custom(10, util.color(0))
         end,
+        
         -- scrapped puzzlemod stage, too messy
         --[[
         function()
@@ -858,20 +1039,24 @@ stage = {
             local chunkIDs = {1, 2, 3, 4}
             local numChunks = 4
             local snowflakeColors = {}
+            
+            local temp_canvas_fg, temp_canvas_bg = love.graphics.newCanvas(240, 135), love.graphics.newCanvas(240, 135)
 
             for i, v in pairs(topPoslist) do
                 local cx, cy = v[1], v[2]
                 
                 local curIndex = localRandom.next() % (numChunks) + 1
                 local curChunk = chunkIDs[curIndex]
-
+                
                 -- Control Center Chunk
                 if(curChunk == 1) then
                     stage.addPlatform(cx + 32, cy + 32, 16, 16, "solid")
                     stage.addPlatform(cx + 0, cy + 32, 32, 4, "semisolid")
 
-                    table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/control_bg.png"), p.x, p.y) end })
-                    table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/control_fg.png"), p.x, p.y) end })
+                    love.graphics.setCanvas(temp_canvas_bg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/control_bg.png"), cx, cy)
+                    love.graphics.setCanvas(temp_canvas_fg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/control_fg.png"), cx, cy)
 
                     table.insert(snowflakeColors, {util.color(6)})
                 -- Falling Brick Chunk
@@ -879,16 +1064,20 @@ stage = {
                     stage.addPlatform(cx + 32, cy + 32, 16, 8, "solid")
                     stage.addPlatform(cx + 0, cy + 16, 32, 4, "semisolid")
 
-                    table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/brick_bg.png"), p.x, p.y) end })
-                    table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/brick_fg.png"), p.x, p.y) end })
+                    love.graphics.setCanvas(temp_canvas_bg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/brick_bg.png"), cx, cy)
+                    love.graphics.setCanvas(temp_canvas_fg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/brick_fg.png"), cx, cy)
 
                     table.insert(snowflakeColors, {util.color(6)})
                 -- Classic Chunk
                 elseif(curChunk == 3) then
                     stage.addPlatform(cx + 16, cy + 32, 32, 4, "semisolid")
 
-                    table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/classic_bg.png"), p.x, p.y) end })
-                    table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/classic_fg.png"), p.x, p.y) end })
+                    love.graphics.setCanvas(temp_canvas_bg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/classic_bg.png"), cx, cy)
+                    love.graphics.setCanvas(temp_canvas_fg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/classic_fg.png"), cx, cy)
 
                     table.insert(snowflakeColors, {util.color(7)})
                 -- Lava Chunk
@@ -899,8 +1088,10 @@ stage = {
 
                     --objectSystem.createObject(block, cx + 8, cy + 24, 1)
 
-                    table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/lava_bg.png"), p.x, p.y) end })
-                    table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/lava_fg.png"), p.x, p.y) end })
+                    love.graphics.setCanvas(temp_canvas_bg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/lava_bg.png"), cx, cy)
+                    love.graphics.setCanvas(temp_canvas_fg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/lava_fg.png"), cx, cy)
 
                     table.insert(snowflakeColors, {util.color(5)})
                 end
@@ -923,8 +1114,10 @@ stage = {
                     stage.addPlatform(cx + 0, cy + 32, 48, 16, "solid")
                     stage.addPlatform(cx + 16, cy + 24, 16, 8, "solid")
 
-                    table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/grey_bg.png"), p.x, p.y) end })
-                    table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/grey_fg.png"), p.x, p.y) end })
+                    love.graphics.setCanvas(temp_canvas_bg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/grey_bg.png"), cx, cy)
+                    love.graphics.setCanvas(temp_canvas_fg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/grey_fg.png"), cx, cy)
 
                     table.insert(snowflakeColors, {util.color(6)})
                 -- Sand Chunk
@@ -943,8 +1136,10 @@ stage = {
 
                     make_flag_custom(cx + 21, cy + 24, false, util.color(11)).secret = enable_secret
 
-                    table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/sand_bg.png"), p.x, p.y) end })
-                    table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/sand_fg.png"), p.x, p.y) end })
+                    love.graphics.setCanvas(temp_canvas_bg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/sand_bg.png"), cx, cy)
+                    love.graphics.setCanvas(temp_canvas_fg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/sand_fg.png"), cx, cy)
 
                     table.insert(snowflakeColors, {162/255, 136/255, 121/255})
                 -- Grass Chunk
@@ -953,8 +1148,10 @@ stage = {
                     stage.addPlatform(cx + 32, cy + 32, 16, 16, "solid")
                     stage.addPlatform(cx + 16, cy + 32, 16, 4, "semisolid")
 
-                    table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/grass_bg.png"), p.x, p.y) end })
-                    table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/grass_fg.png"), p.x, p.y) end })
+                    love.graphics.setCanvas(temp_canvas_bg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/grass_bg.png"), cx, cy)
+                    love.graphics.setCanvas(temp_canvas_fg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/grass_fg.png"), cx, cy)
 
                     table.insert(snowflakeColors, {util.color(9)})
                 -- Snow Chunk
@@ -964,8 +1161,10 @@ stage = {
 
                     objectSystem.createObject(snowball, cx + 16, cy + 8, 1)
 
-                    table.insert(particles_mg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/snow_bg.png"), p.x, p.y) end })
-                    table.insert(particles_fg, { x = cx, y = cy, update = function(p) end, draw = function(p) love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/snow_fg.png"), p.x, p.y) end })
+                    love.graphics.setCanvas(temp_canvas_bg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/snow_bg.png"), cx, cy)
+                    love.graphics.setCanvas(temp_canvas_fg)
+                    love.graphics.draw(love.graphics.newImage("resources/graphics/stages/puzzlemod/snow_fg.png"), cx, cy)
 
                     table.insert(snowflakeColors, {util.color(7)})
                 end
@@ -976,8 +1175,11 @@ stage = {
 
             stage.spawnDist = 22
             stage.blastZone = {l=0,r=240,t=-30,b=151}
-            stage.bgImage = love.graphics.newImage("resources/graphics/stages/blank.png")
-            stage.fgImage = love.graphics.newImage("resources/graphics/stages/blank.png")
+            
+            love.graphics.setCanvas()  -- reset
+            
+            stage.bgImage = love.graphics.newImage(temp_canvas_bg:newImageData())
+            stage.fgImage = love.graphics.newImage(temp_canvas_fg:newImageData())
 
             stage.bgColor = nil
             stage.bgShader = nil

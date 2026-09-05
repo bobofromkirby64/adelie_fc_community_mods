@@ -947,13 +947,18 @@ roundelie = {
                             img_y = impact_y + 9  -- => second row of pixels from the top
                         else
                             -- "ground" is an object
-                            local obj_name = "objects/" .. ground_hit.type.name
-                            img_w, img_h = sprites[obj_name]:getPixelDimensions()
+                            local temp_sprite = nil
+                            if ground_hit.type.name == "moving_platform" then
+                                temp_sprite = ground_hit.sprite
+                            else
+                                temp_sprite = sprites["objects/" .. ground_hit.type.name]
+                            end
+                            img_w, img_h = temp_sprite:getPixelDimensions()
                             temp_canvas = love.graphics.newCanvas(img_w, img_h)
                             
                             love.graphics.setCanvas(temp_canvas)
                             love.graphics.clear()
-                            love.graphics.draw(sprites[obj_name], 0, 0)
+                            love.graphics.draw(temp_sprite, 0, 0)
                             love.graphics.setCanvas()  -- reset
                             img_data = temp_canvas:newImageData()
 
