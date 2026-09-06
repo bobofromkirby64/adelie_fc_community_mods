@@ -978,7 +978,11 @@ stage = {
             local numChunks = 4
             local snowflakeColors = {}
             
+            -- used to create a stage fg and bg image by combining the images for the separate chunks
+            -- (roundelie pick colors from the stage fg image for the ground chunks that are created after diving into the ground)
             local temp_canvas_fg, temp_canvas_bg = love.graphics.newCanvas(240, 135), love.graphics.newCanvas(240, 135)
+            love.graphics.push("all")  -- store coord system to preserve any transforms applied to main canvas, e.g. if window was resized
+            love.graphics.origin()     -- reset coord system to default state
 
             for i, v in pairs(topPoslist) do
                 local cx, cy = v[1], v[2]
@@ -1110,11 +1114,11 @@ stage = {
                 table.remove(chunkIDs, curIndex)
                 numChunks = numChunks - 1
             end
+            love.graphics.pop()        -- reapply stored coord system transforms
+            love.graphics.setCanvas()  -- reset
 
             stage.spawnDist = 22
             stage.blastZone = {l=0,r=240,t=-30,b=151}
-            
-            love.graphics.setCanvas()  -- reset
             
             stage.bgImage = love.graphics.newImage(temp_canvas_bg:newImageData())
             stage.fgImage = love.graphics.newImage(temp_canvas_fg:newImageData())
