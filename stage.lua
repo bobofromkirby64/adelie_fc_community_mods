@@ -1218,10 +1218,10 @@ stage = {
             -- // at highest pt, the platform is 36 units (4.5 tiles) above the main stage
             -- // at lowest pt, the platform is approx 16 units (2 tiles) above the main stage
             p = objectSystem.createObject(moving_platform, 84, 60, 16)
-            p.ptA =  {x = 84, y = 100 - 36}
-            p.ptC1 = {x = 84 + (56 * 0.05), y = 100 - (36 * 0.334)}
-            p.ptC2 = {x = 84 + (56 * 0.95), y = 100 - (36 * 0.334)}
-            p.ptB =  {x = 84 + 56, y = 100 - 36}
+            p.ptA =  {x = 84, y = 100 - 40 + 8}
+            p.ptC1 = {x = 84 + (56 * 0.05), y = 100 - (40 * 0.334)}
+            p.ptC2 = {x = 84 + (56 * 0.95), y = 100 - (40 * 0.334)}
+            p.ptB =  {x = 84 + 56, y = 100 - 40 + 8}
             p.movement_duration = 150  -- 5 sec travel time
             p.movement_delay = 0       -- // the platform naturally pauses at the top of the arc
             p.movement_timer = 90      -- // init mid-movement to avoid characters spawning on the platform
