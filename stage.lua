@@ -1190,14 +1190,16 @@ stage = {
             -- layout based on brawl smashville
             stage.name = "cc_ville"
             
-            stage.addPlatform(80, 100, 80, 16, "solid")
-            stage.addPlatform(88, 116, 64, 8, "solid")
+            stage.addPlatform(76, 100 - 4, 88, 16, "solid")
+            stage.addPlatform(84, 116 - 4, 72, 8, "solid")
+            -- stage.addPlatform(80, 100, 80, 16, "solid")
+            -- stage.addPlatform(88, 116, 64, 8, "solid")
             
             -- a single platform moves between the left and right side of the stage, stopping past the edge of the main stage
             -- // the platform is 24 units (3 tiles) above the main stage
-            p = objectSystem.createObject(moving_platform, 32 + 129, 76, 32)  -- TODO: hacky; should calculate initial position instead
-            p.ptA = {x = 32, y = 76}
-            p.ptB = {x = 32 + 144, y = 76}
+            p = objectSystem.createObject(moving_platform, 32 + 129, 76 - 4, 32)  -- TODO: hacky; should calculate initial position instead
+            p.ptA = {x = 32, y = 76 - 4}
+            p.ptB = {x = 32 + 144, y = 76 - 4}
             p.movement_duration = 210  -- 7 sec travel time
             p.movement_delay = 30      -- 1 sec pause
             p.movement_timer = 170     -- // init mid-movement to avoid characters landing on top of the platform at match start
