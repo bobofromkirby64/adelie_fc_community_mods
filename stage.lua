@@ -774,10 +774,9 @@ stage = {
 
             stage.addPlatform(56, 88, 128, 16, "solid")
             stage.addPlatform(64, 104, 112, 8, "solid")
-            stage.addPlatform(72, 112, 96, 24, "solid")
+            stage.addPlatform(72, 112, 96, 48, "solid")
             stage.addPlatform(76, 64, 24, 4, "semisolid")
             stage.addPlatform(140, 64, 24, 4, "semisolid")
-
 
             stage.spawnDist = nil
             stage.blastZone = {l=0,r=240,t=-30,b=151}
@@ -1222,7 +1221,7 @@ stage = {
             -- layout based on p+ green hill zone / roa2 aetherian forest
             stage.name = "cc_hillzone"
             
-            stage.addPlatform(80, 100, 80, 48, "solid")
+            stage.addPlatform(80, 100, 80, 60, "solid")
             
             -- a single platform swings in an arc (half circle) above the main stage
             -- https://help.altair.com/2023/panopticon/authoring/onlinehelp/DrawingaCirclewithCubicBzierCurves.htm
