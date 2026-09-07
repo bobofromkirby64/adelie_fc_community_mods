@@ -749,9 +749,9 @@ stage = {
             
             -- set timers to avoid characters landing on top of the platform at match start
             p1.movement_timer = p1.movement_duration          -- TODO: bit hacky?
-            p1.movement_delay_timer = p1.movement_delay - 60
+            p1.movement_delay_timer = p1.movement_delay - 30
             p2.movement_timer = p2.movement_duration
-            p2.movement_delay_timer = p2.movement_delay - 60
+            p2.movement_delay_timer = p2.movement_delay - 30
             
             stage.spawnDist = 24
             stage.blastZone = {l=0,r=240,t=-30,b=147}--b=151}  -- bottom blastzone raised up by 1/2 tile
