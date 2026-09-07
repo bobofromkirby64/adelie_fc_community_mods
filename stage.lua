@@ -773,12 +773,13 @@ stage = {
             stage.addPlatform(72, 100, 96, 56, "solid")
             
             -- platforms start joined together at the center of the stage and then move out to hover above the edges
-            -- // platforms are 20 units (2.5 tiles) above the main stage
+            -- // platforms are 23 units (~3 tiles) above the main stage (1px offset is better for platform clips)
             --
+            local p_w = 24
             -- left platform
-            p1 = objectSystem.createObject(moving_platform, 96 - 48 + 12, 76, 24)
-            p1.ptA = {x = 96, y = 76}
-            p1.ptB = {x = 96 - 48 + 12, y = 76}
+            p1 = objectSystem.createObject(moving_platform, 96 - 48 + (p_w/2), 77, p_w)
+            p1.ptA = {x = 96, y = 77}
+            p1.ptB = {x = 96 - 48 + (p_w/2), y = 77}
             p1.movement_duration = 30 * 2    -- 2 sec travel time
             p1.movement_delay = 30 * 12      -- 12 sec pause
             p1.movement_smoothing = true
@@ -786,9 +787,9 @@ stage = {
             p1.sprite_ox = -1
             
             -- right platform
-            p2 = objectSystem.createObject(moving_platform, 120 + 48 - 12, 76, 24)
-            p2.ptA = {x = 120, y = 76}
-            p2.ptB = {x = 120 + 48 - 12, y = 76}
+            p2 = objectSystem.createObject(moving_platform, 120 + 48 - (p_w/2), 77, p_w)
+            p2.ptA = {x = 120, y = 77}
+            p2.ptB = {x = 120 + 48 - (p_w/2), y = 77}
             p2.movement_duration = 30 * 2
             p2.movement_delay = 30 * 12
             p2.movement_smoothing = true
