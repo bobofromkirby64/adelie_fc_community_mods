@@ -954,6 +954,8 @@ roundelie = {
                             local temp_sprite = nil
                             if ground_hit.type.name == "moving_platform" then
                                 temp_sprite = ground_hit.sprite
+                            elseif ground_hit.type.name == "goldstool" then
+                                temp_sprite = (sprites["objects/goldstool_" .. tonumber(ground_hit.skin)][1]).img
                             else
                                 temp_sprite = sprites["objects/" .. ground_hit.type.name]
                             end
