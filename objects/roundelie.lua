@@ -1309,7 +1309,7 @@ roundelie = {
         local next_anim
         local new_flip_speed = math.min(this.animations.roll.speed, 3)
 
-        -- pause animations during hitstun
+        --
         if this.hitstun > 0 then
             this.animations.flip.speed = new_flip_speed
             next_anim = (not anim_on_ground) and "flip" or current_anim
@@ -1394,34 +1394,36 @@ roundelie = {
                 next_anim = this.idle_poses[this.orientation]
             end
         end
-        
+
         -- update current animation
         if next_anim ~= this.current_anim then
+            this.current_anim = next_anim
+
             if (next_anim == "roll" or next_anim == "flip") then
                 this.anim_frame = this.orientation
                 this.anim_timer = (this.current_anim == "roll" or this.current_anim == "flip") and (this.anim_timer % anim.speed) or 0
             else
                 this.anim_frame = 1
-                -- e.g. if anim.speed is 3, then anim_frame will increment when anim_timer == 3
-                --   => if anim_timer is initialized to 0, the first frame of the animation will only be drawn for 2 frames
-                this.anim_timer = -1
+                this.anim_timer = -1  -- compensate for frame increment behavior to avoid skipping a frame of animation
             end
-            this.current_anim = next_anim
         end
-        
-        if this.hitstun == 0 then this.anim_timer = this.anim_timer + 1; end  -- animations are paused during hitstun
-        
+
+        -- only increment animation timer when not in hitstun
+        if this.hitstun == 0 then
+            this.anim_timer = this.anim_timer + 1
+        end
+
+        -- advance animation frame
         local anim = this.animations[this.current_anim]
-        if (not anim_is_loop) and (this.anim_timer > 0) and (this.anim_timer % anim.speed == 0) then
-            this.anim_frame = this.anim_frame + 1
-        elseif anim_is_loop and this.anim_timer >= anim.speed then
-            this.anim_timer = 0
-            this.anim_frame = this.anim_frame + 1
-            if this.anim_frame > #anim.frames then
-                this.anim_frame = 1
+        if anim_is_loop then
+            if this.anim_timer >= anim.speed then
+                this.anim_timer = 0
+                this.anim_frame = (this.anim_frame % #anim.frames) + 1
             end
+        elseif this.anim_timer > 0 and (this.anim_timer % anim.speed == 0) then
+            this.anim_frame = this.anim_frame + 1
         end
-        
+
         -- blast zones and stocks (maybe move elsewhere?)
         if this:oob(0, 0) then
             love.audio.play("kill", "static")
