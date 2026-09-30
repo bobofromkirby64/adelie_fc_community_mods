@@ -1257,14 +1257,14 @@ roundelie = {
                 this.falling_timer = 1
             end
         end
-        
+
         -- teleport vfx
         if this.teleport_info.init then
             this:draw_teleport_vfx()
             this.current_anim = "teleport_start"  -- bit hacky
             this.invis_timer = 3
         end
-        
+
         -- dive vfx
         if this.should_draw_dive_vfx then
             this.dive_smoketrail = 2
@@ -1272,18 +1272,13 @@ roundelie = {
             love.audio.play("maddy_downdash", "static")  -- TODO: placeholder
             this.should_draw_dive_vfx = false
         end
-        
+
         -- update sprite / animation orientation
         if this.current_anim == "roll" or this.current_anim == "flip" then
             this.orientation = this.anim_frame
         end
         
         if this.prev_facing ~= this.facing then
-            if this.current_anim == "roll" and anim_on_ground and math.abs(this.vx) > 0 and math.abs(this.prev_vx) > 0 and v_input ~= 1 then
-                -- draw dust cloud after changing direction mid-roll
-                this.init_dust_cloud(this.x + (this.facing == 1 and 1 or 0), this.y + 2, -1 * this.facing)
-            end
-            
             if this.orientation == this.directions.RIGHT then
                 this.orientation = this.directions.LEFT
                 this.anim_frame = this.anim_frame + 2
@@ -1291,109 +1286,109 @@ roundelie = {
                 this.orientation = this.directions.RIGHT
                 this.anim_frame = this.anim_frame - 2
             end
+            
+            -- draw dust cloud after changing direction mid-roll
+            if this.current_anim == "roll" and anim_on_ground and math.abs(this.vx) > 0 and math.abs(this.prev_vx) > 0 and v_input ~= 1 then
+                this.init_dust_cloud(this.x + (this.facing == 1 and 1 or 0), this.y + 2, -1 * this.facing)
+            end
         end
-        
+
         -- update roll speed
-        local prev_anim_speed, new_anim_speed = this.animations.roll.speed, 4
+        local new_anim_speed = 4
         if ((math.abs(this.vx) + math.abs(this.vy)) / 2) >= ((MAX_RUN_SPEED + MAX_FALL_SPEED) / 2) then
             new_anim_speed = 2
         elseif (math.abs(this.vx) >= MAX_RUN_SPEED) or (this.vy <= -1.0) then
             new_anim_speed = 3
         end
         this.animations.roll.speed = new_anim_speed
-        
+
         -- determine next sprite / animation
         local anim = this.animations[this.current_anim]
         local anim_is_finished = anim.has_ending and ((anim.speed * #anim.frames) <= (this.anim_timer + 1))
         local anim_is_loop = (not anim.has_ending)
         local next_anim
-        
+        local new_flip_speed = math.min(this.animations.roll.speed, 3)
+
+        -- pause animations during hitstun
         if this.hitstun > 0 then
-            this.animations.flip.speed = math.min(this.animations.roll.speed, 3)
-            if (not anim_on_ground) then
-                next_anim = "flip"
-            else
-                -- animations are paused during hitstun
-                next_anim = this.current_anim
-            end
+            this.animations.flip.speed = new_flip_speed
+            next_anim = (not anim_on_ground) and "flip" or current_anim
+
+        -- (edge-case) init teleport anim
         elseif this.current_anim == "teleport_start" then
-            -- roundelie is inflated when reappearing after a teleport
             this.orientation = this.directions.UP
             next_anim = "teleport_inflate"
+
+        -- MIDAIR ANIMATIONS
         elseif not anim_on_ground then
             if this.is_start_of_jump then
-                --
                 this.orientation = this.directions.UP
-                if (not (this.current_anim == "inflate_start" or this.current_anim == "inflate")) and this.is_first_frame_jump and math.abs(this.vx) >= 1.5 then
+                if this.current_anim ~= "inflate_start" and this.current_anim ~= "inflate" and this.is_first_frame_jump and math.abs(this.vx) >= 1.5 then
                     next_anim = "roll"
                 elseif this.current_anim == "inflate_start" and anim_is_finished then
                     next_anim = "inflate_quick"
                 else
                     next_anim = "inflate_start"
                 end
-            elseif (not (this.current_anim == "inflate_start" or this.current_anim == "inflate")) and this.conk > 0 and this.was_big_conk then
-                -- during big bounce
+            -- big bounce
+            elseif this.current_anim ~= "inflate_start" and this.current_anim ~= "inflate" and this.conk > 0 and this.was_big_conk then
                 next_anim = "conk"
+            -- dive / down attack
             elseif this.down_attack and this.dribble_window == 0 then
-                -- dive / down attack
                 this.orientation = this.directions.UP
                 next_anim = (this.vy == MAX_DIVE_SPEED) and "dive2" or "dive1"
-            -- handle sequences of animations
+            -- animation sequence
             elseif (not anim_is_loop) and (not anim_is_finished) then
-                --
                 next_anim = this.current_anim
             elseif (not anim_is_loop) and anim_is_finished and anim.next_anim then
-                --
                 next_anim = anim.next_anim
+            -- roll / flip
             elseif this.current_anim == "roll" then
-                -- roll (midair)
                 if math.abs(this.vx) < MAX_RUN_SPEED then  -- more strict than the check for the grounded roll
-                    this.animations.flip.speed = math.min(this.animations.roll.speed, 3)
+                    this.animations.flip.speed = new_flip_speed
                     next_anim = (this.orientation == this.directions.UP) and "jump2" or "flip"
                 else
                     next_anim = "roll"
                 end
             elseif this.current_anim == "flip" then
-                -- roundelie continues rotating until it's upright
                 -- TODO: flip rotation shouldn't change if roundelie changes the direction its facing
                 --      i.e. if the flip rotation is CW, rotation after turning around should still be CW
                 --      (maybe also experiment with speeding up anim if facing direction changes?)
                 next_anim = (this.orientation == this.directions.UP) and "jump2" or "flip"
             else
                 if this.orientation ~= this.directions.UP then
-                    this.animations.flip.speed = math.min(this.animations.roll.speed, 3)
+                    this.animations.flip.speed = new_flip_speed
                     next_anim = "flip"
+                -- default midair pose (jump / fall)
                 else
-                    -- default midair pose (jump/fall)
-                    next_anim = this.vy < 0.3 and "jump2" or "jump3"
+                    next_anim = (this.vy < 0.3) and "jump2" or "jump3"
                 end
             end
-        --
+
+        -- GROUNDED ANIMATIONS
         else
-            -- handle crouch animations
+            -- crouch
             if this.is_squishy and this.current_anim == "crouch" and v_input ~= 1 then
                 next_anim = "crouch_up"
             elseif v_input == 1 then
                 this.orientation = this.directions.UP
                 next_anim = "crouch"
-            -- handle sequences of animations
+            -- animation sequence
             elseif (not anim_is_loop) and (not anim_is_finished) then
-                --
                 next_anim = this.current_anim
             elseif (not anim_is_loop) and anim_is_finished and anim.next_anim then
                 next_anim = anim.next_anim
+            -- (edge-case) grounded teleport exit
             elseif this.is_squishy and this.current_anim == "inflate_exit" then
-                -- handle inflate animation ending when on the ground, e.g. after teleport
                 next_anim = "crouch_up"
+            -- squash / landing
             elseif anim_is_landing and this.is_squishy and this.current_anim ~= "roll" and (not (math.abs(this.vx) >= 1.0 and this.current_anim == "flip")) then
-                -- roundelie squashes from the impact of landing
                 this.orientation = this.directions.UP
                 next_anim = (this.was_big_fall or this.current_anim == "squash_big_fall") and "squash_big_fall" or "squash_small_fall"
+            --
             elseif (this.current_anim == "roll" and (math.abs(this.vx) >= 1.0 or (h_input ~= 0 and math.abs(this.vx) > 0))) or (this.current_anim ~= "roll" and math.abs(this.vx) > 0.5) then
-                --
                 next_anim = "roll"
             elseif v_input == -1 and this.orientation == this.directions.UP then
-                --
                 next_anim = "up"
             else
                 next_anim = this.idle_poses[this.orientation]
@@ -1404,12 +1399,7 @@ roundelie = {
         if next_anim ~= this.current_anim then
             if (next_anim == "roll" or next_anim == "flip") then
                 this.anim_frame = this.orientation
-                if this.current_anim == "roll" or this.current_anim == "flip" then
-                    this.anim_timer = this.anim_timer % anim.speed
-                else
-                    -- roll/flip animation is sped up at the start to appear more natural
-                    this.anim_timer = 0
-                end
+                this.anim_timer = (this.current_anim == "roll" or this.current_anim == "flip") and (this.anim_timer % anim.speed) or 0
             else
                 this.anim_frame = 1
                 -- e.g. if anim.speed is 3, then anim_frame will increment when anim_timer == 3
