@@ -1,5 +1,5 @@
 -- objects/roundelie.lua
--- v0.8.1
+-- v0.8.2
 
 --[[ Character Documentation:
 
@@ -1293,7 +1293,7 @@ roundelie = {
             end
         end
 
-        -- update roll speed
+        -- update roll animation speed
         local new_anim_speed = 4
         if ((math.abs(this.vx) + math.abs(this.vy)) / 2) >= ((MAX_RUN_SPEED + MAX_FALL_SPEED) / 2) then
             new_anim_speed = 2
