@@ -1,38 +1,113 @@
 -- objects/roundelie.lua
 -- v0.8.1
 
--- Movement Documentation:
--- Z to jump, left and right arrow keys to move
--- X + Up causes a small midair "bounce" slightly smaller than a jump. 
---   Can be done up to 3 times before touching the ground
---   Was changed to have no cooldown between uses (but the parameter to adjust cooldown time was not removed)
--- X + Down causes roundelie to accelerate downward quickly while held
---   Has a top speed higher than the regular terminal velocity
---   Has a hitbox that pushes opponents downward, which may "trap" them as they fall
---     - There's a 1f delay before the hitbox comes out, and an initial burst of speed is applied after the delay
---     - The hitbox remains active as long as the input is held, or until roundelie collides a wall or with the ground
---   If X + Down is held when roundelie hits a wall, roundelie bounces back and upward off the wall
---   (ie in the direction opposite roundelie's facing direction, not necessarily away from the wall)
---   If X + Down is held when roundelie hits ground, roundelie bounces back and upward off the ground and sends out a shockwave
---     Roundelie's bounce and the shockwave are larger if roundelie hits the ground at the max speed of the down + x attack
---     The shockwave does upward knockback to all opponents at ground height and somewhat close to roundelie laterally
---     The shockwave is slightly offset laterally in the direction roundelie was facing when they hit the ground
---     This hitbox is also marked by particles for clarity
--- X + Left/Right/Nothing causes roundelie to teleport in the held direction
---   Zeros roundelie's x speed, but does not change its y speed
---   Has a 2 second cooldown before roundelie can teleport again
---   This is indicated by the color of roundelie's beak, which changes when the teleport is unavailable
---   Has a hitbox that sends opponents in the direction held 1f after the teleport (not necessarily the teleport direction)
---      TODO: ^ I don't think this is actually true? I never switch input during or immediately after teleport but I regularly send opponent flying in the opposite direction
---   Roundelie is invulnerable for the first two frames of the teleport, and the hitbox is also active for those first two frames
---   There's a 3f delay before roundelie can act out of a teleport, e.g. buffering a grace-jump
--- Jump + Down lets roundelie fall through any semisolids it interacts with
---   Falling through semisolids which roundelie is standing on requires pressing jump, like other characters
--- Snowball interactions:
---   Roundelie can dive into a snowball to bounce off of it, and the resulting bounce is higher than a bounce off of the ground
---   Roundelie can teleport into a snowball to launch it in the direction that it's facing
---   Roundelie can knock a snowball into the air with the ground-slam/shockwave attack
---   Roundelie can stop a snowball from rolling either by diving into it or by knocking it into the air with the ground-slam
+--[[ Character Documentation:
+
+X + UP is an extra jump (/bjump/bump)
+    The height of a bjump is slightly shorter than a standard jump
+    Roundelie can bjump up to 2 times in midair, but bjump uses are replenished when roundelie lands on (or passes through) a platform
+    There is no cooldown period before roundelie can bjump again
+
+X + LEFT/RIGHT/(NO DIRECTION) is a teleport
+    A horizontal teleport immediately moves Roundelie 4 tiles in the direction of the teleport
+    Teleporting sets Roundelie's x-speed to zero, but does not affect y-speed
+    Roundelie disappears for a few frames at the beginning of the teleport and is invulnerable until reappearing
+    Teleporting creates a hitbox at the position Roundelie is teleporting to
+        The hitbox is immediately active for 1 tick at the start of the teleport
+        The hitbox has horizontal knockback that sends the opponent in the direction of the teleport, or otherwise in the direction that Roundelie is facing
+    Roundelie can buffer jump, bjump, and dive inputs to perform them immediately upon exiting a teleport
+    Teleport has a 2 second cooldown before it can be used again
+        For most skins, this is represented visually by applying a slight tint and de-saturating the main body of the sprite
+        For the gold/statue skin, Roundelie's eyes change color (from white -> gold) while the teleport is on cooldown
+
+X + DOWN is a dive
+    Roundelie has a higher max fall-speed while diving, and there's an initial burst of speed at the start of the dive
+        A "max-speed" dive is indicated visually by Roundelie tilting further forwards/towards the ground while diving
+
+    Diving creates a hitbox around Roundelie that knocks opponents downwards
+        There's a 1 tick delay before the hitbox comes out
+        The hitbox remains active as long as the input is held, or until Roundelie collides with either a wall or the ground
+        The dive attack can chain into itself, "trapping" the target as they fall and rapidly building up %
+
+    Diving into a wall results in a "wall-bounce":
+        Roundelie bounces up and away from the direction it was facing when it bounced off of the wall
+        Roundelie can repeatedly dive -> release -> dive -> ... into a wall to climb up it
+        Roundelie can turn away from the wall immediately before bouncing to slide up the wall instead of bouncing away from it
+
+    Diving into the ground causes Roundelie to bounce up and away from the ground
+        "Away from the ground" => Roundelie bounces back slightly opposite to the direction it was facing when it hit the ground
+        Bounce x-speed is further influenced by the direction the player is holding during a bounce (e.g. holding LEFT during the dive results in a bounce further to the right)
+        Bouncing briefly puts Roundelie into a "conk" state, during which Roundelie is unable to perform any other actions
+            ..except Roundelie can input JUMP to gain a bit of extra height during a bounce
+        Diving into the ground at max-speed increases the height of the bounce
+           The duration of the "conk" state is also increased for a higher bounce
+
+    Roundelie also performs a "ground-slam" attack when diving into the ground, creating a hitbox around the impact of the dive
+        The hitbox is active immediately and has a duration of 2 ticks
+        The range of the hitbox
+            ..is represented visually by dust clouds
+            ..has a maximum range of 2.5 tiles
+            ..is constrained to the edges of the ground/platform/object that Roundelie dives into, +1/2 tile on each side
+            ..is further constrained by walls
+        The position of the hitbox shifts slightly away from the direction of the bounce
+        The hitbox has knockback that sends opponents upwards and away from the impact of the dive
+            Horizontal knockback is increased the further the opponent is from the impact of the dive
+
+        Diving into the ground at max-speed results in a bigger ground-slam
+            The maximum range of the hitbox is increased to 3.5 tiles
+            The hitbox does more damage and has significantly stronger knockback
+
+        Diving into the ground at max-speed ALSO causes "ground chunks" to shoot out from the impact of the dive
+            Ground chunks are not separate projectiles, and are instead treated as an extension of the ground-slam hitbox
+                => after the first 2 ticks, the ground-slam hitbox extends upwards to cover the movement of the ground chunks
+                The hitbox for the ground chunks remains active for another 5 ticks (after the ground-slam, so 7 ticks in total)
+                The knockback of the hitbox is much weaker after the third tick
+            The color of the ground chunks is taken from the ground/platform(s)/object Roundelie is diving into
+
+        Diving into the ground ALSO creates "shockwaves" that travel out/away from the impact of the dive
+            Shockwaves have a hitbox that..
+                ..becomes active after a short (2 ticks after the ground-slam) delay
+                ..stays active until the shockwave dissipates/breaks (5 ticks)
+                ..does 1% damage and has low knockback that sends opponents up and away from the shockwave
+            Shockwaves travel slightly beyond the range of the ground-slam before dissipating
+            Unlike the ground-slam, shockwaves are NOT constrained to the edges of the ground/platform/object Roundelie dives into
+                ..(but shockwaves DO dissipate on contact with walls)
+            A big ground-slam always creates two shockwaves: one that travels left and one that travels right
+            A small ground-slam *can* create a shockwave if the bounce is fully angled away from the impact of the dive
+                ..(e.g., the player inputs LEFT when the bounce is to the right)
+
+Additional movement notes:
+    Roundelie rolls when moving on the ground
+    Roundelie can input JUMP multiple times to repeatedly jump off of the ground during a short grace window
+
+    JUMP + DOWN lets Roundelie fall through any semisolids it interacts with
+        Falling through semisolids which roundelie is standing on requires pressing JUMP, like with other characters
+        Holding JUMP while diving allows Roundelie to pass through semisolids
+
+    A high bounce can be chained into another high bounce if the player inputs dive after Roundelie exits the "conk" state
+    ...
+
+Snowball interactions:
+    Roundelie can dive into a snowball to bounce off of it, and the resulting bounce is higher than a bounce off of the ground
+    Roundelie can teleport into a snowball to launch it
+    Roundelie can knock a snowball into the air with a ground-slam
+    Roundelie can stop a snowball from rolling either by diving into it or by knocking it into the air with a ground-slam
+
+Misc:
+    Roundelie can continue rolling off of the edge of a platform
+    Roundelie inflates on jump and bjump/bump, and also inflates when reappearing after a teleport
+        "Non-squishy" skins (e.g. gold/statue) do not inflate
+    Roundelie keeps track of its current orientation (i.e. UP/RIGHT/DOWN/LEFT)
+        Performing different actions updates Roundelie's orientation
+            e.g. crouching will put Roundelie into the upright orientation
+        If Roundelie is not upright while midair and not performing any other action, Roundlie will "flip" back into the upright orientation
+        Roundelie has multiple idle poses corresponding to the different orientations that are used when exiting a roll or flip
+    Jumping on the first possible frame (e.g. buffering a jump while midair) causes Roundelie to flip into the air rather than inflating
+
+...
+
+--]]
+
 
 --[[
 TODO: ((?) => "maybe", (*) => "high priority")
