@@ -15,7 +15,7 @@ X + LEFT/RIGHT/(NO DIRECTION) is a teleport
     Teleporting creates a hitbox at the position Roundelie is teleporting to
         The hitbox is immediately active for 1 tick at the start of the teleport
         The hitbox has horizontal knockback that sends the opponent in the direction of the teleport, or otherwise in the direction that Roundelie is facing
-    Roundelie can buffer jump, bjump, and dive inputs to perform them immediately upon exiting a teleport
+    Roundelie can buffer jump or dive inputs to perform them immediately upon exiting a teleport
     Teleport has a 2 second cooldown before it can be used again
         For most skins, this is represented visually by applying a slight tint and de-saturating the main body of the sprite
         For the gold/statue skin, Roundelie's eyes change color (from white -> gold) while the teleport is on cooldown
