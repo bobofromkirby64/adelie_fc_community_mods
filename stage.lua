@@ -802,7 +802,7 @@ stage = {
             p2.movement_timer = p2.movement_duration
             p2.movement_delay_timer = p2.movement_delay - 30
             
-            stage.spawnDist = 24
+            stage.spawnDist = 28
             stage.blastZone = {l=0,r=240,t=-30,b=147}--b=151}  -- bottom blastzone raised up by 1/2 tile
             stage.bgImage = love.graphics.newImage("resources/graphics/stages/pyramid_bg.png")
             stage.fgImage = love.graphics.newImage("resources/graphics/stages/pyramid_fg.png")
