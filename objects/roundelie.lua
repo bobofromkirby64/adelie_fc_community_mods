@@ -850,23 +850,22 @@ roundelie = {
             this.hitstun = this.hitstun - 1
             this.vy = util.appr(this.vy, MAX_FALL_SPEED, 0.15)
             this.vx = util.appr(this.vx, 0, 0.143)
-
             reset_hitboxes()
         else
-            
             local jump_btn = inputSource.getKeyDown(id, "b1")
             local dash_btn = inputSource.getKeyDown(id, "b2")
-            
+
             local jump = jump_btn and not this.p_jump
             local dash = dash_btn and not this.p_dash and this.dash_cooldown == 0
             local bump = dash_btn and (not this.p_dash) and this.bump_cooldown == 0
+
             this.p_jump = jump_btn
             this.p_dash = dash_btn
-            
+
             local ground_hit = this:is_solid(0, 1)
             local on_ground = ground_hit ~= false
             local on_semisolid = ground_hit and (ground_hit.type == "semisolid" or ground_hit.semisolid)
-            
+
             -- weird semisolid fall through
             if on_semisolid and v_input == 1 and not (this.was_on_ground) and jump_btn then --very hacky fix and I don't like it but I don't want to edit the move function since it breaks interoperability (would be very easy though). Maybe better fix? Or at least a hacky fix that's identical to the ideal case
                 if not this:is_solid(0, 1, true) then
@@ -877,12 +876,12 @@ roundelie = {
                     this.vy = this.prev_vy
                 end
             end
-            
+
             if on_ground and this.vy > 0 then
                 this.vy = 0
                 this.rem.y = 0
             end
-            
+
             -- regular semisolid fall through
             if on_semisolid and v_input == 1 and jump then -- can definitely be combined with above part, but want to keep hacky and normal stuff separate for now
                 if not this:is_solid(0, 1, true) then
@@ -891,65 +890,66 @@ roundelie = {
                     jump = false
                 end
             end
-            
+
             if jump then this.jbuffer = 4 elseif this.jbuffer > 0 then this.jbuffer = this.jbuffer - 1 end
-            
+
             if on_ground then
-                
                 if this.vy < 0 then
-                    this.bump_cooldown = 0;
+                    this.bump_cooldown = 0
                     love.audio.play("maddy_clip", "static")
                 end
                 this.grace = 6
                 this.bjump = 2
                 
-                -- dive -> bounce off of the ground
+                -- dive into -> bounce off of the ground
                 if this.down_attack then
                     this.dive_smoketrail = 0
                     this.down_attack = false
                     this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
                     
-                    -- diving into the ground also results in a "ground-slam" attack and can also result in a follow-up "shockwave" attack
-                    local check_is_big_slam = this.prev_vy == MAX_DIVE_SPEED and this.dive_start == 0
+                    -- ground-slam attack
+                    local is_big_ground_slam = (this.prev_vy == MAX_DIVE_SPEED and this.dive_start == 0)
                     local cx = this.hurtbox.x + (this.hurtbox.w / 2)
-                    local hb_x, hb_w, hb_offset
-                    if check_is_big_slam then
-                        hb_offset = (-1.0 * this.conkdir) + (3.0 * h_input)
-                        hb_x, hb_w = (this.x + cx - 14) + hb_offset, 28  -- 3.5 tiles
+                    local hb_x, hb_w, hb_x_offset
+
+                    if is_big_ground_slam then
+                        hb_x_offset = (-1.0 * this.conkdir) + (3.0 * h_input)
+                        hb_w = 28  -- 3.5 tiles
+                        hb_x = (this.x + cx - (hb_w / 2)) + hb_x_offset
                         this.conk = 10
-                        this.was_big_conk = true
                         this.vy = -3.75
+                        this.was_big_conk = true
                         camera.shake(2, 2, 4)
                     else
-                        hb_offset = (-0.75 * this.conkdir) + (1.75 * h_input)
-                        hb_x, hb_w = (this.x  + cx - 10) + hb_offset, 20  -- 2.5 tiles
+                        hb_x_offset = (-0.75 * this.conkdir) + (1.75 * h_input)
+                        hb_w = 20  -- 2.5 tiles
+                        hb_x = (this.x  + cx - (hb_w / 2)) + hb_x_offset
                         this.conk = 9
                         this.vy = -2.0
                     end
-                    
-                    local impact_x, impact_y = (this.x + cx) + hb_offset, this.y
-                    
-                    -- ground can be composed of multiple platforms
+
+                    local impact_x, impact_y = (this.x + cx) + hb_x_offset, this.y
+
+                    -- "ground" can be composed of multiple platforms
                     --   => we need to find the left-most and right-most platforms within the attack range
                     local platform_left, platform_right = ground_hit, ground_hit
-                    
-                    -- find the left-most platform
                     while hb_x < platform_left.x do
+                        -- find the left-most platform
                         local new_platform = this:is_solid((platform_left.x - this.x - this.hurtbox.w - this.hurtbox.x), 1)
                         if new_platform and new_platform.y == platform_left.y then platform_left = new_platform; else break; end
                     end
-                    -- find the right-most platform
                     while (hb_x + hb_w) > (platform_right.x + platform_right.w) do
+                        -- find the right-most platform
                         local new_platform = this:is_solid((platform_right.x + platform_right.w - this.x - this.hurtbox.x), 1)
                         if new_platform and new_platform.y == platform_right.y then platform_right = new_platform; else break; end
                     end
-                    
-                    -- the ground-slam hitbox is constrained to the size of the ground roundelie is diving into, + 1/2 the width of a tile
+
+                    -- constrain the ground-slam hitbox to the edges of the ground roundelie is diving into, + 1/2 the width of a tile
                     local prev_hb_x = hb_x
                     hb_x = math.max(hb_x, platform_left.x - 4)
                     hb_w = math.min((prev_hb_x + hb_w - hb_x), (platform_right.x + platform_right.w + 4) - hb_x)
-                    
-                    -- the hitbox is further constrained by walls
+
+                    -- prevent the ground-slam hitbox from extending through walls
                     local hb_right = { x = impact_x, y = this.y + 4, w = (hb_x + hb_w) - impact_x, h = 4 }
                     for _, p in ipairs(stage.platforms) do
                         if p.type == "solid" and this.check_for_collision(hb_right, p, 0, 0) then
@@ -966,29 +966,27 @@ roundelie = {
                     end
                     
                     -- create follow-up shockwave(s) if conditions are met
-                    if check_is_big_slam then
+                    if is_big_ground_slam then
                         this.dive_ground_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 8)
                         this.dive_ground_slam_hb.big_dive_slam = true
-                        --
                         this.shockwave_info.vx = 4.75
                         this.shockwave_info.left = true
                         this.shockwave_info.right = true
                     else
                         this.dive_ground_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 3)
                         this.dive_ground_slam_hb.small_dive_slam = true
-                        --
-                        this.shockwave_info.vx = 4.0 --3.75
+                        this.shockwave_info.vx = 4.0
                         this.shockwave_info.left = (h_input == -1)
                         this.shockwave_info.right = (h_input == 1)
                     end
-                    
+
                     if (this.shockwave_info.left or this.shockwave_info.right) and (not this.shockwave_info.create) then
                         this.shockwave_info.x_init = impact_x
                         this.shockwave_info.y_init = impact_y
                         this.shockwave_info.cx = 0
                         this.shockwave_info.create = this.shockwave_info.left or this.shockwave_info.right
                         this.shockwave_delay_timer = 2
-                        
+
                         -- draw visual effects for the shockwave(s)
                         if this.shockwave_info.create then
                             if this.shockwave_info.left  then this.init_shockwave(this.shockwave_info, -1); end
@@ -996,10 +994,10 @@ roundelie = {
                         end
                     end
                     
-                    -- draw visual effects for the ground-slam (dust clouds & ground chunks)
+                    -- draw ground-slam vfx (dust clouds & ground chunks)
                     
                     -- (1) draw chunks of the ground that fly out on impact
-                    if check_is_big_slam then
+                    if is_big_ground_slam then
                         
                         -- find the most common color in a selection of pixels near the impact position
                         local temp_canvas, img_data, img_x_a, img_x_b, img_y, img_w, img_h
@@ -1016,27 +1014,26 @@ roundelie = {
                             --  (see warning here: https://love2d.org/wiki/Canvas:newImageData)
                             love.graphics.setCanvas(temp_canvas)
                             love.graphics.clear()
-
                             love.graphics.draw(stage.fgImage, 0, 0)
                             love.graphics.setCanvas()  -- reset
                             img_data = temp_canvas:newImageData()
-                            
-                            img_x_a = math.max( 0, math.min(this.dive_ground_slam_hb.x + 4, impact_x - 5) )
-                            img_x_b = math.min( img_w, math.max(this.dive_ground_slam_hb.x + this.dive_ground_slam_hb.w - 4, impact_x + 5) )
-                            img_y = impact_y + 9  -- => second row of pixels from the top
+
+                            img_x_a = math.max(0, math.min(this.dive_ground_slam_hb.x + 4, impact_x - 5))
+                            img_x_b = math.min(img_w, math.max(this.dive_ground_slam_hb.x + this.dive_ground_slam_hb.w - 4, impact_x + 5))
+                            img_y = impact_y + 9  -- second row of pixels from the top
                         else
                             -- "ground" is an object
-                            local temp_sprite = nil
+                            local temp_sprite
                             if ground_hit.type.name == "moving_platform" then
                                 temp_sprite = ground_hit.sprite
                             elseif ground_hit.type.name == "goldstool" then
-                                temp_sprite = (sprites["objects/goldstool_" .. tonumber(ground_hit.skin)][1]).img
+                                temp_sprite = sprites["objects/goldstool_" .. tonumber(ground_hit.skin)][1].img
                             else
                                 temp_sprite = sprites["objects/" .. ground_hit.type.name]
                             end
                             img_w, img_h = temp_sprite:getPixelDimensions()
                             temp_canvas = love.graphics.newCanvas(img_w, img_h)
-                            
+
                             love.graphics.setCanvas(temp_canvas)
                             love.graphics.clear()
                             love.graphics.draw(temp_sprite, 0, 0)
@@ -1049,40 +1046,42 @@ roundelie = {
                         end
                         
                         love.graphics.pop()  -- reapply stored coord system transforms
-                        
+
                         local counts = {}
-                        local most_common_color = {r = 1, g = 0, b = 1, a = 1}
+                        local most_common_color = {r = 1, g = 0, b = 1, a = 1}  -- default magenta
                         local max_count = 0
                         
                         for i = 1, (img_x_b - img_x_a) do
                             local r, g, b, a = img_data:getPixel(img_x_a + i, img_y)
                             if (a ~= 0 and r ~= nil and g ~= nil and b ~= nil and a ~= nil) then
-                                local color = {r = (r*255), g = (g*255), b = (b*255), a = a}
-                                local color_key = color.r .. "_" .. color.g .. "_" .. color.b .. "_" .. color.a
+                                local color_key = r .. "_" .. g .. "_" .. b .. "_" .. a
                                 counts[color_key] = (counts[color_key] or 0) + 1
                                 if counts[color_key] > max_count then
                                     max_count = counts[color_key]
-                                    most_common_color = color
+                                    most_common_color = {r = r*255, g = g*255, b = b*255, a}
                                 end
                             end
                         end
-                        
+
                         -- distribute ground chunks within the area of the hitbox
-                        local init_x, a_x, b_x, temp = impact_x - 4, nil, nil, nil  -- ground chunks travel from pt a -> b
-                        
+                        local init_x = impact_x - 4
+                        local a_x, b_x -- ground chunks travel from pt a -> b
+
                         this.init_ground_chunk(init_x, impact_y + 4, init_x, impact_y - 5, most_common_color)
-                        b_x = hb_x - 0
+
+                        b_x = hb_x
                         a_x = init_x - ((init_x - b_x) / 2)
-                        this.init_ground_chunk(a_x, impact_y + 4, b_x, impact_y - 5, most_common_color)  -- marks left edge of the hitbox
+                        this.init_ground_chunk(a_x, impact_y + 4, b_x, impact_y - 5, most_common_color)  -- indicates left edge of the hitbox
+
                         b_x = hb_x + hb_w - 8
                         a_x = init_x + ((b_x - init_x) / 2)
-                        this.init_ground_chunk(a_x, impact_y + 4, b_x, impact_y - 5, most_common_color)  -- marks right edge of the hitbox
-                        
+                        this.init_ground_chunk(a_x, impact_y + 4, b_x, impact_y - 5, most_common_color)  -- indicates right edge of the hitbox
+
                         local rem_hb_width = (hb_x + hb_w - 6) - (hb_x + 6)
                         local slot_count = math.floor(rem_hb_width / 6)           -- # of "slots" where a ground chunk can be placed
                         local base_width = math.floor(rem_hb_width / slot_count)  -- portion of the total width allocated for each slot
                         local extra_width = rem_hb_width % slot_count             -- leftover space is evenly distributed between the slots
-                        
+
                         b_x = hb_x - 2
                         for i = 1, slot_count do
                             b_x = b_x + base_width + (i <= extra_width and 1 or 0)
@@ -1090,30 +1089,32 @@ roundelie = {
                             this.init_ground_chunk(a_x, impact_y + 4, b_x, impact_y - 6, most_common_color)
                         end
                     end
-                
+
                     -- (2) draw dust clouds over the ground-slam hitbox
                     this.init_dust_cloud(hb_x + 1, this.dive_ground_slam_hb.y - 1, -1)
                     this.init_dust_cloud(hb_x + hb_w - 8, this.dive_ground_slam_hb.y - 1, 1)
-                    
+
                     local slot_count = math.floor(hb_w / 8)  -- the dust cloud sprite is ~6px wide, +2px for padding
                     local base_width = math.floor(hb_w / slot_count)
                     local extra_width  = hb_w % slot_count
-                    
-                    local curr_x = hb_x - 4 + 1
+
+                    local curr_x = hb_x - 3  -- ??
                     for i = 1, slot_count - 1 do
                         curr_x = curr_x + base_width + (i <= extra_width and 1 or 0)
                         this.init_dust_cloud(curr_x, this.dive_ground_slam_hb.y - 2, 0)
                     end
                 end
-                
+            --
             elseif this.grace > 0 then
                 this.grace = this.grace - 1
             end
-            
+
+            -- teleport (ongoing)
             if this.dash_time > 0 then
                 if this.dash_time == 2 then  -- TODO: messy
                     this.freeze = 3  -- half of the value applied on-hit
                     local kb_direction = (this.prev_x - this.x == 0) and this.facing or (-1 * util.sign(this.prev_x - this.x))
+
                     this.teleport_hb = hitbox.create(this.connectionID, (this.x  - 1), (this.y  - 1), 10, 10, 8, 4 * kb_direction, 0, 2)
                     this.teleport_hb.telefrag = true
                     this.teleport_hb.hit_sfx = "zap"  -- generic "crit" sfx used for big hits, e.g. Lani's tipper and body slam
@@ -1127,6 +1128,7 @@ roundelie = {
                     this.teleport_hb = nil
                 end
             end
+
             local accel = on_ground and 0.93 or 0.80
             local deccel = 0.16
             
