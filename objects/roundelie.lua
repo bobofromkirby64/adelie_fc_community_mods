@@ -733,19 +733,24 @@ roundelie = {
     
     update = function(this)
         local id = this.connectionID
-        
-        -- # of ticks that roundelie disappears (=> sprite is not drawn) after a teleport
+
+        local function reset_hitboxes()
+            if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
+            if this.dive_ground_slam_hb then this.dive_ground_slam_hb.active = false; this.dive_ground_slam_hb = nil end
+            if this.shockwave_left_hb then this.shockwave_left_hb.active = false; this.shockwave_left_hb = nil end
+            if this.shockwave_right_hb then this.shockwave_right_hb.active = false; this.shockwave_right_hb = nil end
+        end
+
+        -- # of ticks that roundelie is invisible (=> sprite is not drawn and roundelie is invulnerable) after a teleport
         if this.invis_timer > 0 then
-            -- roundelie is invulnerable while invisible
-            -- timer continues to decrement during freeze
             this.invis_timer = this.invis_timer - 1
         end
-        
+
         -- initial delay before a shockwave is created
         if this.shockwave_delay_timer > 0 then
             this.shockwave_delay_timer = this.shockwave_delay_timer - 1
         end
-        
+
         if this.freeze > 0 then
             this.freeze = this.freeze - 1
             this:update_dynamic_hitboxes()
@@ -755,52 +760,53 @@ roundelie = {
             end
             return
         end
-        
+
         -- # of ticks since roundelie has started falling
         if this.falling_timer > 0 then
             this.falling_timer = this.falling_timer + 1
         end
-        
-        --
+
+        -- tracks timing window during which subsequent bounces are considered a "dribble"
+        -- (mainly used to reduce smoke drawn for repeated dive -> bounce)
         if this.dribble_window > 0 then
             this.dribble_window = this.dribble_window - 1
         end
         if this.conk > 1 then this.dribble_window = 0; elseif this.conk == 1 then this.dribble_window = 8; end  -- TODO: messy
-        
+
         -- # of ticks until roundelie is able to act after bouncing
         if this.conk > 0 then
             this.conk = this.conk - 1
         end
-        
+
         -- # of ticks after starting a dive before roundelie is able to perform a big bounce
         if this.dive_start > 0 then
             this.dive_start = this.dive_start - 1
         end
-        
+
         -- dive vfx
         if this.dive_smoketrail > 0 then
             this.dive_smoketrail = this.dive_smoketrail - 1
         end
-        
+
         -- iframes
         if this.invincible_timer > 0 then
             this.invincible_timer = this.invincible_timer - 1
         end
-        
+
         -- dash cd
         if this.dash_cooldown > 0 then
             this.dash_cooldown = this.dash_cooldown - 1
         end
-        
+
         -- bump cd
         if this.bump_cooldown > 0 then
             this.bump_cooldown = this.bump_cooldown - 1
         end
-        
+
         -- respawn
         if this.respawn_timer > 0 then
             this.respawn_timer = this.respawn_timer - 1
-            
+
             if this.respawn_timer == 0 then
                 love.audio.play("spawn", "static")
                 this.x = 120 - this.hurtbox.x - (this.hurtbox.w / 2)
@@ -817,41 +823,35 @@ roundelie = {
                 this.orientation = this.directions.UP
                 this.anim_frame = 1
                 this.anim_timer = 0
-                
-                if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
-                if this.dive_ground_slam_hb then this.dive_ground_slam_hb.active = false; this.dive_ground_slam_hb = nil end
-                if this.shockwave_left_hb then this.shockwave_left_hb.active = false; this.shockwave_left_hb = nil end
-                if this.shockwave_right_hb then this.shockwave_right_hb.active = false; this.shockwave_right_hb = nil end
+
+                reset_hitboxes()
             end
             return
         end
-        
+
         -- update dynamic hitboxes
         this:update_dynamic_hitboxes()
-        
+
         -- update roundelie
         this.prev_facing = this.facing
         this.is_start_of_jump = false
         this.is_first_frame_jump = false
-        
+
         local h_input = (inputSource.getKeyDown(id, "right") and 1 or 0) - (inputSource.getKeyDown(id, "left") and 1 or 0)
         local v_input = (inputSource.getKeyDown(id, "down") and 1 or 0) - (inputSource.getKeyDown(id, "up") and 1 or 0)
-        
+
         local MAX_RUN_SPEED  = 2.0  -- different from ra2, but the speed building doesn't fit well with the character and is overcomplicated
         local MAX_FALL_SPEED = 3.0
         local MAX_DIVE_SPEED = 4.5
-        
+
         -- hitstun (set by hitbox.lua)
         if this.hitstun > 0 then
             this.dash_time = 0
             this.hitstun = this.hitstun - 1
             this.vy = util.appr(this.vy, MAX_FALL_SPEED, 0.15)
             this.vx = util.appr(this.vx, 0, 0.143)
-            
-            if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
-            if this.dive_ground_slam_hb then this.dive_ground_slam_hb.active = false; this.dive_ground_slam_hb = nil end
-            if this.shockwave_left_hb then this.shockwave_left_hb.active = false; this.shockwave_left_hb = nil end
-            if this.shockwave_right_hb then this.shockwave_right_hb.active = false; this.shockwave_right_hb = nil end
+
+            reset_hitboxes()
         else
             
             local jump_btn = inputSource.getKeyDown(id, "b1")
@@ -1444,12 +1444,9 @@ roundelie = {
             this.hitstun = 0
             this.rem.x = 0
             this.rem.y = 0
-            
-            if this.teleport_hb then this.teleport_hb.active = false; this.teleport_hb = nil end
-            if this.dive_ground_slam_hb then this.dive_ground_slam_hb.active = false; this.dive_ground_slam_hb = nil end
-            if this.shockwave_left_hb then this.shockwave_left_hb.active = false; this.shockwave_left_hb = nil end
-            if this.shockwave_right_hb then this.shockwave_right_hb.active = false; this.shockwave_right_hb = nil end
-            
+
+            reset_hitboxes()
+
             if this.stocks > 0 then
                 this.x = -1000
                 this.y = -1000
