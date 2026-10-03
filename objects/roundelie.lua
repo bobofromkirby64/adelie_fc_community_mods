@@ -156,7 +156,7 @@ roundelie = {
     name="roundelie",
     init = function(this, skin)
         this.connectionID = nil
-        
+
         local player_skins = {
             {sprites["characters/roundelie_1"], { 29/255,  43/255,  83/255, 1}}, -- roundelie (default)
             {sprites["characters/roundelie_2"], {126/255,  37/255,  83/255, 1}}, -- delaughter (purple/red)
@@ -164,7 +164,7 @@ roundelie = {
             -- TODO: rosetta skin is temporarily disabled until it's reworked
             -- {sprites["characters/roundelie_4"], {1,1,1,1}}, -- ancient monument (from rosetta)
         }
-        
+
         this.spritesheet, this.base_color = unpack(player_skins[tonumber(skin)])
         this.skin = tonumber(skin)
         this.spr = this.spritesheet[7]
@@ -173,15 +173,15 @@ roundelie = {
         this.facing = 1
         this.hitstun = 0
         this.active = true
-        
+
         -- Override the base hurtbox
         this.hurtbox = {x = 1, y = 3, w = 6, h = 5}
-        
+
         this.grace = 0
         this.jbuffer = 0
         this.bjump = 2
         this.dash_time = 0
-        
+
         this.p_jump = false
         this.p_dash = false
         this.is_start_of_jump = false     -- true if roundelie is starting a jump or bjump (up+x)
@@ -190,7 +190,7 @@ roundelie = {
         this.was_big_conk = false
         this.was_big_fall = false
         this.should_draw_dive_vfx = false
-        
+
         this.teleport_hb  = nil  -- hitbox created by left/right+x and neutral+x attacks
         this.teleport_info = {
             init = false,       -- true if teleport has started (=> flag used to trigger vfx)
@@ -212,7 +212,7 @@ roundelie = {
             right = false,  -- true if there's a shockwave moving to the right
             create = false, -- true if shockwave(s) will be created when the delay timer == 0
         }
-        
+
         this.animations = {
             idle1 =  {frames = {1}, speed = 1},  -- upright
             idle2 =  {frames = {2}, speed = 1},  -- oriented right (CW 90)
@@ -248,7 +248,7 @@ roundelie = {
         this.anim_frame = 1
         this.anim_timer = 0
         this.is_squishy = not ((this.skin == 3) or (this.skin == 4))
-        
+
         this.respawn_timer = 0
         this.invincible_timer = 0
         this.dash_cooldown = 0
@@ -262,19 +262,19 @@ roundelie = {
         this.falling_timer = 0
         this.invis_timer = 0
         this.shockwave_delay_timer = 0
-        
+
         this.prev_x = 0
         this.prev_y = 0
         this.prev_vx = 0
         this.prev_vy = 0
         this.prev_facing = 1
-        
+
         -- assumes args a and b are both tables with values for x, y, w, and h
         this.check_for_collision = function(a, b, x_offset, y_offset)
             return a.x < b.x + b.w + (x_offset or 0) and a.x + a.w > b.x + (x_offset or 0) and
                    a.y < b.y + b.h + (y_offset or 0) and a.y + a.h > b.y + (y_offset or 0)
         end
-        
+
         this.check_snowballs = function(this)
             if this.hitstun > 0 then return end
             for _, o in ipairs(objects) do
@@ -367,7 +367,7 @@ roundelie = {
                 end
             end
         end
-        
+
         this.update_dynamic_hitboxes = function(this)
             -- update the dive ground-slam hitbox ..
             --     the dive ground-slam hitbox is active near the ground for the first 2 frames,
@@ -476,7 +476,7 @@ roundelie = {
                 end
             end
         end
-        
+
         -- (( honestly this was a whole lot of work for a not-very-interesting effect LOL and I won't be sad if it's replaced ))
         -- TODO: experiment with a new effect using sprites for the particles (similar to how smoke is drawn)
         this.init_teleport_vfx = function(this)
@@ -600,7 +600,6 @@ roundelie = {
                 })
         end
 
-        --
         this.init_dust_cloud = function(x, y, direction)
             table.insert(particles_fg, {
                 x = x,
@@ -629,7 +628,6 @@ roundelie = {
             })
         end
 
-        --
         this.init_ground_chunk = function(start_x, start_y, dest_x, dest_y, color)
             table.insert(particles_fg, {
                 x = start_x + love.math.random() * 2 - 1,
@@ -687,7 +685,6 @@ roundelie = {
             })
         end
 
-        --
         this.init_shockwave = function(info, direction)
             table.insert(particles_fg, {
                 shockwave_info = info,
@@ -730,7 +727,6 @@ roundelie = {
             })
         end
 
-        --
         this.init_ground_slam_vfx = function(this, impact_x, impact_y, hb_x, hb_w, ground_hit, is_big_ground_slam)
             -- (1) draw chunks of the "ground" that fly out on impact
             if is_big_ground_slam then
@@ -856,7 +852,7 @@ roundelie = {
             this.invis_timer = this.invis_timer - 1
         end
 
-        -- initial delay before a shockwave is created
+        -- initial delay before shockwave hitbox is active
         if this.shockwave_delay_timer > 0 then
             this.shockwave_delay_timer = this.shockwave_delay_timer - 1
         end
@@ -939,7 +935,6 @@ roundelie = {
             return
         end
 
-        -- update dynamic hitboxes
         this:update_dynamic_hitboxes()
 
         -- update roundelie
@@ -1156,9 +1151,8 @@ roundelie = {
                 --
                 this:init_ground_slam_vfx(impact_x, impact_y, hb_x, hb_w, ground_hit, is_big_ground_slam)
             end
-            
+
             local is_wall_bounce = false
-            
             if v_input == 1 and dash_btn and not on_ground and this.conk < 1 then
                 if not this.down_attack then 
                     -- dive has a 1f delay before the hitbox comes out and an initial burst of speed after the delay
@@ -1299,24 +1293,24 @@ roundelie = {
         end
 
         -- update roll animation speed
-        local new_anim_speed = 4
+        local new_roll_anim_speed = 4
         if ((math.abs(this.vx) + math.abs(this.vy)) / 2) >= ((MAX_RUN_SPEED + MAX_FALL_SPEED) / 2) then
-            new_anim_speed = 2
+            new_roll_anim_speed = 2
         elseif (math.abs(this.vx) >= MAX_RUN_SPEED) or (this.vy <= -1.0) then
-            new_anim_speed = 3
+            new_roll_anim_speed = 3
         end
-        this.animations.roll.speed = new_anim_speed
+        this.animations.roll.speed = new_roll_anim_speed
 
         -- determine next sprite / animation
         local anim = this.animations[this.current_anim]
         local anim_is_finished = anim.has_ending and ((anim.speed * #anim.frames) <= (this.anim_timer + 1))
         local anim_is_loop = (not anim.has_ending)
         local next_anim
-        local new_flip_speed = math.min(this.animations.roll.speed, 3)
+        local new_flip_anim_speed = math.min(this.animations.roll.speed, 3)
 
         --
         if this.hitstun > 0 then
-            this.animations.flip.speed = new_flip_speed
+            this.animations.flip.speed = new_flip_anim_speed
             next_anim = (not anim_on_ground) and "flip" or current_anim
 
         -- (edge-case) init teleport anim
@@ -1350,7 +1344,7 @@ roundelie = {
             -- roll / flip
             elseif this.current_anim == "roll" then
                 if math.abs(this.vx) < MAX_RUN_SPEED then  -- more strict than the check for the grounded roll
-                    this.animations.flip.speed = new_flip_speed
+                    this.animations.flip.speed = new_flip_anim_speed
                     next_anim = (this.orientation == this.directions.UP) and "jump2" or "flip"
                 else
                     next_anim = "roll"
@@ -1362,7 +1356,7 @@ roundelie = {
                 next_anim = (this.orientation == this.directions.UP) and "jump2" or "flip"
             else
                 if this.orientation ~= this.directions.UP then
-                    this.animations.flip.speed = new_flip_speed
+                    this.animations.flip.speed = new_flip_anim_speed
                     next_anim = "flip"
                 -- default midair pose (jump / fall)
                 else
