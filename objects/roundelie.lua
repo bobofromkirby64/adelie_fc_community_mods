@@ -180,20 +180,22 @@ roundelie = {
         this.grace = 0
         this.jbuffer = 0
         this.bjump = 2
-        this.dash_time = 0
+        this.teleport_time = 0
 
         this.p_jump = false
-        this.p_dash = false
+        this.p_action = false
         this.is_start_of_jump = false     -- true if roundelie is starting a jump or bjump (up+x)
         this.is_first_frame_jump = false  -- true if roundelie is jumping off the ground on the first possible tick after landing
         this.was_on_ground = false
         this.was_big_conk = false
         this.was_big_fall = false
         this.should_draw_dive_vfx = false
+        this.is_teleport_start = false
+        this.is_dive_start = false
 
         this.teleport_hb  = nil  -- hitbox created by left/right+x and neutral+x attacks
         this.teleport_info = {
-            init = false,       -- true if teleport has started (=> flag used to trigger vfx)
+            init_vfx = false,   -- true if teleport has started (=> flag used to trigger vfx)
             horizontal = false, -- true if teleport has an input direction (i.e. not a neutral input)
             on_hit = false      -- true if teleport has hit the opponent
         }
@@ -251,14 +253,14 @@ roundelie = {
 
         this.respawn_timer = 0
         this.invincible_timer = 0
-        this.dash_cooldown = 0
+        this.teleport_cooldown = 0
         this.bump_cooldown = 0
         this.freeze = 0
         this.conk = 0
         this.conkdir = 0
-        this.dive_start = 0
+        this.dive_start_timer = 0
         this.dive_smoketrail = 0
-        this.dribble_window = 0
+        this.dribble_timer = 0
         this.falling_timer = 0
         this.invis_timer = 0
         this.shockwave_delay_timer = 0
@@ -280,7 +282,7 @@ roundelie = {
             for _, o in ipairs(objects) do
                 if o.type and o.type.name == "snowball" and not o.destroyed and not o.held then
                     -- check for collision with the snowball in the path of the dive to determine whether to draw the dive's smoke-trail effect
-                    if (this.should_draw_dive_vfx and this.dive_start == 3 and this.dribble_window > 0) then -- TODO: "dive_start == 3" is a messy check
+                    if (this.should_draw_dive_vfx and this.is_dive_start and this.dribble_timer > 0) then
                         local h_input = (inputSource.getKeyDown(this.connectionID, "right") and 1 or 0) - (inputSource.getKeyDown(this.connectionID, "left") and 1 or 0)
                         local temp_x = this.x
                         local temp_y = this.y
@@ -288,7 +290,7 @@ roundelie = {
                         this.x = this.x + 2 * this.vx + (3 * h_input)  -- bit hacky, but works well enough to determine whether roundelie is going to bounce on top of a snowball
                         this.y = this.y + 2 * this.vy + 8              -- ^
                         snowball_collision_check = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
-                        this.should_draw_dive_vfx = this.should_draw_dive_vfx and (not (snowball_collision_check))
+                        this.should_draw_dive_vfx = this.should_draw_dive_vfx and (not snowball_collision_check)
                         -- reset position
                         this.x = temp_x
                         this.y = temp_y
@@ -297,7 +299,7 @@ roundelie = {
                     if (this.dive_ground_slam_hb and this.dive_ground_slam_hb.active and
                         this.dive_ground_slam_hb.x < o:right() and o:left() < this.dive_ground_slam_hb.x + this.dive_ground_slam_hb.w and
                         this.dive_ground_slam_hb.y < o:bottom() and o:top() < this.dive_ground_slam_hb.y + this.dive_ground_slam_hb.h) then
-                        -- dive-bomb quake launches snowball
+                        -- ground-slam launches snowball into the air
                         o.vy = this.dive_ground_slam_hb.big_dive_slam and -2.75 or -2.0
                         o.throwerID = this.connectionID
                         o.thrown_timer = 10
@@ -311,7 +313,7 @@ roundelie = {
                             end
                         end
                         
-                        if this.dash_time > 0 then
+                        if this.teleport_time > 0 then
                             -- teleport into snowball
                             o.vx = 5.15 * this.facing  -- teleport is stronger than maddy dash => should launch snowball with higher speed
                             o.vy = -1.75
@@ -328,7 +330,7 @@ roundelie = {
                             -- dive into snowball
                             if this.down_attack then
                                 -- TODO: probably a bit messy to have code repeated here when it's basically just copy-pasted from the update function...
-                                if (this.prev_vy == 4.5 and this.dive_start == 0) then
+                                if (this.prev_vy == 4.5 and this.dive_start_timer == 0) then
                                     -- big bounce
                                     this.vy = -3.75 - 0.75  -- snowball is bouncy => dive bounce should rebound higher than it would off the ground
                                     this.was_big_conk = true
@@ -390,16 +392,16 @@ roundelie = {
                     hb.y = hb.y - 1
                 end
             end
-            
+
             -- shockwave position and velocity are updated before the hitbox is created and continue to be updated so long as a shockwave exists
             if this.shockwave_info.create or ((not this.shockwave_info.create) and (this.shockwave_info.left or this.shockwave_info.right)) then
                 this.shockwave_info.cx = this.shockwave_info.cx + this.shockwave_info.vx
                 this.shockwave_info.vx = util.appr(this.shockwave_info.vx, 0.5, 0.6)
             end
-            
+
             -- shockwave hitboxes travel out from the center of the ground-slam hitbox (=> the impact of the dive)
             if (this.shockwave_left_hb and this.shockwave_left_hb.active) or (this.shockwave_right_hb and this.shockwave_right_hb.active) then
-                
+
                 if this.shockwave_info.left and (not this.shockwave_info.create) and (not (this.shockwave_left_hb and this.shockwave_left_hb.active)) then
                     -- left shockwave was created but is now no longer active
                     this.shockwave_info.left = false
@@ -408,7 +410,7 @@ roundelie = {
                     -- right shockwave was created but is now no longer active
                     this.shockwave_info.right = false
                 end
-                
+
                 if this.shockwave_left_hb and this.shockwave_left_hb.active then
                     -- update left shockwave
                     local hb = this.shockwave_left_hb
@@ -440,11 +442,11 @@ roundelie = {
                     end
                 end
             end
-            
+
              -- create shockwave hitboxes after an initial delay
             if this.shockwave_info.create and this.shockwave_delay_timer == 0 then
                 this.shockwave_info.create = false
-                
+
                 local x_init, y_init, cx, w, h, duration = this.shockwave_info.x_init, this.shockwave_info.y_init, this.shockwave_info.cx, 3, 4, 6
                 if this.shockwave_info.left then
                     local hb = {x = x_init - (w/2) - cx, y = y_init + (8 - h), w = w, h = h}
@@ -477,27 +479,26 @@ roundelie = {
             end
         end
 
-        -- (( honestly this was a whole lot of work for a not-very-interesting effect LOL and I won't be sad if it's replaced ))
-        -- TODO: experiment with a new effect using sprites for the particles (similar to how smoke is drawn)
+        -- // honestly this was a whole lot of work for a not-very-interesting effect LOL and I won't be sad if it's replaced
+        -- TODO: experiment with a new effect using sprites for the particles
         this.init_teleport_vfx = function(this)
-            
             local prev_x, prev_y = this.prev_x, this.prev_y
-            this.teleport_info.init = false
-            
+            this.teleport_info.init_vfx = false
+
             -- (1) poof out / start-point
             if this.teleport_info.horizontal then
                 -- TODO: either rework the afterimage sprites to behave more like the existing smoke, OR
                 --     experiment with "stencil" to have the afterimage smoke effect and existing smoke combine a bit more neatly
                 game.init_smoke(prev_x, prev_y)
             end
-            
+
             -- (2) pop in / end-point
             local cx = this.hurtbox.x + (this.hurtbox.w / 2)
             local cy = this.hurtbox.y + (this.hurtbox.h / 2) - 1
-            
+
             local n = 3  -- split circle into `n` partitions
             local r = 2 * math.pi / n -- radians
-            
+
             -- groups of randomly distributed "spark" particles
             for i = 1, n do
                 -- each group has a base angle within equal partitions of a circle centered on the teleport hitbox
@@ -512,13 +513,13 @@ roundelie = {
                             vy = math.cos(angle),
                             speed = 3.5 + math.random(8,14) * 0.095,  -- magnitude for movement vector
                             drag = 0.5,  -- i.e. deceleration applied on each tick
-                            
+
                             timer = 0,
                             duration = 7 + math.random(0, 3),
-                            
+
                             tp_info = this.teleport_info,
                             on_hit_flag = false,
-                            
+
                             update = function(p)
                                 if p.timer > 0 and (not p.on_hit_flag) and p.tp_info.on_hit then
                                     p.on_hit_flag = true
@@ -533,12 +534,12 @@ roundelie = {
                                 p.timer = p.timer + 1
                                 return p.timer >= p.duration
                             end,
-                            
+
                             draw = function(p)
                                 local fade = 1 - (p.timer / (p.duration + (p.duration/2)))
                                 local scalar = 1.95
                                 love.graphics.setColor(1, 1, 1, 1)
-                                
+
                                 if p.timer <= 2 then  -- meant to match up with initial "burst" (white circle drawn over the hitbox for 1f)
                                     love.graphics.setColor(1, 1, 1, 1)
                                 else
@@ -566,7 +567,7 @@ roundelie = {
                         })
                 end
             end
-            
+
             -- smoke and initial burst frame(s)
             table.insert(
                 particles_fg, {
@@ -577,19 +578,19 @@ roundelie = {
                     timer = 0,
                     duration = 3,
                     draw_smoke = true,
-                    
+
                     update = function(p)
                         p.timer = p.timer + 1
                         return p.timer >= p.duration
                     end,
-                    
+
                     draw = function(p)
                         -- smoke
                         if p.draw_smoke and p.timer >= 2 then
                             p.draw_smoke = false
                             game.init_smoke(p.x, p.y)
                         end
-                        
+
                         -- initial burst
                         if p.timer <= 1 then
                             love.graphics.setColor(1, 1, 1)
@@ -874,10 +875,10 @@ roundelie = {
 
         -- tracks timing window during which subsequent bounces are considered a "dribble"
         -- (mainly used to reduce smoke drawn for repeated dive -> bounce)
-        if this.dribble_window > 0 then
-            this.dribble_window = this.dribble_window - 1
+        if this.dribble_timer > 0 then
+            this.dribble_timer = this.dribble_timer - 1
         end
-        if this.conk > 1 then this.dribble_window = 0; elseif this.conk == 1 then this.dribble_window = 8; end  -- TODO: messy
+        if this.conk > 1 then this.dribble_timer = 0; elseif this.conk == 1 then this.dribble_timer = 8; end  -- TODO: messy
 
         -- # of ticks until roundelie is able to act after bouncing
         if this.conk > 0 then
@@ -885,8 +886,9 @@ roundelie = {
         end
 
         -- # of ticks after starting a dive before roundelie is able to perform a big bounce
-        if this.dive_start > 0 then
-            this.dive_start = this.dive_start - 1
+        if this.dive_start_timer > 0 then
+            this.is_dive_start = false
+            this.dive_start_timer = this.dive_start_timer - 1
         end
 
         -- dive vfx
@@ -899,12 +901,10 @@ roundelie = {
             this.invincible_timer = this.invincible_timer - 1
         end
 
-        -- dash cd
-        if this.dash_cooldown > 0 then
-            this.dash_cooldown = this.dash_cooldown - 1
+        if this.teleport_cooldown > 0 then
+            this.teleport_cooldown = this.teleport_cooldown - 1
         end
 
-        -- bump cd
         if this.bump_cooldown > 0 then
             this.bump_cooldown = this.bump_cooldown - 1
         end
@@ -922,7 +922,7 @@ roundelie = {
                 this.bjump = 2
                 this.hitstun = 0
                 this.invincible_timer = 60
-                this.dash_cooldown = 0
+                this.teleport_cooldown = 0
                 this.bump_cooldown = 0
                 -- idk how much of this is needed ...
                 this.current_anim = this.idle_poses[1]
@@ -951,21 +951,21 @@ roundelie = {
 
         -- hitstun (set by hitbox.lua)
         if this.hitstun > 0 then
-            this.dash_time = 0
+            this.teleport_time = 0
             this.hitstun = this.hitstun - 1
             this.vy = util.appr(this.vy, MAX_FALL_SPEED, 0.15)
             this.vx = util.appr(this.vx, 0, 0.143)
             reset_hitboxes()
         else
             local jump_btn = inputSource.getKeyDown(id, "b1")
-            local dash_btn = inputSource.getKeyDown(id, "b2")
+            local action_btn = inputSource.getKeyDown(id, "b2")
 
-            local jump = jump_btn and not this.p_jump
-            local dash = dash_btn and not this.p_dash and this.dash_cooldown == 0
-            local bump = dash_btn and (not this.p_dash) and this.bump_cooldown == 0
+            local jump = jump_btn and (not this.p_jump)
+            local tele = action_btn and (not this.p_action) and this.teleport_cooldown == 0
+            local bump = action_btn and (not this.p_action) and this.bump_cooldown == 0
 
             this.p_jump = jump_btn
-            this.p_dash = dash_btn
+            this.p_action = action_btn
 
             local ground_hit = this:is_solid(0, 1)
             local on_ground = ground_hit ~= false
@@ -1011,17 +1011,15 @@ roundelie = {
             end
 
             -- teleport (ongoing)
-            if this.dash_time > 0 then
-                if this.dash_time == 2 then  -- TODO: messy
+            if this.teleport_time > 0 then
+                if this.is_teleport_start then
                     this.freeze = 3  -- half of the value applied on-hit
                     local kb_direction = (this.prev_x - this.x == 0) and this.facing or (-1 * util.sign(this.prev_x - this.x))
-
                     this.teleport_hb = hitbox.create(this.connectionID, (this.x  - 1), (this.y  - 1), 10, 10, 8, 4 * kb_direction, 0, 2)
                     this.teleport_hb.telefrag = true
                     this.teleport_hb.hit_sfx = "zap"  -- generic "crit" sfx used for big hits, e.g. Lani's tipper and body slam
-                    this.vx = 0
                 end
-                this.dash_time = this.dash_time - 1
+                this.teleport_time = this.teleport_time - 1
                 this.vx = 0
             else
                 if this.teleport_hb then
@@ -1029,6 +1027,7 @@ roundelie = {
                     this.teleport_hb = nil
                 end
             end
+            this.is_teleport_start = false
 
             local accel = on_ground and 0.93 or 0.80
             local deccel = 0.16
@@ -1062,7 +1061,7 @@ roundelie = {
                 this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
 
                 -- ground-slam attack
-                local is_big_ground_slam = (this.prev_vy == MAX_DIVE_SPEED and this.dive_start == 0)
+                local is_big_ground_slam = (this.prev_vy == MAX_DIVE_SPEED and this.dive_start_timer == 0)
                 local cx = this.hurtbox.x + (this.hurtbox.w / 2)
                 local hb_x, hb_w, hb_x_offset
 
@@ -1153,18 +1152,19 @@ roundelie = {
             end
 
             local is_wall_bounce = false
-            if v_input == 1 and dash_btn and not on_ground and this.conk < 1 then
+            if v_input == 1 and action_btn and not on_ground and this.conk < 1 then
                 if not this.down_attack then 
                     -- dive has a 1f delay before the hitbox comes out and an initial burst of speed after the delay
                     this.freeze = 1
                     this.vy = util.appr(this.vy, MAX_DIVE_SPEED, 1.95)
 
                     -- a bit hacky, but this helps prevent the smoke-trail effect from being drawn when roundelie starts diving right before bouncing (e.g., while dribbling or wall-climbing)
-                    this.should_draw_dive_vfx = this.dribble_window == 0 or
+                    this.should_draw_dive_vfx = this.dribble_timer == 0 or
                                                 (not ((this:is_solid(this.vx + (h_input * 3), this.vy)) or
                                                       (this.p_jump and (not this:is_solid(this.vx, this.vy + 4, true))) or
                                                       (this:is_solid(this.vx, this.vy + 4))))
-                    this.dive_start = 3  -- currently set to line up with the dive smoke-trail effect
+                    this.is_dive_start = true
+                    this.dive_start_timer = 3
                 else
                     -- might be overcomplicated; left over from maddy code
                     local hb_w, hb_h = 10, 10
@@ -1208,13 +1208,14 @@ roundelie = {
                     game.init_smoke(this.x, this.y)
                     this.bjump = this.bjump - 1
                 end
-            elseif dash then
+            elseif tele then
                 if v_input == 0 then
-                    this.dash_time = 2
-                    this.dash_cooldown = 31
+                    this.is_teleport_start = true
+                    this.teleport_time = 2
+                    this.teleport_cooldown = 31
                     this.invincible_timer = 2
                     this.vx = 32 * h_input
-                    this.teleport_info.init = true
+                    this.teleport_info.init_vfx = true
                     this.teleport_info.horizontal = h_input ~= 0
                     this.teleport_info.on_hit = false
                     love.audio.play("maddy_dash", "static")  -- TODO: placeholder
@@ -1258,7 +1259,7 @@ roundelie = {
         end
 
         -- teleport vfx
-        if this.teleport_info.init then
+        if this.teleport_info.init_vfx then
             this:init_teleport_vfx()
             this.current_anim = "teleport_start"  -- bit hacky
             this.invis_timer = 3
@@ -1333,7 +1334,7 @@ roundelie = {
             elseif this.current_anim ~= "inflate_start" and this.current_anim ~= "inflate" and this.conk > 0 and this.was_big_conk then
                 next_anim = "conk"
             -- dive / down attack
-            elseif this.down_attack and this.dribble_window == 0 then
+            elseif this.down_attack and this.dribble_timer == 0 then
                 this.orientation = this.directions.UP
                 next_anim = (this.vy == MAX_DIVE_SPEED) and "dive2" or "dive1"
             -- animation sequence
@@ -1521,7 +1522,7 @@ roundelie = {
         if isBlinking then
             love.graphics.setShader(whiteShader)
             love.graphics.setColor(1, 1, 1)
-        elseif this.dash_cooldown > 0 then
+        elseif this.teleport_cooldown > 0 then
             love.graphics.setShader(paletteSwapShader)
             if this.skin == 3 then
                 -- eyes swap from default (gold) -> "activated" (white)
