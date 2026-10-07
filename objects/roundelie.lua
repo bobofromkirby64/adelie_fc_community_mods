@@ -901,6 +901,7 @@ roundelie = {
             this.invincible_timer = this.invincible_timer - 1
         end
 
+        -- cooldowns
         if this.teleport_cooldown > 0 then
             this.teleport_cooldown = this.teleport_cooldown - 1
         end
@@ -961,7 +962,7 @@ roundelie = {
             local action_btn = inputSource.getKeyDown(id, "b2")
 
             local jump = jump_btn and (not this.p_jump)
-            local tele = action_btn and (not this.p_action) and this.teleport_cooldown == 0
+            local teleport = action_btn and (not this.p_action) and this.teleport_cooldown == 0
             local bump = action_btn and (not this.p_action) and this.bump_cooldown == 0
 
             this.p_jump = jump_btn
@@ -1208,7 +1209,7 @@ roundelie = {
                     game.init_smoke(this.x, this.y)
                     this.bjump = this.bjump - 1
                 end
-            elseif tele then
+            elseif teleport then
                 if v_input == 0 then
                     this.is_teleport_start = true
                     this.teleport_time = 2
@@ -1397,8 +1398,6 @@ roundelie = {
 
         -- update current animation
         if next_anim ~= this.current_anim then
-            this.current_anim = next_anim
-
             if (next_anim == "roll" or next_anim == "flip") then
                 this.anim_frame = this.orientation
                 this.anim_timer = (this.current_anim == "roll" or this.current_anim == "flip") and (this.anim_timer % anim.speed) or 0
@@ -1406,6 +1405,7 @@ roundelie = {
                 this.anim_frame = 1
                 this.anim_timer = -1  -- compensate for frame increment behavior to avoid skipping a frame of animation
             end
+            this.current_anim = next_anim
         end
 
         -- only increment animation timer when not in hitstun
