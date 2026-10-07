@@ -122,7 +122,7 @@ TODO: ((?) => "maybe", (*) => "high priority")
     - (?) small speed boost when starting a roll or when changing roll direction
     - (?) slight bounce off of the ground after landing a midair roll at max fall-speed
     - ...
- 
+
 (visual)
     - * rosetta skin rework
     - flip doesn't handle direction changes well
@@ -189,7 +189,7 @@ roundelie = {
         this.was_on_ground = false
         this.was_big_conk = false
         this.was_big_fall = false
-        this.should_draw_dive_vfx = false
+        this.should_draw_dive_smoketrail = false
         this.is_teleport_start = false
         this.is_dive_start = false
 
@@ -229,7 +229,7 @@ roundelie = {
             jump2 =  {frames = {9}, speed = 1},  --
             jump3 =  {frames = {10}, speed = 1}, -- falling
             dive1 =  {frames = {11}, speed = 1}, --
-            dive2 =  {frames = {12}, speed = 1}, -- "fast" dive; used when landing will cause a big ground-slam
+            dive2 =  {frames = {12}, speed = 1}, -- "fast" dive; used when impact will result in a big ground-slam
             conk =   {frames = {13}, speed = 1}, -- disoriented; used during big bounce
             crouch_up = {frames = {14}, speed = 3, has_ending = true},  --
             squash_small_fall = {frames = {5, 14}, speed = 3, has_ending = true},  --
@@ -282,7 +282,7 @@ roundelie = {
             for _, o in ipairs(objects) do
                 if o.type and o.type.name == "snowball" and not o.destroyed and not o.held then
                     -- check for collision with the snowball in the path of the dive to determine whether to draw the dive's smoke-trail effect
-                    if (this.should_draw_dive_vfx and this.is_dive_start and this.dribble_timer > 0) then
+                    if (this.should_draw_dive_smoketrail and this.is_dive_start and this.dribble_timer > 0) then
                         local h_input = (inputSource.getKeyDown(this.connectionID, "right") and 1 or 0) - (inputSource.getKeyDown(this.connectionID, "left") and 1 or 0)
                         local temp_x = this.x
                         local temp_y = this.y
@@ -290,21 +290,20 @@ roundelie = {
                         this.x = this.x + 2 * this.vx + (3 * h_input)  -- bit hacky, but works well enough to determine whether roundelie is going to bounce on top of a snowball
                         this.y = this.y + 2 * this.vy + 8              -- ^
                         snowball_collision_check = this:bottom() <= o:top() + 4 and this:bottom() >= o:top() and this:top() <= o:bottom() and this:left() <= o:right() and this:right() >= o:left()
-                        this.should_draw_dive_vfx = this.should_draw_dive_vfx and (not snowball_collision_check)
+                        this.should_draw_dive_smoketrail = this.should_draw_dive_smoketrail and (not snowball_collision_check)
                         -- reset position
                         this.x = temp_x
                         this.y = temp_y
                     end
-                    
+
                     if (this.dive_ground_slam_hb and this.dive_ground_slam_hb.active and
                         this.dive_ground_slam_hb.x < o:right() and o:left() < this.dive_ground_slam_hb.x + this.dive_ground_slam_hb.w and
                         this.dive_ground_slam_hb.y < o:bottom() and o:top() < this.dive_ground_slam_hb.y + this.dive_ground_slam_hb.h) then
                         -- ground-slam launches snowball into the air
-                        o.vy = this.dive_ground_slam_hb.big_dive_slam and -2.75 or -2.0
+                        o.vy = this.dive_ground_slam_hb.big_ground_slam and -2.75 or -2.0
                         o.throwerID = this.connectionID
                         o.thrown_timer = 10
                         o.stop = true
-                        
                     elseif o.throwerID ~= this.connectionID and this:right() >= o:left() and this:left() <= o:right() and this:bottom() >= o:top() and this:top() <= o:bottom() then
                         local function snap()
                             this:move(0, o.y-8-this.y)
@@ -312,7 +311,7 @@ roundelie = {
                                 this:move(0, this.y+8-o.y)
                             end
                         end
-                        
+
                         if this.teleport_time > 0 then
                             -- teleport into snowball
                             o.vx = 5.15 * this.facing  -- teleport is stronger than maddy dash => should launch snowball with higher speed
@@ -322,11 +321,10 @@ roundelie = {
                             o.thrown_timer = 10
                             love.audio.play("zap", "static")
                             this.teleport_info.on_hit = true
-                            
                         elseif ((this.down_attack and this.conk == 0) or this.vy > 0) and this:bottom() <= o:top() + 4 then
                             snap()
                             this.bjump = 2
-                            
+
                             -- dive into snowball
                             if this.down_attack then
                                 -- TODO: probably a bit messy to have code repeated here when it's basically just copy-pasted from the update function...
@@ -344,16 +342,15 @@ roundelie = {
                                     o.vy = -1.75
                                     o.vx = o.vx * 0.75
                                 end
-                                
                                 this.dive_smoketrail = 0
                                 this.down_attack = false
                                 this.vx = 0.15 * this.conk * this.conkdir
                                 love.audio.play("maddy_jump", "static")
-                                
+
                                 o.stop = true
                                 o.throwerID = this.connectionID
                                 o.thrown_timer = 10
-                                
+
                             -- bounce on top of snowball
                             else
                                 if this.p_jump or inputSource.getKeyDown(this.connectionID, "b1") then
@@ -370,12 +367,14 @@ roundelie = {
             end
         end
 
+        -- workaround for the shockwaves & ground chunks being treated more as extensions of the ground-slam hitbox rather than separate projectiles
+        -- TODO: a bit hacky?
         this.update_dynamic_hitboxes = function(this)
             -- update the dive ground-slam hitbox ..
             --     the dive ground-slam hitbox is active near the ground for the first 2 frames,
             --     and then chunks of the ground shoot out for the next 5 frames, while the hitbox moves with the chunks
             local hb = this.dive_ground_slam_hb
-            if hb and hb.active and hb.big_dive_slam and hb.duration <= 6 then
+            if hb and hb.active and hb.big_ground_slam and hb.duration <= 6 then
                 -- hb.duration is decremented *after* this, so e.g. tick 3 is at `hb.duration == 6` (with initial duration of 8)
                 -- also hitbox is *actually* active for (duration - 1), currently (8 - 1) => 7 ticks
                 if hb.duration == 6 then
@@ -639,11 +638,11 @@ roundelie = {
                 vy = (dest_y - start_y) * 0.35,
                 drag = 0.375, -- lower to *increase*
                 min_vx = 0,
-                
+
                 init_delay = 1,  -- bit of a hack, but, ehh
                 timer = 0,
                 duration = 16,
-                
+
                 anim_frame = math.random(3),
                 flipX = love.math.random() > 0.5 and -1 or 1,
                 flipY = love.math.random() > 0.5 and -1 or 1,
@@ -654,71 +653,66 @@ roundelie = {
                         p.init_delay = p.init_delay - 1
                         return
                     end
-                    
+
                     p.x = p.x + p.vx
                     p.y = p.y + p.vy
                     p.vx = util.appr(math.abs(p.vx * p.drag), p.min_vx, 0.157) * util.sign(p.vx)
                     p.vy = util.appr(p.vy, 3.0, math.abs(p.vy) > 0.2 and 0.45 or 0.30) -- meant to hang a bit at the top of the arc
-                    
+
                     p.timer = p.timer + 1
                     return p.timer > p.duration
                 end,
                 
                 draw = function(p)
                     if p.init_delay ~= 0 then return; end
-                    
+
                     local fade = (p.duration - p.timer > 3) and 1.0 or (1.0 - (3 - (p.duration - p.timer)) * 0.25)
                     local tint = (p.color.r < 150 and p.color.g < 150 and p.color.b < 150) and 20 or 0
                     local sprite_ndx = p.anim_frame > 2 and 2 or p.anim_frame
                     local cx, cy = 4, 4
                     local dx, dy = math.floor(p.x) + cx, math.floor(p.y) + cy
-                    
+
                     love.graphics.setShader(paletteSwapShader)
                     paletteSwapShader:send("color_find", {255/255, 255/255, 255/255, 1.0})
                     paletteSwapShader:send("color_replace", {(p.color.r + tint)/255, (p.color.g + tint)/255, (p.color.b + tint)/255, 1.0})
                     love.graphics.setColor(1, 1, 1, fade)
-                    
                     sprites.draw(sprites["characters/roundelie_ground_chunk"][sprite_ndx], dx, dy, 0, p.flipX, p.flipY, cx, cy)
-                    
                     love.graphics.setShader()
                     love.graphics.setColor(1, 1, 1)
                 end,
             })
         end
 
-        this.init_shockwave = function(info, direction)
+        this.init_shockwave = function(info, direction, init_delay)
             table.insert(particles_fg, {
                 shockwave_info = info,
                 direction = direction,
                 is_active = true,
-                
+
                 x = info.x_init + (direction == -1 and 3 or -2),
                 y = info.y_init,
                 vx = info.vx,
                 prev_vx = info.vx,
-                
-                shockwave_delay_timer = 2,
+
+                init_delay = init_delay,
                 timer = -1,
-                duration = 10, --9, --10,
-                
+                duration = 10,
+
                 update = function(p)
-                    if p.is_active and p.direction == -1 and p.shockwave_info.left == false then
-                        p.timer = p.duration - 3
-                        p.is_active = false
-                    elseif p.is_active and p.direction == 1 and p.shockwave_info.right == false then
+                    if p.is_active and ((p.direction == -1 and p.shockwave_info.left  == false) or
+                                        (p.direction ==  1 and p.shockwave_info.right == false)) then
                         p.timer = p.duration - 3
                         p.is_active = false
                     else
                         p.timer = p.timer + 1
                     end
-                    p.shockwave_delay_timer = p.shockwave_delay_timer - 1
-                    p.vx = p.shockwave_delay_timer > 0 and p.vx or util.appr(p.vx, 0.5, 0.6)
-                    
+                    p.init_delay = p.init_delay - 1
+                    p.vx = (p.init_delay > 0) and p.vx or util.appr(p.vx, 0.5, 0.6)
                     p.x = p.x + (p.direction * (p.is_active and p.vx or p.prev_vx))
                     p.prev_vx = p.is_active and p.vx or p.prev_vx
                     return p.timer >= p.duration
                 end,
-                
+
                 draw = function(p)
                     local frame = math.floor((p.timer + 1) / p.duration * 4) + 1
                     if frame > 4 then frame = 4 end
@@ -1032,10 +1026,10 @@ roundelie = {
 
             local accel = on_ground and 0.93 or 0.80
             local deccel = 0.16
-            
+
             this.vx = math.abs(this.vx) <= MAX_RUN_SPEED and util.appr(this.vx, h_input * MAX_RUN_SPEED, accel) or util.appr(this.vx, util.sign(this.vx) * MAX_RUN_SPEED, deccel)
             if this.vx ~= 0 then this.facing = util.sign(this.vx) end
-            
+
             if not on_ground then
                 this.vy = util.appr(this.vy, MAX_FALL_SPEED, math.abs(this.vy) > 0.124 and 0.334 or 0.167)
             end
@@ -1043,18 +1037,18 @@ roundelie = {
             if this.jbuffer > 0 then
                 if this.grace > 0 then
                     this.is_start_of_jump = true
-                    
+
                     if (not this.was_on_ground) and this:is_solid(0, 1) then this.is_first_frame_jump = true; end
-                    
+
                     this.jbuffer = 0
                     -- this.grace = 0
                     this.vy = -3.36
-                    
+
                     love.audio.play("maddy_jump", "static")
                     game.init_smoke(this.x, this.y + 4)
                 end
             end
-            
+
             -- dive into -> bounce off of the ground
             if on_ground and this.down_attack then
                 this.dive_smoketrail = 0
@@ -1122,13 +1116,13 @@ roundelie = {
                 -- create follow-up shockwave(s) if conditions are met
                 if is_big_ground_slam then
                     this.dive_ground_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 8)
-                    this.dive_ground_slam_hb.big_dive_slam = true
+                    this.dive_ground_slam_hb.big_ground_slam = true
                     this.shockwave_info.vx = 4.75
                     this.shockwave_info.left = true
                     this.shockwave_info.right = true
                 else
                     this.dive_ground_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 3)
-                    this.dive_ground_slam_hb.small_dive_slam = true
+                    this.dive_ground_slam_hb.small_ground_slam = true
                     this.shockwave_info.vx = 4.0
                     this.shockwave_info.left = (h_input == -1)
                     this.shockwave_info.right = (h_input == 1)
@@ -1143,8 +1137,8 @@ roundelie = {
 
                     -- draw visual effects for the shockwave(s)
                     if this.shockwave_info.create then
-                        if this.shockwave_info.left  then this.init_shockwave(this.shockwave_info, -1); end
-                        if this.shockwave_info.right then this.init_shockwave(this.shockwave_info,  1); end
+                        if this.shockwave_info.left  then this.init_shockwave(this.shockwave_info, -1, this.shockwave_delay_timer); end
+                        if this.shockwave_info.right then this.init_shockwave(this.shockwave_info,  1, this.shockwave_delay_timer); end
                     end
                 end
 
@@ -1160,10 +1154,10 @@ roundelie = {
                     this.vy = util.appr(this.vy, MAX_DIVE_SPEED, 1.95)
 
                     -- a bit hacky, but this helps prevent the smoke-trail effect from being drawn when roundelie starts diving right before bouncing (e.g., while dribbling or wall-climbing)
-                    this.should_draw_dive_vfx = this.dribble_timer == 0 or
-                                                (not ((this:is_solid(this.vx + (h_input * 3), this.vy)) or
-                                                      (this.p_jump and (not this:is_solid(this.vx, this.vy + 4, true))) or
-                                                      (this:is_solid(this.vx, this.vy + 4))))
+                    this.should_draw_dive_smoketrail = this.dribble_timer == 0 or
+                                                       (not ((this:is_solid(this.vx + (h_input * 3), this.vy)) or
+                                                             (this.p_jump and (not this:is_solid(this.vx, this.vy + 4, true))) or
+                                                             (this:is_solid(this.vx, this.vy + 4))))
                     this.is_dive_start = true
                     this.dive_start_timer = 3
                 else
@@ -1228,13 +1222,13 @@ roundelie = {
             this.prev_vx = this.vx
             this.prev_vy = this.vy -- part of the hacky semisolid fix
         end
-        
-        
+
+
         -- apply updates
         this:move(this.vx, this.vy)
         this:check_snowballs()
-        
-        
+
+
         -- check if roundelie has landed on a platform
         -- (this is done after movement is calculated so that animations are more accurate)
         local anim_on_ground, anim_is_landing = false, false
@@ -1267,11 +1261,11 @@ roundelie = {
         end
 
         -- dive vfx
-        if this.should_draw_dive_vfx then
+        if this.should_draw_dive_smoketrail then
             this.dive_smoketrail = 2
             game.init_smoke(this.prev_x, this.prev_y - 4)
             love.audio.play("maddy_downdash", "static")  -- TODO: placeholder
-            this.should_draw_dive_vfx = false
+            this.should_draw_dive_smoketrail = false
         end
 
         -- update sprite / animation orientation
@@ -1458,67 +1452,65 @@ roundelie = {
             end
         end
     end,
-    
+
     on_hit_confirm = function(this, target, hb)
-        -- the large shockwave already applies camera shake
-        if (not hb.big_dive_slam) then camera.shake(1.5, 1.5, 2) end
-        
-        if hb.big_dive_slam then
-            --target.freeze = 2
-        elseif hb.small_dive_slam then
-            --target.freeze = 1
-        elseif hb.telefrag then
-            this.teleport_info.on_hit = true
-            
-            table.insert(particles_fg, {
-                x = target:hmid(), y = target:vmid(),
-                timer = 0,
-                duration = 8,
-                update = function(p)
-                    p.timer = p.timer + 1
-                    return p.timer >= p.duration
-                end,
-                draw = function(p)
-                    local fade = 1 - (p.timer / p.duration)
-                    local len = p.timer * 4
-                    love.graphics.setColor(1, 1, 1, fade)
-                    love.graphics.rectangle("fill", math.floor(p.x - len / 2), math.floor(p.y - 1), len, 2)
-                    love.graphics.rectangle("fill", math.floor(p.x - 1), math.floor(p.y - len), 2, len * 2)
-                    love.graphics.setColor(1, 1, 1, 1)
-                end
-            })
-            
-            this.freeze = 6
-            target.freeze = 6
-            
-            if this.invis_timer > 0 then this.invis_timer = this.invis_timer + 2; end
-            
-            camera.shake(3, 3, 5)
+        if hb.big_ground_slam then
+            --
+        else
+            camera.shake(1.5, 1.5, 2)  -- the large ground-slam already applies camera shake
+
+            if hb.small_ground_slam then
+                --
+            elseif hb.telefrag then
+                -- on-hit visual effect copied from lani body-slam
+                table.insert(particles_fg, {
+                    x = target:hmid(), y = target:vmid(),
+                    timer = 0,
+                    duration = 8,
+                    update = function(p)
+                        p.timer = p.timer + 1
+                        return p.timer >= p.duration
+                    end,
+                    draw = function(p)
+                        local fade = 1 - (p.timer / p.duration)
+                        local len = p.timer * 4
+                        love.graphics.setColor(1, 1, 1, fade)
+                        love.graphics.rectangle("fill", math.floor(p.x - len / 2), math.floor(p.y - 1), len, 2)
+                        love.graphics.rectangle("fill", math.floor(p.x - 1), math.floor(p.y - len), 2, len * 2)
+                        love.graphics.setColor(1, 1, 1, 1)
+                    end
+                })
+                this.teleport_info.on_hit = true
+                this.freeze = 6
+                target.freeze = 6
+                camera.shake(3, 3, 5)
+                if this.invis_timer > 0 then this.invis_timer = this.invis_timer + 2; end
+            end
         end
     end,
-    
+
     draw = function(this)
         if not this.active and this.stocks <= 0 then return; end
         if this.respawn_timer > 0 or this.invis_timer > 0 then return; end
-        
+
         local isBlinking = this.invincible_timer > 0 and (math.floor(this.invincible_timer / 4) % 2 == 0 or debugEnabled)
-        local isInflate  = this.current_anim == "inflate" or this.current_anim == "teleport_inflate" or this.current_anim == "inflate_quick"
-        local isRotating = this.current_anim == "roll" or this.current_anim == "flip"
-        
+        local isInflate  = (this.current_anim == "inflate" or this.current_anim == "teleport_inflate" or this.current_anim == "inflate_quick")
+        local isRotating = (this.current_anim == "roll" or this.current_anim == "flip")
+
         local anim = this.animations[this.current_anim]
         local frame_idx = anim.frames[this.anim_frame]
         local rotation = isRotating and math.rad(this.facing * this.anim_frame * 90) or 0
         local cx, cy = this.hurtbox.x + (this.hurtbox.w / 2), 4
-        
+
         this.spr = this.spritesheet[frame_idx]
-        
+
         -- apply tints and shaders
         if this.hitstun > 0 then
-            love.graphics.setColor(255 / 255, 119 / 255, 168 / 255)
+            love.graphics.setColor(255/255, 119/255, 168/255)
         else
             love.graphics.setColor(1, 1, 1)
         end
-        
+
         if isBlinking then
             love.graphics.setShader(whiteShader)
             love.graphics.setColor(1, 1, 1)
@@ -1538,20 +1530,20 @@ roundelie = {
                 r, g, b = r * tint, g * tint, b * tint
                 -- ref: https://stackoverflow.com/questions/13328029/how-to-desaturate-a-color
                 --      https://en.wikipedia.org/wiki/Grayscale#Luma_coding_in_video_systems
-                local L = 0.299 * r + 0.587 * g + 0.114 * b  -- calculate luma using standard human-eye luminance weights (BT.601)
+                local L = 0.299 * r + 0.587 * g + 0.114 * b  -- => luma (BT.601)
                 local f = 0.20  -- => 20% desaturation
                 paletteSwapShader:send("color_find", this.base_color)
                 paletteSwapShader:send("color_replace", {(r + f * (L - r)), (g + f * (L - g)), (b + f * (L - b)), 1.0})
             end
         end
-        
+
         -- draw sprite(s)
         if this.skin == 3 then
             -- roundelie's face and belly for the statue/gold skin are drawn on top of "base" sprites that aren't flipped
-            local base_spr = sprites[ this.current_anim == "crouch" and "characters/roundelie_3_base_crouch" or "characters/roundelie_3_base_default" ]
+            local base_spr = sprites[this.current_anim == "crouch" and "characters/roundelie_3_base_crouch" or "characters/roundelie_3_base_default"]
             sprites.draw(base_spr, this.x + cx, this.y, 0, 1, 1, cx, 0)
         end
-        
+
         if this.is_squishy and isInflate then
             -- the inflate pose uses a larger sprite that's separate from the rest of the spritesheet
             local spr_inflate = (this.skin == 1 and "characters/roundelie_1_inflate" or "characters/roundelie_2_inflate")
@@ -1559,14 +1551,14 @@ roundelie = {
         else
             sprites.draw(this.spr, this.x + cx, this.y + cy, rotation, this.facing, 1, cx, cy)
         end
-        
+
         if this.connectionID == connectionID then
             local px = math.floor(this.x)
             local py = math.floor(this.y)
             love.graphics.rectangle("fill", px + 3, py - 6, 3, 1)
             love.graphics.rectangle("fill", px + 4, py - 5, 1, 1)
         end
-        
+
         love.graphics.setShader()
         love.graphics.setColor(1, 1, 1)
     end
