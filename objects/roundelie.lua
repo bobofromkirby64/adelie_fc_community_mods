@@ -179,7 +179,7 @@ roundelie = {
 
         this.grace = 0
         this.jbuffer = 0
-        this.bjump = 2
+        this.bjumps = 2
         this.teleport_time = 0
 
         this.p_jump = false
@@ -195,7 +195,7 @@ roundelie = {
 
         this.teleport_hb  = nil  -- hitbox created by left/right+x and neutral+x attacks
         this.teleport_info = {
-            init_vfx = false,   -- true if teleport has started (=> flag used to trigger vfx)
+            init_vfx = false,   -- true if teleport has started
             horizontal = false, -- true if teleport has an input direction (i.e. not a neutral input)
             on_hit = false      -- true if teleport has hit the opponent
         }
@@ -253,8 +253,8 @@ roundelie = {
 
         this.respawn_timer = 0
         this.invincible_timer = 0
+        this.bjump_cooldown = 0
         this.teleport_cooldown = 0
-        this.bump_cooldown = 0
         this.freeze = 0
         this.conk = 0
         this.conkdir = 0
@@ -323,7 +323,7 @@ roundelie = {
                             this.teleport_info.on_hit = true
                         elseif ((this.down_attack and this.conk == 0) or this.vy > 0) and this:bottom() <= o:top() + 4 then
                             snap()
-                            this.bjump = 2
+                            this.bjumps = 2
 
                             -- dive into snowball
                             if this.down_attack then
@@ -906,8 +906,8 @@ roundelie = {
             this.teleport_cooldown = this.teleport_cooldown - 1
         end
 
-        if this.bump_cooldown > 0 then
-            this.bump_cooldown = this.bump_cooldown - 1
+        if this.bjump_cooldown > 0 then
+            this.bjump_cooldown = this.bjump_cooldown - 1
         end
 
         -- respawn
@@ -920,11 +920,11 @@ roundelie = {
                 this.y = 20
                 this.vx = 0
                 this.vy = 0
-                this.bjump = 2
+                this.bjumps = 2
                 this.hitstun = 0
                 this.invincible_timer = 60
                 this.teleport_cooldown = 0
-                this.bump_cooldown = 0
+                this.bjump_cooldown = 0
                 -- idk how much of this is needed ...
                 this.current_anim = this.idle_poses[1]
                 this.orientation = this.directions.UP
@@ -938,13 +938,17 @@ roundelie = {
 
         this:update_dynamic_hitboxes()
 
-        -- update roundelie
         this.prev_facing = this.facing
         this.is_start_of_jump = false
         this.is_first_frame_jump = false
 
         local h_input = (inputSource.getKeyDown(id, "right") and 1 or 0) - (inputSource.getKeyDown(id, "left") and 1 or 0)
         local v_input = (inputSource.getKeyDown(id, "down") and 1 or 0) - (inputSource.getKeyDown(id, "up") and 1 or 0)
+
+        local jump_btn =   inputSource.getKeyDown(id, "b1")
+        local action_btn = inputSource.getKeyDown(id, "b2")
+        local jump_input = jump_btn and (not this.p_jump)
+        local action_input = action_btn and (not this.p_action)
 
         local MAX_RUN_SPEED  = 2.0  -- different from ra2, but the speed building doesn't fit well with the character and is overcomplicated
         local MAX_FALL_SPEED = 3.0
@@ -957,27 +961,28 @@ roundelie = {
             this.vy = util.appr(this.vy, MAX_FALL_SPEED, 0.15)
             this.vx = util.appr(this.vx, 0, 0.143)
             reset_hitboxes()
+
         else
-            local jump_btn = inputSource.getKeyDown(id, "b1")
-            local action_btn = inputSource.getKeyDown(id, "b2")
-
-            local jump = jump_btn and (not this.p_jump)
-            local teleport = action_btn and (not this.p_action) and this.teleport_cooldown == 0
-            local bump = action_btn and (not this.p_action) and this.bump_cooldown == 0
-
             this.p_jump = jump_btn
             this.p_action = action_btn
+
+            local can_jump = jump_input
+            local can_bjump = action_input and this.bjump_cooldown == 0
+            local can_teleport = action_input and this.teleport_cooldown == 0
 
             local ground_hit = this:is_solid(0, 1)
             local on_ground = ground_hit ~= false
             local on_semisolid = ground_hit and (ground_hit.type == "semisolid" or ground_hit.semisolid)
+
+            -- [START] SEMISOLID PASS-THROUGH
+            -- TODO: maybe refresh bjumps when passing through semisolid?
 
             -- weird semisolid fall through
             if on_semisolid and v_input == 1 and not (this.was_on_ground) and jump_btn then --very hacky fix and I don't like it but I don't want to edit the move function since it breaks interoperability (would be very easy though). Maybe better fix? Or at least a hacky fix that's identical to the ideal case
                 if not this:is_solid(0, 1, true) then
                     this.y = this.y + 1
                     on_ground = false
-                    jump = false
+                    can_jump = false
                     this.jbuffer = 0
                     this.vy = this.prev_vy
                 end
@@ -989,55 +994,29 @@ roundelie = {
             end
 
             -- regular semisolid fall through
-            if on_semisolid and v_input == 1 and jump then -- can definitely be combined with above part, but want to keep hacky and normal stuff separate for now
+            if on_semisolid and v_input == 1 and jump_input then -- can definitely be combined with above part, but want to keep hacky and normal stuff separate for now
                 if not this:is_solid(0, 1, true) then
                     this.y = this.y + 1
                     on_ground = false
-                    jump = false
+                    can_jump = false
                 end
             end
+            -- [END] SEMISOLID PASS-THROUGH
 
-            if jump then this.jbuffer = 4 elseif this.jbuffer > 0 then this.jbuffer = this.jbuffer - 1 end
+
+            -- [START] JUMP
+            if can_jump then this.jbuffer = 4 elseif this.jbuffer > 0 then this.jbuffer = this.jbuffer - 1 end
 
             if on_ground then
                 if this.vy < 0 then
-                    this.bump_cooldown = 0
+                    this.bjump_cooldown = 0
                     love.audio.play("maddy_clip", "static")
                 end
                 this.grace = 6
-                this.bjump = 2
+                this.bjumps = 2
             --
             elseif this.grace > 0 then
                 this.grace = this.grace - 1
-            end
-
-            -- teleport (ongoing)
-            if this.teleport_time > 0 then
-                if this.is_teleport_start then
-                    this.freeze = 3  -- half of the value applied on-hit
-                    local kb_direction = (this.prev_x - this.x == 0) and this.facing or (-1 * util.sign(this.prev_x - this.x))
-                    this.teleport_hb = hitbox.create(this.connectionID, (this.x  - 1), (this.y  - 1), 10, 10, 8, 4 * kb_direction, 0, 2)
-                    this.teleport_hb.telefrag = true
-                    this.teleport_hb.hit_sfx = "zap"  -- generic "crit" sfx used for big hits, e.g. Lani's tipper and body slam
-                end
-                this.teleport_time = this.teleport_time - 1
-                this.vx = 0
-            else
-                if this.teleport_hb then
-                    this.teleport_hb.active = false
-                    this.teleport_hb = nil
-                end
-            end
-            this.is_teleport_start = false
-
-            local accel = on_ground and 0.93 or 0.80
-            local deccel = 0.16
-
-            this.vx = math.abs(this.vx) <= MAX_RUN_SPEED and util.appr(this.vx, h_input * MAX_RUN_SPEED, accel) or util.appr(this.vx, util.sign(this.vx) * MAX_RUN_SPEED, deccel)
-            if this.vx ~= 0 then this.facing = util.sign(this.vx) end
-
-            if not on_ground then
-                this.vy = util.appr(this.vy, MAX_FALL_SPEED, math.abs(this.vy) > 0.124 and 0.334 or 0.167)
             end
 
             if this.jbuffer > 0 then
@@ -1055,185 +1034,239 @@ roundelie = {
                 end
             end
 
-            -- dive into -> bounce off of the ground
-            if on_ground and this.down_attack then
-                this.dive_smoketrail = 0
-                this.down_attack = false
-                this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
+            this.was_on_ground = on_ground
+            -- [END] JUMP
 
-                -- ground-slam attack
-                local is_big_ground_slam = (this.prev_vy == MAX_DIVE_SPEED and this.dive_start_timer == 0)
-                local cx = this.hurtbox.x + (this.hurtbox.w / 2)
-                local hb_x, hb_w, hb_x_offset
-
-                if is_big_ground_slam then
-                    hb_x_offset = (-1.0 * this.conkdir) + (3.0 * h_input)
-                    hb_w = 28  -- 3.5 tiles
-                    hb_x = (this.x + cx - (hb_w / 2)) + hb_x_offset
-                    this.conk = 10
-                    this.vy = -3.75
-                    this.was_big_conk = true
-                    camera.shake(2, 2, 4)
-                else
-                    hb_x_offset = (-0.75 * this.conkdir) + (1.75 * h_input)
-                    hb_w = 20  -- 2.5 tiles
-                    hb_x = (this.x  + cx - (hb_w / 2)) + hb_x_offset
-                    this.conk = 9
-                    this.vy = -2.0
-                end
-
-                local impact_x, impact_y = (this.x + cx) + hb_x_offset, this.y
-
-                -- "ground" can be composed of multiple platforms
-                --   => we need to find the left-most and right-most platforms within the attack range
-                local platform_left, platform_right = ground_hit, ground_hit
-                while hb_x < platform_left.x do
-                    -- find the left-most platform
-                    local new_platform = this:is_solid((platform_left.x - this.x - this.hurtbox.w - this.hurtbox.x), 1)
-                    if new_platform and new_platform.y == platform_left.y then platform_left = new_platform; else break; end
-                end
-                while (hb_x + hb_w) > (platform_right.x + platform_right.w) do
-                    -- find the right-most platform
-                    local new_platform = this:is_solid((platform_right.x + platform_right.w - this.x - this.hurtbox.x), 1)
-                    if new_platform and new_platform.y == platform_right.y then platform_right = new_platform; else break; end
-                end
-
-                -- constrain the ground-slam hitbox to the edges of the ground roundelie is diving into, + 1/2 the width of a tile
-                local prev_hb_x = hb_x
-                hb_x = math.max(hb_x, platform_left.x - 4)
-                hb_w = math.min((prev_hb_x + hb_w - hb_x), (platform_right.x + platform_right.w + 4) - hb_x)
-
-                -- prevent the ground-slam hitbox from extending through walls
-                local hb_right = { x = impact_x, y = this.y + 4, w = (hb_x + hb_w) - impact_x, h = 4 }
-                for _, p in ipairs(stage.platforms) do
-                    if p.type == "solid" and this.check_for_collision(hb_right, p, 0, 0) then
-                        hb_w = p.x - hb_x + 4
-                        break
-                    end
-                end
-                local hb_left =  { x = hb_x, y = this.y + 4, w = impact_x - hb_x, h = 4 }
-                for _, p in ipairs(stage.platforms) do
-                    if p.type == "solid" and this.check_for_collision(hb_left, p, 0, 0) then
-                        hb_x = p.x + p.w - 4
-                        break
-                    end
-                end
-
-                -- create follow-up shockwave(s) if conditions are met
-                if is_big_ground_slam then
-                    this.dive_ground_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 8)
-                    this.dive_ground_slam_hb.big_ground_slam = true
-                    this.shockwave_info.vx = 4.75
-                    this.shockwave_info.left = true
-                    this.shockwave_info.right = true
-                else
-                    this.dive_ground_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 3)
-                    this.dive_ground_slam_hb.small_ground_slam = true
-                    this.shockwave_info.vx = 4.0
-                    this.shockwave_info.left = (h_input == -1)
-                    this.shockwave_info.right = (h_input == 1)
-                end
-
-                if (this.shockwave_info.left or this.shockwave_info.right) and (not this.shockwave_info.create) then
-                    this.shockwave_info.x_init = impact_x
-                    this.shockwave_info.y_init = impact_y
-                    this.shockwave_info.cx = 0
-                    this.shockwave_info.create = this.shockwave_info.left or this.shockwave_info.right
-                    this.shockwave_delay_timer = 2
-
-                    -- draw visual effects for the shockwave(s)
-                    if this.shockwave_info.create then
-                        if this.shockwave_info.left  then this.init_shockwave(this.shockwave_info, -1, this.shockwave_delay_timer); end
-                        if this.shockwave_info.right then this.init_shockwave(this.shockwave_info,  1, this.shockwave_delay_timer); end
-                    end
-                end
-
-                --
-                this:init_ground_slam_vfx(impact_x, impact_y, hb_x, hb_w, ground_hit, is_big_ground_slam)
+            -- init teleport
+            if this.is_teleport_start then
+                local kb_direction = (this.prev_x - this.x == 0) and this.facing or (-1 * util.sign(this.prev_x - this.x))
+                this.teleport_hb = hitbox.create(this.connectionID, (this.x  - 1), (this.y  - 1), 10, 10, 8, 4 * kb_direction, 0, 2)
+                this.teleport_hb.telefrag = true
+                this.teleport_hb.hit_sfx = "zap"  -- generic "crit" sfx used for big hits, e.g. Lani's tipper and body slam
+                this.freeze = 3  -- half of the value applied on hit
             end
+            this.is_teleport_start = false
 
-            local is_wall_bounce = false
-            if v_input == 1 and action_btn and not on_ground and this.conk < 1 then
-                if not this.down_attack then 
-                    -- dive has a 1f delay before the hitbox comes out and an initial burst of speed after the delay
-                    this.freeze = 1
-                    this.vy = util.appr(this.vy, MAX_DIVE_SPEED, 1.95)
-
-                    -- a bit hacky, but this helps prevent the smoke-trail effect from being drawn when roundelie starts diving right before bouncing (e.g., while dribbling or wall-climbing)
-                    this.should_draw_dive_smoketrail = this.dribble_timer == 0 or
-                                                       (not ((this:is_solid(this.vx + (h_input * 3), this.vy)) or
-                                                             (this.p_jump and (not this:is_solid(this.vx, this.vy + 4, true))) or
-                                                             (this:is_solid(this.vx, this.vy + 4))))
-                    this.is_dive_start = true
-                    this.dive_start_timer = 3
-                else
-                    -- might be overcomplicated; left over from maddy code
-                    local hb_w, hb_h = 10, 10
-                    local targetX = this.x + this.vx
-                    local targetY = this.y + this.vy
-                    local cx = targetX + this.hurtbox.x + (this.hurtbox.w / 2)
-                    local cy = targetY + this.hurtbox.y + (this.hurtbox.h / 2)
-                    local hb_x = cx - (hb_w / 2)
-                    local hb_y = cy - (hb_h / 2)
-                    -- the dive hitbox remains active as long as the input (down+x) is held
-                    hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx), 4.5, 2)
-                    this.vy = util.appr(this.vy, MAX_DIVE_SPEED, 0.60)
-                    if this.dive_smoketrail > 0 then game.init_smoke(this.x, this.y) end
-                end
-
-                this.down_attack = true
-                this.was_big_conk = false
-                this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1  -- needs to be kept updated for snowball logic
-
-                -- dive -> bounce off of a wall
-                local wall_dir = this:is_solid(-3, 0) and 1 or (this:is_solid(3, 0) and -1 or 0)
-                if wall_dir ~= 0 then
-                    is_wall_bounce = true
-                    this.conk = 8
-                    this.dive_smoketrail = 0
-                    this.vy = -2.7
-                    game.init_smoke(this.x - wall_dir * 6, this.y)  -- same as maddy wall-jump
-                end
+            -- teleport is ongoing
+            if this.teleport_time > 0 then
+                this.teleport_time = this.teleport_time - 1
+                this.vx = 0
             else
+                if this.teleport_hb then
+                    this.teleport_hb.active = false
+                    this.teleport_hb = nil
+                end
+            end
+
+            -- NOTE/QUIRK: basic movement is calculated AFTER updating speed for the teleport, so "zero-ing vx" is actually just zero-ing acceleration
+            --  => should experiment more with having teleport ACTUALLY impact speed, from initial testing it might feel a bit better
+
+            local accel = on_ground and 0.93 or 0.80
+            local deccel = 0.16
+
+            this.vx = (math.abs(this.vx) <= MAX_RUN_SPEED) and util.appr(this.vx, h_input * MAX_RUN_SPEED, accel) or util.appr(this.vx, util.sign(this.vx) * MAX_RUN_SPEED, deccel)
+            if (not on_ground) then this.vy = util.appr(this.vy, MAX_FALL_SPEED, math.abs(this.vy) > 0.124 and 0.334 or 0.167) end
+
+            if this.vx ~= 0 then this.facing = util.sign(this.vx) end
+
+
+            -- [START] ACTION STATE TREE
+
+            -- NOTE/QUIRK: there's a 1 tick delay before the dive attack hitbox comes out
+
+            -- NOTE/QUIRK: wall-bounce can occur on the same tick as the dive input, but a floor bounce needs an additional tick to process
+            --  => should probably experiment with changing this since it's inconsistent, and makes wall-bounce take precedence in some situations that might be frustrating
+
+            -- NOTE/QUIRK: dive hitbox is NOT active on the same tick as a bounce off the ground, but IS active on the same tick when bouncing off of a wall
+
+            local dive_input = action_btn and v_input == 1
+            local is_wall_bounce = false
+
+            if this.conk == 0 then
+                -- DIVE -> BOUNCE + GROUND-SLAM
+                if on_ground and this.down_attack then
+                    this.down_attack = false
+                    this.dive_smoketrail = 0
+                    this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1
+
+                    local is_big_ground_slam = (this.prev_vy == MAX_DIVE_SPEED and this.dive_start_timer == 0)
+                    local cx = this.hurtbox.x + (this.hurtbox.w / 2)
+                    local hb_x, hb_w, hb_x_offset
+
+                    if is_big_ground_slam then
+                        hb_x_offset = (-1.0 * this.conkdir) + (3.0 * h_input)
+                        hb_w = 28  -- 3.5 tiles
+                        hb_x = (this.x + cx - (hb_w / 2)) + hb_x_offset
+                        this.conk = 10
+                        this.vy = -3.75
+                        this.was_big_conk = true
+                        camera.shake(2, 2, 4)
+                    else
+                        hb_x_offset = (-0.75 * this.conkdir) + (1.75 * h_input)
+                        hb_w = 20  -- 2.5 tiles
+                        hb_x = (this.x  + cx - (hb_w / 2)) + hb_x_offset
+                        this.conk = 9
+                        this.vy = -2.0
+                    end
+
+                    local impact_x, impact_y = (this.x + cx) + hb_x_offset, this.y
+
+                    -- "ground" can be composed of multiple platforms
+                    --   => we need to find the left-most and right-most platforms within the attack range
+                    local platform_left, platform_right = ground_hit, ground_hit
+                    while hb_x < platform_left.x do
+                        -- find the left-most platform
+                        local new_platform = this:is_solid((platform_left.x - this.x - this.hurtbox.w - this.hurtbox.x), 1)
+                        if new_platform and new_platform.y == platform_left.y then platform_left = new_platform; else break; end
+                    end
+                    while (hb_x + hb_w) > (platform_right.x + platform_right.w) do
+                        -- find the right-most platform
+                        local new_platform = this:is_solid((platform_right.x + platform_right.w - this.x - this.hurtbox.x), 1)
+                        if new_platform and new_platform.y == platform_right.y then platform_right = new_platform; else break; end
+                    end
+
+                    -- constrain the ground-slam hitbox to the edges of the ground roundelie is diving into, + 1/2 the width of a tile
+                    local prev_hb_x = hb_x
+                    hb_x = math.max(hb_x, platform_left.x - 4)
+                    hb_w = math.min((prev_hb_x + hb_w - hb_x), (platform_right.x + platform_right.w + 4) - hb_x)
+
+                    -- prevent the ground-slam hitbox from extending through walls
+                    local hb_right = { x = impact_x, y = this.y + 4, w = (hb_x + hb_w) - impact_x, h = 4 }
+                    for _, p in ipairs(stage.platforms) do
+                        if p.type == "solid" and this.check_for_collision(hb_right, p, 0, 0) then
+                            hb_w = p.x - hb_x + 4
+                            break
+                        end
+                    end
+                    local hb_left =  { x = hb_x, y = this.y + 4, w = impact_x - hb_x, h = 4 }
+                    for _, p in ipairs(stage.platforms) do
+                        if p.type == "solid" and this.check_for_collision(hb_left, p, 0, 0) then
+                            hb_x = p.x + p.w - 4
+                            break
+                        end
+                    end
+
+                    -- create ground-slam hitboxes and init follow-up shockwave(s) if conditions are met
+                    if is_big_ground_slam then
+                        this.dive_ground_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 3, -2 * this.conkdir, -4, 8)
+                        this.dive_ground_slam_hb.big_ground_slam = true
+                        this.shockwave_info.vx = 4.75
+                        this.shockwave_info.left = true
+                        this.shockwave_info.right = true
+                    else
+                        this.dive_ground_slam_hb = hitbox.create(this.connectionID, hb_x, this.y + 4, hb_w, 4, 2, -2 * this.conkdir, -3, 3)
+                        this.dive_ground_slam_hb.small_ground_slam = true
+                        this.shockwave_info.vx = 4.0
+                        this.shockwave_info.left = (h_input == -1)
+                        this.shockwave_info.right = (h_input == 1)
+                    end
+                    --
+                    this:init_ground_slam_vfx(impact_x, impact_y, hb_x, hb_w, ground_hit, is_big_ground_slam)
+
+                    if (this.shockwave_info.left or this.shockwave_info.right) and (not this.shockwave_info.create) then
+                        this.shockwave_info.x_init = impact_x
+                        this.shockwave_info.y_init = impact_y
+                        this.shockwave_info.cx = 0
+                        this.shockwave_info.create = this.shockwave_info.left or this.shockwave_info.right
+                        this.shockwave_delay_timer = 2
+
+                        -- draw visual effects for the shockwave(s)
+                        if this.shockwave_info.create then
+                            if this.shockwave_info.left  then this.init_shockwave(this.shockwave_info, -1, this.shockwave_delay_timer); end
+                            if this.shockwave_info.right then this.init_shockwave(this.shockwave_info,  1, this.shockwave_delay_timer); end
+                        end
+                    end
+
+                -- DIVE (MIDAIR)
+                elseif (not on_ground) and dive_input then
+                    -- dive (start)
+                    if (not this.down_attack) then
+                        -- dive has a 1 tick delay before the hitbox comes out and an initial burst of speed after the delay
+                        this.freeze = 1
+                        this.vy = util.appr(this.vy, MAX_DIVE_SPEED, 1.95)
+
+                        -- a bit hacky, but this helps prevent the smoke-trail effect from being drawn when roundelie starts diving right before bouncing (e.g., while dribbling or wall-climbing)
+                        this.should_draw_dive_smoketrail = this.dribble_timer == 0 or
+                                                           (not ((this:is_solid(this.vx + (h_input * 3), this.vy)) or
+                                                                 (this.p_jump and (not this:is_solid(this.vx, this.vy + 4, true))) or  -- TODO: fix in separate commit (p_jump -> jump_input)
+                                                                 (this:is_solid(this.vx, this.vy + 4))))
+                        this.is_dive_start = true
+                        this.dive_start_timer = 3
+                    -- dive (active)
+                    else
+                        this.vy = util.appr(this.vy, MAX_DIVE_SPEED, 0.60)
+                        if this.dive_smoketrail > 0 then game.init_smoke(this.x, this.y) end
+                        -- the dive hitbox remains active as long as the input is held
+                        -- (might be overcomplicated; left over from maddy code)
+                        local hb_w, hb_h = 10, 10
+                        local targetX = this.x + this.vx
+                        local targetY = this.y + this.vy
+                        local cx = targetX + this.hurtbox.x + (this.hurtbox.w / 2)
+                        local cy = targetY + this.hurtbox.y + (this.hurtbox.h / 2)
+                        local hb_x = cx - (hb_w / 2)
+                        local hb_y = cy - (hb_h / 2)
+                        hitbox.create(this.connectionID, hb_x, hb_y, hb_w, hb_h, 1, util.sign(this.vx), 4.5, 2)
+                    end
+                    this.down_attack = true
+                    this.was_big_conk = false
+                    this.conkdir = (h_input == 1 or (h_input == 0 and this.facing == 1)) and -1 or 1  -- needs to be kept updated for snowball logic
+
+                    local wall_dir = this:is_solid(-3, 0) and 1 or (this:is_solid(3, 0) and -1 or 0)
+                    if wall_dir ~= 0 then
+                        -- dive -> bounce off of a wall
+                        is_wall_bounce = true
+                        this.vy = -2.7
+                        this.conk = 8
+                        this.dive_smoketrail = 0
+                        game.init_smoke(this.x - wall_dir * 6, this.y)  -- same as maddy wall-jump
+                    end
+
+                -- BJUMP/BUMP
+                elseif can_bjump and v_input == -1 and this.bjumps > 0 then
+                    this.is_start_of_jump = true
+                    this.bjump_cooldown = 0  --TODO: keep this for now; if we want to add min delay between bjumps + support buffering, we can use the existing wiring to enable that; otherwise can rip out the cooldown completely
+                    this.vy = -3.0
+                    love.audio.play("maddy_nodash", "static")
+                    if this.bjumps >= 1 then
+                        game.init_smoke(this.x, this.y)
+                        this.bjumps = this.bjumps - 1
+                    end
+
+                -- TELEPORT (START)
+                elseif can_teleport and v_input == 0 then
+                    --if v_input == 0 then
+                        this.is_teleport_start = true
+                        this.teleport_time = 2
+                        this.teleport_cooldown = 31
+                        this.invincible_timer = 2
+                        this.vx = 32 * h_input
+                        this.teleport_info.init_vfx = true
+                        this.teleport_info.horizontal = h_input ~= 0
+                        this.teleport_info.on_hit = false
+                        love.audio.play("maddy_dash", "static")  -- TODO: placeholder
+                    --end
+                end
+            end
+            -- [END] ACTION STATE TREE
+
+            if (not on_ground) and ((not dive_input) or this.conk ~= 0) then
                 this.down_attack = false
             end
 
+            -- NOTE/QUIRK: this needs to be after dive logic, since conk adjustment to vx is applied on the same tick as a bounce is determined
             if this.conk > 0 then
                 this.vx = 0.15 * this.conk * this.conkdir * (is_wall_bounce and 2 or 1)
-            elseif v_input == -1 and bump and this.bjump > 0 then
-                this.is_start_of_jump = true
-                this.bump_cooldown = 0  --TODO: different from main branch, update documentation and code neatness if you want to keep
-                this.vy = -3.0
-                love.audio.play("maddy_nodash", "static")
-                if this.bjump >= 1 then
-                    game.init_smoke(this.x, this.y)
-                    this.bjump = this.bjump - 1
-                end
-            elseif teleport then
-                if v_input == 0 then
-                    this.is_teleport_start = true
-                    this.teleport_time = 2
-                    this.teleport_cooldown = 31
-                    this.invincible_timer = 2
-                    this.vx = 32 * h_input
-                    this.teleport_info.init_vfx = true
-                    this.teleport_info.horizontal = h_input ~= 0
-                    this.teleport_info.on_hit = false
-                    love.audio.play("maddy_dash", "static")  -- TODO: placeholder
-                end
             end
-            this.was_on_ground = on_ground
-            this.prev_x = this.x  -- need to keep track of original position for some visual effects drawn after movement/collision is calculated
-            this.prev_y = this.y  --
-            this.prev_vx = this.vx
-            this.prev_vy = this.vy -- part of the hacky semisolid fix
         end
 
+        this.prev_x = this.x  -- need to keep track of original position for some visual effects drawn after movement/collision is calculated
+        this.prev_y = this.y
+        this.prev_vx = this.vx
+        this.prev_vy = this.vy
 
         -- apply updates
         this:move(this.vx, this.vy)
         this:check_snowballs()
-
 
         -- check if roundelie has landed on a platform
         -- (this is done after movement is calculated so that animations are more accurate)
@@ -1243,12 +1276,7 @@ roundelie = {
             if (not this.was_on_ground) and (not this.down_attack) then
                 game.init_smoke(this.x, this.y + 4)
                 anim_is_landing = true
-                
-                if this.prev_vy > 3 or (this.prev_vy == 3 and this.falling_timer >= 15) then
-                    this.was_big_fall = true
-                else
-                    this.was_big_fall = false
-                end
+                this.was_big_fall = (this.prev_vy > 3 or (this.prev_vy == 3 and this.falling_timer >= 15))
                 this.falling_timer = 0
             end
         else
@@ -1320,7 +1348,7 @@ roundelie = {
             this.orientation = this.directions.UP
             next_anim = "teleport_inflate"
 
-        -- MIDAIR ANIMATIONS
+        -- midair animations ::
         elseif not anim_on_ground then
             if this.is_start_of_jump then
                 this.orientation = this.directions.UP
@@ -1366,7 +1394,7 @@ roundelie = {
                 end
             end
 
-        -- GROUNDED ANIMATIONS
+        -- grounded animations ::
         else
             -- crouch
             if this.is_squishy and this.current_anim == "crouch" and v_input ~= 1 then
