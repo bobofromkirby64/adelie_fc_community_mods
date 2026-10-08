@@ -494,15 +494,14 @@ roundelie = {
             -- (2) pop in / end-point
             local cx = this.hurtbox.x + (this.hurtbox.w / 2)
             local cy = this.hurtbox.y + (this.hurtbox.h / 2) - 1
-
             local n = 3  -- split circle into `n` partitions
             local r = 2 * math.pi / n -- radians
 
             -- groups of randomly distributed "spark" particles
             for i = 1, n do
                 -- each group has a base angle within equal partitions of a circle centered on the teleport hitbox
-                for i = 1, 7 do
-                    local angle = (i * r) + (2 * math.pi * math.random() * 0.5)  -- angle is further randomized for each particle
+                for k = 1, 7 do
+                    local angle = (k * r) + (2 * math.pi * math.random() * 0.5)  -- angle is further randomized for each particle
                     -- (( ty @meep @lazydevs on youtube for the refs, lol ))
                     table.insert(
                         particles_fg, {
@@ -513,54 +512,61 @@ roundelie = {
                             speed = 3.5 + math.random(8,14) * 0.095,  -- magnitude for movement vector
                             drag = 0.5,  -- i.e. deceleration applied on each tick
 
-                            timer = 0,
-                            duration = 7 + math.random(0, 3),
-
                             tp_info = this.teleport_info,
                             on_hit_flag = false,
+
+                            timer = 0,
+                            duration = 7 + math.random(0, 3),
 
                             update = function(p)
                                 if p.timer > 0 and (not p.on_hit_flag) and p.tp_info.on_hit then
                                     p.on_hit_flag = true
-                                    p.speed = p.speed * 1.35  --
-                                    p.drag  = p.drag * 1.35   --
+                                    p.speed = p.speed * 1.35
+                                    p.drag  = p.drag  * 1.35
                                 end
                                 p.x = p.x + p.vx * p.speed
                                 p.y = p.y + p.vy * p.speed
                                 p.vx = p.vx * p.drag
                                 p.vy = p.vy * p.drag
-                                
+
                                 p.timer = p.timer + 1
                                 return p.timer >= p.duration
                             end,
 
                             draw = function(p)
                                 local fade = 1 - (p.timer / (p.duration + (p.duration/2)))
-                                local scalar = 1.95
-                                love.graphics.setColor(1, 1, 1, 1)
+                                local r, g, b, a
 
+                                -- main spark pixel
                                 if p.timer <= 2 then  -- meant to match up with initial "burst" (white circle drawn over the hitbox for 1f)
                                     love.graphics.setColor(1, 1, 1, 1)
                                 else
-                                    -- TODO: messy, and I don't think the "scalar" is doing what I think it's' doing...
                                     if p.on_hit_flag then
-                                        love.graphics.setColor((255*fade*scalar)/255, (156*fade*scalar)/255, (39*fade*scalar)/255, 1)
+                                        r, g, b, a = 255, 156, 39, 1
                                     else
-                                        love.graphics.setColor((229*fade*scalar)/255, (229*fade*scalar)/255, (229*fade*scalar)/255, fade)
+                                        r, g, b, a = 229, 229, 229, fade
                                     end
+                                    love.graphics.setColor((r*fade*2)/255, (g*fade*2)/255, (b*fade*2)/255, a)
                                 end
                                 love.graphics.rectangle("fill", math.floor(p.x), math.floor(p.y), 1, 1)
+
+                                -- trailing pixels
                                 if p.on_hit_flag then
-                                    love.graphics.setColor((255*fade*scalar)/255, (116*fade*scalar)/255, (39*fade*scalar)/255, 1)
+                                    r, g, b, a = 255, 116, 39, 1
                                 else
-                                    love.graphics.setColor((215*fade*scalar)/255, (215*fade*scalar)/255, (215*fade*scalar)/255, fade)
+                                    r, g, b, a = 215, 215, 215, fade
                                 end
-                                if p.timer >= 1 and (p.x - p.vx * p.speed >= 1.5) then
-                                    love.graphics.rectangle("fill", math.floor(p.x - p.vx * p.speed), math.floor(p.y - p.vy * p.speed), 1, 1)
-                                    if (p.x - p.vx * p.speed >= 3.5) then
-                                        love.graphics.rectangle("fill", math.floor(p.x - p.vx * p.speed - ((p.vx / p.drag) * p.speed)), math.floor(p.y - p.vy * p.speed - ((p.vy/p.drag) * p.speed)), 1, 1)
+                                love.graphics.setColor((r*fade*2)/255, (g*fade*2)/255, (b*fade*2)/255, a)
+
+                                local x1, y1 = p.x - p.vx * p.speed, p.y - p.vy * p.speed
+                                local x2, y2 = x1 - ((p.vx / p.drag) * p.speed), y1 - ((p.vy / p.drag) * p.speed)
+                                if p.timer >= 1 and x1 >= 1.5 then
+                                    love.graphics.rectangle("fill", math.floor(x1), math.floor(y1), 1, 1)
+                                    if (x1 >= 3.5) then
+                                        love.graphics.rectangle("fill", math.floor(x2), math.floor(y2), 1, 1)
                                     end
                                 end
+
                                 love.graphics.setColor(1, 1, 1, 1)
                             end
                         })
@@ -572,8 +578,8 @@ roundelie = {
                 particles_fg, {
                     x = this.x,
                     y = this.y,
-                    cx = this.hurtbox.x + (this.hurtbox.w / 2),
-                    cy = this.hurtbox.y + (this.hurtbox.h / 2),
+                    cx = cx,
+                    cy = cy + 1,
                     timer = 0,
                     duration = 3,
                     draw_smoke = true,
@@ -584,13 +590,13 @@ roundelie = {
                     end,
 
                     draw = function(p)
-                        -- smoke
+                        -- smoke, on frame 2
                         if p.draw_smoke and p.timer >= 2 then
                             p.draw_smoke = false
                             game.init_smoke(p.x, p.y)
                         end
 
-                        -- initial burst
+                        -- initial burst, on frames 0 and 1
                         if p.timer <= 1 then
                             love.graphics.setColor(1, 1, 1)
                             -- hitbox is size 10x10 and centered on roundelie => 12-diameter circle fits well enough
